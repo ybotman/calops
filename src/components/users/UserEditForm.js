@@ -65,12 +65,23 @@ export default function UserEditForm({ user, roles, onSubmit }) {
         setOrganizersLoading(true);
         // Use the appId from the user if available, or default to "1"
         const appId = user?.appId || "1";
-        const response = await axios.get(`/api/organizers?appId=${appId}`);
-        setOrganizers(response.data);
+        
+        // Make sure to add isActive=true as a parameter to satisfy backend requirements
+        const response = await axios.get(`/api/organizers?appId=${appId}&isActive=true`);
+        
+        if (response.data && Array.isArray(response.data)) {
+          console.log(`Loaded ${response.data.length} organizers for dropdown`);
+          setOrganizers(response.data);
+        } else {
+          console.error('Invalid organizers data format:', response.data);
+          setOrganizers([]);
+        }
+        
         setOrganizersLoading(false);
       } catch (error) {
         console.error('Error fetching organizers:', error);
         setOrganizersLoading(false);
+        setOrganizers([]); // Set empty array to prevent errors
       }
     };
 

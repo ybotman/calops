@@ -22,6 +22,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import EditIcon from '@mui/icons-material/Edit';
 import AddIcon from '@mui/icons-material/Add';
 import LinkIcon from '@mui/icons-material/Link';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { organizersApi, usersApi } from '@/lib/api-client';
 import OrganizerEditForm from '@/components/organizers/OrganizerEditForm';
 import OrganizerCreateForm from '@/components/organizers/OrganizerCreateForm';
@@ -138,6 +139,75 @@ export default function OrganizersPage() {
     setConnectingOrganizer(organizer);
     setConnectDialogOpen(true);
   };
+  
+  // Handle delete organizer
+  const handleDeleteOrganizer = async (organizer) => {
+    try {
+      // Get confirmation
+      if (!window.confirm(`Are you sure you want to delete the organizer "${organizer.displayName}"?\nThis action cannot be undone.`)) {
+        return;
+      }
+      
+      setLoading(true);
+      
+      // First, check if this organizer is connected to a user
+      if (organizer.linkedUserLogin) {
+        // Find which user is connected to this organizer
+        const users = await usersApi.getUsers(appId);
+        const connectedUser = users.find(user => 
+          user.regionalOrganizerInfo?.organizerId === organizer._id ||
+          (typeof user.regionalOrganizerInfo?.organizerId === 'object' && 
+           user.regionalOrganizerInfo?.organizerId._id === organizer._id)
+        );
+        
+        if (connectedUser) {
+          // Disconnect organizer from user
+          const userUpdateData = {
+            firebaseUserId: connectedUser.firebaseUserId,
+            appId: connectedUser.appId || appId,
+            regionalOrganizerInfo: {
+              ...connectedUser.regionalOrganizerInfo,
+              organizerId: null,
+              isApproved: false,
+              isEnabled: false,
+              isActive: false
+            }
+          };
+          
+          // Update user to remove organizer connection
+          await usersApi.updateUser(userUpdateData);
+        }
+      }
+      
+      // Delete the organizer
+      await axios.delete(`${process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010'}/api/organizers/${organizer._id}?appId=${appId}`);
+      
+      // Refresh organizers list
+      const organizersData = await organizersApi.getOrganizers(appId);
+      
+      // Process organizers data
+      const processedOrganizers = organizersData.map(org => ({
+        ...org,
+        id: org._id,
+        displayName: org.name || 'Unnamed Organizer',
+        shortDisplayName: org.shortName || 'No short name',
+        status: org.isActive ? 'Active' : 'Inactive',
+        approved: org.isApproved ? 'Yes' : 'No',
+        enabled: org.isEnabled ? 'Yes' : 'No',
+        userConnected: org.linkedUserLogin ? 'Yes' : 'No',
+      }));
+      
+      setOrganizers(processedOrganizers);
+      filterOrganizers(searchTerm);
+      
+      alert('Organizer deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting organizer:', error);
+      alert(`Error deleting organizer: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Handle create organizer button click
   const handleCreateOrganizer = () => {
@@ -170,8 +240,35 @@ export default function OrganizersPage() {
       
       console.log('Updating organizer:', updatedOrganizer);
       
-      // Update organizer directly to the backend
-      await organizersApi.updateOrganizer(updatedOrganizer._id, updatedOrganizer);
+      // Make sure we have the appId in the updatedOrganizer
+      const organizerWithAppId = {
+        ...updatedOrganizer,
+        appId: updatedOrganizer.appId || appId
+      };
+      
+      // Try direct update via axios instead of the api-client
+      try {
+        // First log what we're attempting to do
+        console.log(`Directly updating organizer ${organizerWithAppId._id} with appId ${organizerWithAppId.appId}`);
+        
+        const response = await axios.patch(
+          `/api/organizers/${organizerWithAppId._id}?appId=${organizerWithAppId.appId}`, 
+          organizerWithAppId
+        );
+        
+        console.log('Update successful:', response.data);
+      } catch (axiosError) {
+        console.error('Direct PATCH failed:', axiosError);
+        console.log('Falling back to direct PUT to backend...');
+        
+        // If that fails, try to use the backend API directly
+        const directResponse = await axios.put(
+          `${process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010'}/api/organizers/${organizerWithAppId._id}?appId=${organizerWithAppId.appId}`,
+          organizerWithAppId
+        );
+        
+        console.log('Direct PUT to backend successful:', directResponse.data);
+      }
       
       // Refresh organizers list
       const organizersData = await organizersApi.getOrganizers(appId);
@@ -192,13 +289,24 @@ export default function OrganizersPage() {
       filterOrganizers(searchTerm);
       setDialogOpen(false);
       setEditingOrganizer(null);
-      setLoading(false);
       
       // Show success message
       alert('Organizer updated successfully!');
     } catch (error) {
       console.error('Error updating organizer:', error);
-      alert(`Error updating organizer: ${error.message}`);
+      
+      // More detailed error reporting
+      let errorMessage = 'Failed to update organizer';
+      if (error.response) {
+        console.error('Error response data:', error.response.data);
+        console.error('Error response status:', error.response.status);
+        errorMessage += `: ${error.response.status} - ${JSON.stringify(error.response.data || error.message)}`;
+      } else {
+        errorMessage += `: ${error.message}`;
+      }
+      
+      alert(errorMessage);
+    } finally {
       setLoading(false);
     }
   };
@@ -306,7 +414,7 @@ export default function OrganizersPage() {
     { 
       field: 'actions', 
       headerName: 'Actions', 
-      width: 200,
+      width: 300,
       renderCell: (params) => (
         <Box>
           <Button
@@ -315,6 +423,7 @@ export default function OrganizersPage() {
             onClick={() => handleEditOrganizer(params.row)}
             startIcon={<EditIcon />}
             sx={{ mr: 1 }}
+            size="small"
           >
             Edit
           </Button>
@@ -323,8 +432,19 @@ export default function OrganizersPage() {
             color="secondary"
             onClick={() => handleConnectOrganizer(params.row)}
             startIcon={<LinkIcon />}
+            sx={{ mr: 1 }}
+            size="small"
           >
             Link
+          </Button>
+          <Button
+            variant="text"
+            color="error"
+            onClick={() => handleDeleteOrganizer(params.row)}
+            startIcon={<DeleteIcon />}
+            size="small"
+          >
+            Delete
           </Button>
         </Box>
       ) 

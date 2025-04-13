@@ -16,12 +16,17 @@ import {
   DialogContent,
   DialogActions,
   Tooltip,
+  Grid,
+  FormControlLabel,
+  Switch,
+  Divider,
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import SearchIcon from '@mui/icons-material/Search';
 import EditIcon from '@mui/icons-material/Edit';
 import PersonAddIcon from '@mui/icons-material/Add';
 import LinkIcon from '@mui/icons-material/Link';
+import DeleteIcon from '@mui/icons-material/Delete';
 import UserEditForm from '@/components/users/UserEditForm';
 import { usersApi, rolesApi } from '@/lib/api-client';
 import axios from 'axios';
@@ -52,13 +57,54 @@ export default function UsersPage() {
   const [appId, setAppId] = useState('1'); // Default to TangoTiempo
   const [editingUser, setEditingUser] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [addUserDialogOpen, setAddUserDialogOpen] = useState(false);
   const [roles, setRoles] = useState([]);
   const [creatingOrganizer, setCreatingOrganizer] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [newUser, setNewUser] = useState({
+    email: '',
+    password: '',
+    firstName: '',
+    lastName: '',
+    active: true,
+    isOrganizer: false,
+  });
+
+  // Function to refresh users
+  const refreshUsers = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch users directly from the backend
+      const usersData = await usersApi.getUsers(appId);
+      
+      // Process users data to add display name and computed fields
+      const processedUsers = usersData.map(user => ({
+        ...user,
+        id: user._id, // For DataGrid key
+        displayName: `${user.localUserInfo?.firstName || ''} ${user.localUserInfo?.lastName || ''}`.trim() || 'Unnamed User',
+        email: user.firebaseUserInfo?.email || 'No email',
+        roleNames: (user.roleIds || [])
+          .map(role => typeof role === 'object' ? role.roleName : 'Unknown')
+          .join(', '),
+        isActive: user.active ? 'Active' : 'Inactive',
+        isOrganizer: user.regionalOrganizerInfo?.organizerId ? 'Yes' : 'No',
+        tempFirebaseId: user.firebaseUserId || '',
+      }));
+      
+      setUsers(processedUsers);
+      setFilteredUsers(processedUsers);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      setLoading(false);
+      alert(`Failed to fetch users: ${error.message}`);
+    }
+  };
 
   // Fetch users and roles on component mount
   useEffect(() => {
-    const fetchUsers = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
         
@@ -66,34 +112,16 @@ export default function UsersPage() {
         const rolesData = await rolesApi.getRoles(appId);
         setRoles(rolesData || []);
         
-        // Then fetch users directly from the backend
-        const usersData = await usersApi.getUsers(appId);
-        
-        // Process users data to add display name and computed fields
-        const processedUsers = usersData.map(user => ({
-          ...user,
-          id: user._id, // For DataGrid key
-          displayName: `${user.localUserInfo?.firstName || ''} ${user.localUserInfo?.lastName || ''}`.trim() || 'Unnamed User',
-          email: user.firebaseUserInfo?.email || 'No email',
-          roleNames: (user.roleIds || [])
-            .map(role => typeof role === 'object' ? role.roleName : 'Unknown')
-            .join(', '),
-          isActive: user.active ? 'Active' : 'Inactive',
-          isOrganizer: user.regionalOrganizerInfo?.organizerId ? 'Yes' : 'No',
-          tempFirebaseId: user.firebaseUserId || '',
-        }));
-        
-        setUsers(processedUsers);
-        setFilteredUsers(processedUsers);
-        setLoading(false);
+        // Then refresh users
+        await refreshUsers();
       } catch (error) {
-        console.error('Error fetching users:', error);
+        console.error('Error initializing data:', error);
         setLoading(false);
-        alert(`Failed to fetch users: ${error.message}`);
+        alert(`Failed to fetch data: ${error.message}`);
       }
     };
 
-    fetchUsers();
+    fetchData();
   }, [appId]);
 
   // Handle tab change
@@ -210,24 +238,8 @@ export default function UsersPage() {
       console.log('Updating user roles:', roleIds);
       await usersApi.updateUserRoles(updatedUser.firebaseUserId, roleIds, appId);
       
-      // Refresh users list directly from the backend
-      const usersData = await usersApi.getUsers(appId);
-      
-      // Process users data
-      const processedUsers = usersData.map(user => ({
-        ...user,
-        id: user._id,
-        displayName: `${user.localUserInfo?.firstName || ''} ${user.localUserInfo?.lastName || ''}`.trim() || 'Unnamed User',
-        email: user.firebaseUserInfo?.email || 'No email',
-        roleNames: (user.roleIds || [])
-          .map(role => typeof role === 'object' ? role.roleName : 'Unknown')
-          .join(', '),
-        isActive: user.active ? 'Active' : 'Inactive',
-        isOrganizer: user.regionalOrganizerInfo?.organizerId ? 'Yes' : 'No',
-        tempFirebaseId: user.firebaseUserId || '',
-      }));
-      
-      setUsers(processedUsers);
+      // Refresh the users list
+      await refreshUsers();
       filterUsers(searchTerm);
       setDialogOpen(false);
       setEditingUser(null);
@@ -248,7 +260,10 @@ export default function UsersPage() {
       setSelectedUser(user);
       setCreatingOrganizer(true);
       
-      // Create basic organizer data
+      // Check if this user has a valid firebase ID (check if it's not a temp ID)
+      const isFirebaseUser = !user.firebaseUserId.startsWith('temp_');
+      
+      // Use the existing user's Firebase ID if available
       const organizerData = {
         firebaseUserId: user.firebaseUserId,
         linkedUserLogin: user._id,
@@ -269,7 +284,7 @@ export default function UsersPage() {
         }
       };
       
-      // Attempt to create directly using axios to the backend API
+      // Create the organizer
       const response = await axios.post(`${process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010'}/api/organizers`, organizerData);
       
       console.log("Organizer created:", response.data);
@@ -306,21 +321,7 @@ export default function UsersPage() {
       }
       
       // Refresh users
-      const refreshedUsers = await usersApi.getUsers(appId);
-      const processedUsers = refreshedUsers.map(user => ({
-        ...user,
-        id: user._id,
-        displayName: `${user.localUserInfo?.firstName || ''} ${user.localUserInfo?.lastName || ''}`.trim() || 'Unnamed User',
-        email: user.firebaseUserInfo?.email || 'No email',
-        roleNames: (user.roleIds || [])
-          .map(role => typeof role === 'object' ? role.roleName : 'Unknown')
-          .join(', '),
-        isActive: user.active ? 'Active' : 'Inactive',
-        isOrganizer: user.regionalOrganizerInfo?.organizerId ? 'Yes' : 'No',
-        tempFirebaseId: user.firebaseUserId || '',
-      }));
-      
-      setUsers(processedUsers);
+      await refreshUsers();
       filterUsers(searchTerm);
       
       alert(`Organizer "${organizerData.fullName}" created successfully and linked to this user!`);
@@ -338,6 +339,189 @@ export default function UsersPage() {
     } finally {
       setCreatingOrganizer(false);
       setSelectedUser(null);
+    }
+  };
+
+  // Handle delete organizer
+  const handleDeleteOrganizer = async (user) => {
+    try {
+      if (!user.regionalOrganizerInfo?.organizerId) {
+        alert('This user does not have an organizer to delete.');
+        return;
+      }
+
+      // Get confirmation
+      if (!window.confirm(`Are you sure you want to delete the organizer associated with ${user.displayName}?\nThis action cannot be undone.`)) {
+        return;
+      }
+
+      setSelectedUser(user);
+      setLoading(true);
+
+      // First, disconnect the organizer from the user
+      const userUpdateData = {
+        firebaseUserId: user.firebaseUserId,
+        appId: user.appId || '1',
+        regionalOrganizerInfo: {
+          ...user.regionalOrganizerInfo,
+          organizerId: null, // Remove the organizer reference
+          isApproved: false,
+          isEnabled: false,
+          isActive: false
+        }
+      };
+
+      // Update user to remove organizer connection
+      await usersApi.updateUser(userUpdateData);
+
+      // Now delete the organizer
+      let organizerId = user.regionalOrganizerInfo.organizerId;
+      if (typeof organizerId === 'object') {
+        // Handle the case where organizerId is an object with _id
+        organizerId = organizerId._id;
+      }
+
+      // Delete the organizer
+      await axios.delete(`${process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010'}/api/organizers/${organizerId}?appId=${user.appId || '1'}`);
+
+      // Refresh users
+      await refreshUsers();
+      filterUsers(searchTerm);
+
+      alert('Organizer deleted successfully!');
+    } catch (error) {
+      console.error("Error deleting organizer:", error);
+      
+      let errorMessage = 'Failed to delete organizer';
+      if (error.response && error.response.data) {
+        errorMessage += `: ${error.response.data.message || JSON.stringify(error.response.data)}`;
+      } else {
+        errorMessage += `: ${error.message}`;
+      }
+      
+      alert(errorMessage);
+    } finally {
+      setLoading(false);
+      setSelectedUser(null);
+    }
+  };
+  
+  // Handle create new user
+  const handleCreateUser = async () => {
+    try {
+      // Basic validation
+      if (!newUser.email || !newUser.password || !newUser.firstName || !newUser.lastName) {
+        alert('Please fill in all required fields');
+        return;
+      }
+      
+      if (newUser.password.length < 6) {
+        alert('Password must be at least 6 characters');
+        return;
+      }
+      
+      // Set loading state
+      setLoading(true);
+      
+      // 1. Create user with Firebase authentication
+      const response = await axios.post('/api/users', {
+        email: newUser.email,
+        password: newUser.password,
+        firstName: newUser.firstName,
+        lastName: newUser.lastName,
+        appId: appId,
+        active: newUser.active,
+      });
+      
+      // Get the newly created user data with Firebase ID
+      const createdUser = response.data;
+      console.log('Created user:', createdUser);
+      
+      // If the user requested to create an organizer, do that now
+      if (newUser.isOrganizer && createdUser.firebaseUserId) {
+        try {
+          // Prepare organizer data
+          const organizerData = {
+            firebaseUserId: createdUser.firebaseUserId,
+            linkedUserLogin: createdUser._id,
+            appId: appId,
+            fullName: `${newUser.firstName} ${newUser.lastName}`.trim(),
+            shortName: newUser.firstName,
+            organizerRegion: "66c4d99042ec462ea22484bd", // US region default
+            isActive: true,
+            isEnabled: true,
+            wantRender: true,
+            organizerTypes: {
+              isEventOrganizer: true,
+              isVenue: false,
+              isTeacher: false,
+              isMaestro: false,
+              isDJ: false,
+              isOrchestra: false
+            }
+          };
+          
+          // Create the organizer
+          const organizerResponse = await axios.post(`${process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010'}/api/organizers`, organizerData);
+          console.log("Organizer created:", organizerResponse.data);
+          
+          // Update user to include organizerId reference
+          const userUpdateData = {
+            firebaseUserId: createdUser.firebaseUserId,
+            appId: appId,
+            regionalOrganizerInfo: {
+              organizerId: organizerResponse.data._id,
+              isApproved: true,
+              isEnabled: true,
+              isActive: true
+            }
+          };
+          
+          // Update user with organizer reference
+          await usersApi.updateUser(userUpdateData);
+          
+          // Add organizer role to the user
+          const organizerRole = roles.find(role => role.roleName === 'RegionalOrganizer');
+          if (organizerRole) {
+            await usersApi.updateUserRoles(createdUser.firebaseUserId, [organizerRole._id], appId);
+          }
+        } catch (organizerError) {
+          console.error("Error creating organizer for new user:", organizerError);
+          
+          // Still continue since the user was created successfully
+          alert(`User created, but could not create organizer: ${organizerError.message}`);
+        }
+      }
+      
+      // Refresh the user list
+      await refreshUsers();
+      filterUsers(searchTerm);
+      
+      // Reset form and close dialog
+      setNewUser({
+        email: '',
+        password: '',
+        firstName: '',
+        lastName: '',
+        active: true,
+        isOrganizer: false,
+      });
+      setAddUserDialogOpen(false);
+      
+      alert(`User ${newUser.firstName} ${newUser.lastName} created successfully!`);
+    } catch (error) {
+      console.error("Error creating user:", error);
+      
+      let errorMessage = 'Failed to create user';
+      if (error.response && error.response.data) {
+        errorMessage += `: ${error.response.data.message || JSON.stringify(error.response.data)}`;
+      } else {
+        errorMessage += `: ${error.message}`;
+      }
+      
+      alert(errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -364,7 +548,7 @@ export default function UsersPage() {
             Edit
           </Button>
           
-          {params.row.isOrganizer === 'No' && (
+          {params.row.isOrganizer === 'No' ? (
             <Tooltip title="Create an organizer for this user">
               <Button
                 variant="text"
@@ -372,8 +556,22 @@ export default function UsersPage() {
                 onClick={() => handleQuickCreateOrganizer(params.row)}
                 startIcon={<LinkIcon />}
                 disabled={creatingOrganizer}
+                size="small"
               >
                 {creatingOrganizer && selectedUser?._id === params.row._id ? 'Creating...' : 'Create Org'}
+              </Button>
+            </Tooltip>
+          ) : (
+            <Tooltip title="Delete this user's organizer">
+              <Button
+                variant="text"
+                color="error"
+                onClick={() => handleDeleteOrganizer(params.row)}
+                startIcon={<DeleteIcon />}
+                disabled={loading}
+                size="small"
+              >
+                Delete Org
               </Button>
             </Tooltip>
           )}
@@ -390,6 +588,7 @@ export default function UsersPage() {
           variant="contained" 
           color="primary" 
           startIcon={<PersonAddIcon />}
+          onClick={() => setAddUserDialogOpen(true)}
         >
           Add User
         </Button>
@@ -514,6 +713,94 @@ export default function UsersPage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleDialogClose}>Cancel</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Add User Dialog */}
+      <Dialog
+        open={addUserDialogOpen}
+        onClose={() => setAddUserDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Add New User</DialogTitle>
+        <DialogContent>
+          <Box component="form" sx={{ mt: 2 }}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  required
+                  label="First Name"
+                  value={newUser.firstName}
+                  onChange={(e) => setNewUser({...newUser, firstName: e.target.value})}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  required
+                  label="Last Name"
+                  value={newUser.lastName}
+                  onChange={(e) => setNewUser({...newUser, lastName: e.target.value})}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  required
+                  label="Email"
+                  type="email"
+                  value={newUser.email}
+                  onChange={(e) => setNewUser({...newUser, email: e.target.value})}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  required
+                  label="Password"
+                  type="password"
+                  value={newUser.password}
+                  onChange={(e) => setNewUser({...newUser, password: e.target.value})}
+                  helperText="Minimum 6 characters"
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={newUser.active}
+                      onChange={(e) => setNewUser({...newUser, active: e.target.checked})}
+                    />
+                  }
+                  label="User is Active"
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <Divider sx={{ my: 1 }} />
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={newUser.isOrganizer}
+                      onChange={(e) => setNewUser({...newUser, isOrganizer: e.target.checked})}
+                    />
+                  }
+                  label="Create Organizer for this User"
+                />
+              </Grid>
+            </Grid>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAddUserDialogOpen(false)}>Cancel</Button>
+          <Button 
+            variant="contained" 
+            color="primary"
+            onClick={handleCreateUser}
+          >
+            Create User
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

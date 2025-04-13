@@ -108,7 +108,9 @@ export const organizersApi = {
   },
   
   updateOrganizer: async (id, organizerData) => {
-    const response = await apiClient.patch(`/api/organizers/${id}`, organizerData);
+    // Include appId as a query parameter
+    const appId = organizerData.appId || '1';
+    const response = await apiClient.patch(`/api/organizers/${id}?appId=${appId}`, organizerData);
     return response.data;
   },
   

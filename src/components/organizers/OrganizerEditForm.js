@@ -42,7 +42,9 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
     if (organizer) {
       setFormData({
         _id: organizer._id,
+        appId: organizer.appId || '1', // Ensure appId is included
         name: organizer.name || '',
+        fullName: organizer.fullName || organizer.name || '', // Make sure fullName is set 
         shortName: organizer.shortName || '',
         description: organizer.description || '',
         isActive: organizer.isActive !== false, // Default to true if undefined
@@ -60,6 +62,24 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
           postalCode: organizer.address?.postalCode || '',
           country: organizer.address?.country || '',
         },
+        // Add missing fields required by backend
+        organizerRegion: organizer.organizerRegion || "66c4d99042ec462ea22484bd", // Default US region
+        linkedUserLogin: organizer.linkedUserLogin || null, // Include the linked user if any
+        wantRender: organizer.wantRender !== false, // Default to true if not specified
+        organizerTypes: organizer.organizerTypes || {
+          isEventOrganizer: true,
+          isVenue: false,
+          isTeacher: false,
+          isMaestro: false,
+          isDJ: false,
+          isOrchestra: false
+        }
+      });
+      
+      console.log('Initialized form data with:', {
+        _id: organizer._id,
+        appId: organizer.appId || '1',
+        organizerRegion: organizer.organizerRegion || "66c4d99042ec462ea22484bd"
       });
     }
   }, [organizer]);

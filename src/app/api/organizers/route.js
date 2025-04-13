@@ -7,9 +7,19 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const appId = searchParams.get('appId') || "1";
+    const isActive = searchParams.has('isActive') ? searchParams.get('isActive') : null;
     
-    // Use the /all endpoint which doesn't require filters
-    const response = await axios.get(`${BE_URL}/api/organizers/all?appId=${appId}`);
+    // Build the URL with proper query parameters
+    let url = `${BE_URL}/api/organizers/all?appId=${appId}`;
+    
+    // If isActive is provided, add it to the URL
+    // Note: The backend expects a 'true' or 'false' string, not a boolean
+    if (isActive !== null) {
+      url += `&isActive=${isActive}`;
+    }
+    
+    console.log('Fetching organizers with URL:', url);
+    const response = await axios.get(url);
     
     console.log('Successful organizers fetch, count:', response.data.length);
     return NextResponse.json(response.data);
