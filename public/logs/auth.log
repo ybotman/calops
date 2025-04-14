@@ -1,0 +1,33 @@
+# Calendar Admin Authentication Log
+
+This file maintains a record of authentication events in the Calendar Admin application.
+
+## Authentication System Overview
+
+The Calendar Admin app uses a simple password-based authentication system:
+
+1. **Authentication Flow**:
+   - User enters password on login page
+   - Password is hashed client-side using SHA-256
+   - Hash is compared with stored hash in auth.json
+   - On success, an auth_token cookie is set
+   - Middleware checks this cookie on protected routes
+
+2. **Security Considerations**:
+   - Password is never stored in plaintext
+   - SHA-256 hashing is used for password verification
+   - HTTP-only cookies prevent client-side access
+   - HTTPS (in production) ensures secure transmission
+   - Simple but effective for initial deployment
+
+3. **Future Improvements**:
+   - Implement proper user management system
+   - Add username/email login capabilities
+   - Use proper authentication service (Firebase Auth, Auth0, etc.)
+   - Add multi-factor authentication
+   - Implement role-based access control
+
+## Authentication Events
+
+* System initialized with password protection on: 2025-04-14
+* Testing access: 2025-04-14

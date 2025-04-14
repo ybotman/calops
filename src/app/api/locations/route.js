@@ -18,7 +18,8 @@ export async function GET(request) {
     const MasteredCity = await getMasteredCityModel();
     
     const { searchParams } = new URL(request.url);
-    const appId = searchParams.get('appId') || "1";
+    // Ensure appId is always "1" regardless of what's passed in the URL
+    const appId = "1";
     const type = searchParams.get('type') || 'all'; // country, region, division, city, or all
     const active = searchParams.has('active') ? searchParams.get('active') === 'true' : undefined;
     
@@ -98,10 +99,8 @@ export async function POST(request) {
     const data = await request.json();
     const { type, ...locationData } = data;
     
-    // Set default appId if not provided
-    if (!locationData.appId) {
-      locationData.appId = "1";
-    }
+    // Always set appId to "1" regardless of what's provided
+    locationData.appId = "1";
     
     let newLocation;
     let Model;

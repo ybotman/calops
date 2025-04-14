@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/lib/firebase-auth';
+import Image from 'next/image';
 import {
   Box,
   Paper,
@@ -12,37 +12,47 @@ import {
   Alert,
   CircularProgress,
 } from '@mui/material';
-import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const { login, loading } = useAuth();
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Bypass authentication - directly redirect to dashboard
-    router.push('/dashboard');
-    
-    /* Original authentication code - will be restored later
-    setError('');
-
-    if (!email || !password) {
-      setError('Please enter both email and password');
+    if (!password) {
+      setError('Please enter the password');
       return;
     }
-
+    
+    setLoading(true);
+    setError('');
+    
     try {
-      await login(email, password);
-      router.push('/dashboard');
+      const response = await fetch('/api/auth/verify-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Redirect to dashboard on success
+        router.push('/dashboard');
+      } else {
+        setError(data.message || 'Invalid password');
+      }
     } catch (err) {
       console.error('Login error:', err);
-      setError(err.message || 'Failed to login. Please check your credentials.');
+      setError('An error occurred. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    */
   };
 
   return (
@@ -68,14 +78,19 @@ export default function LoginPage() {
       >
         <Box
           sx={{
-            backgroundColor: 'primary.main',
-            borderRadius: '50%',
-            p: 1,
             mb: 2,
-            color: 'white',
+            width: 80,
+            height: 80,
+            position: 'relative'
           }}
         >
-          <LockOutlinedIcon fontSize="large" />
+          <Image
+            src="/MCAdminIcon.png"
+            alt="Calendar Admin"
+            fill
+            style={{ objectFit: 'contain' }}
+            priority
+          />
         </Box>
 
         <Typography component="h1" variant="h5" gutterBottom>
@@ -83,7 +98,7 @@ export default function LoginPage() {
         </Typography>
 
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Enter your credentials to access the admin panel
+          Enter password to access the admin panel
         </Typography>
 
         {error && (
@@ -97,18 +112,6 @@ export default function LoginPage() {
             margin="normal"
             required
             fullWidth
-            id="email"
-            label="Email Address"
-            name="email"
-            autoComplete="email"
-            autoFocus
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <TextField
-            margin="normal"
-            required
-            fullWidth
             name="password"
             label="Password"
             type="password"
@@ -116,6 +119,7 @@ export default function LoginPage() {
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            autoFocus
           />
           <Button
             type="submit"

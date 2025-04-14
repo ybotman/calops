@@ -1,29 +1,40 @@
 import { NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
-import { MasteredCountry, MasteredRegion, MasteredDivision, MasteredCity } from '@/models/Location';
+import { 
+  getMasteredCountryModel, 
+  getMasteredRegionModel, 
+  getMasteredDivisionModel, 
+  getMasteredCityModel
+} from '@/lib/models';
 
-// Get model based on location type
-function getModelForType(type) {
+async function getModelByType(type) {
   switch (type) {
-    case 'country': return MasteredCountry;
-    case 'region': return MasteredRegion;
-    case 'division': return MasteredDivision;
-    case 'city': return MasteredCity;
-    default: throw new Error(`Invalid location type: ${type}`);
+    case 'country':
+      return await getMasteredCountryModel();
+    case 'region':
+      return await getMasteredRegionModel();
+    case 'division':
+      return await getMasteredDivisionModel();
+    case 'city':
+      return await getMasteredCityModel();
+    default:
+      throw new Error(`Invalid location type: ${type}`);
   }
 }
 
-// GET location by type and ID
 export async function GET(request, { params }) {
   try {
     await connectToDatabase();
     
     const { type, id } = params;
-    const Model = getModelForType(type);
     
+    if (!type || !id) {
+      return NextResponse.json({ error: 'Missing location type or ID' }, { status: 400 });
+    }
+    
+    const Model = await getModelByType(type);
     let location;
     
-    // Fetch with appropriate population based on type
     switch (type) {
       case 'country':
         location = await Model.findById(id);
@@ -32,122 +43,94 @@ export async function GET(request, { params }) {
         location = await Model.findById(id).populate('masteredCountryId');
         break;
       case 'division':
-        location = await Model.findById(id)
-          .populate({
-            path: 'masteredRegionId',
-            populate: { path: 'masteredCountryId' }
-          });
+        location = await Model.findById(id).populate({
+          path: 'masteredRegionId',
+          populate: { path: 'masteredCountryId' }
+        });
         break;
       case 'city':
-        location = await Model.findById(id)
-          .populate({
-            path: 'masteredDivisionId',
-            populate: {
-              path: 'masteredRegionId',
-              populate: { path: 'masteredCountryId' }
-            }
-          });
+        location = await Model.findById(id).populate({
+          path: 'masteredDivisionId',
+          populate: {
+            path: 'masteredRegionId',
+            populate: { path: 'masteredCountryId' }
+          }
+        });
         break;
     }
     
     if (!location) {
-      return NextResponse.json({ error: 'Location not found' }, { status: 404 });
+      return NextResponse.json({ error: `${type} not found` }, { status: 404 });
+    }
+    
+    // Force appId to "1" for all responses
+    if (location.appId !== "1") {
+      location.appId = "1";
     }
     
     return NextResponse.json(location);
   } catch (error) {
-    console.error(`Error fetching ${params.type} ${params.id}:`, error);
+    console.error(`Error fetching ${params.type}:`, error);
     return NextResponse.json({ error: `Failed to fetch ${params.type}` }, { status: 500 });
   }
 }
 
-// PATCH update location by type and ID
-export async function PATCH(request, { params }) {
+export async function PUT(request, { params }) {
   try {
     await connectToDatabase();
     
     const { type, id } = params;
-    const Model = getModelForType(type);
-    const updates = await request.json();
     
-    // Find and update the location
+    if (!type || !id) {
+      return NextResponse.json({ error: 'Missing location type or ID' }, { status: 400 });
+    }
+    
+    const data = await request.json();
+    
+    // Always set appId to "1" regardless of what's provided
+    data.appId = "1";
+    
+    const Model = await getModelByType(type);
     const location = await Model.findById(id);
     
     if (!location) {
-      return NextResponse.json({ error: 'Location not found' }, { status: 404 });
+      return NextResponse.json({ error: `${type} not found` }, { status: 404 });
     }
     
-    // Update fields
-    Object.keys(updates).forEach(key => {
-      location[key] = updates[key];
+    // Update the location
+    Object.keys(data).forEach(key => {
+      location[key] = data[key];
     });
     
     await location.save();
     
-    // Return updated location with populated fields
-    let updatedLocation;
-    
-    switch (type) {
-      case 'country':
-        updatedLocation = await Model.findById(id);
-        break;
-      case 'region':
-        updatedLocation = await Model.findById(id).populate('masteredCountryId');
-        break;
-      case 'division':
-        updatedLocation = await Model.findById(id)
-          .populate({
-            path: 'masteredRegionId',
-            populate: { path: 'masteredCountryId' }
-          });
-        break;
-      case 'city':
-        updatedLocation = await Model.findById(id)
-          .populate({
-            path: 'masteredDivisionId',
-            populate: {
-              path: 'masteredRegionId',
-              populate: { path: 'masteredCountryId' }
-            }
-          });
-        break;
-    }
-    
-    return NextResponse.json(updatedLocation);
+    return NextResponse.json({ message: `${type} updated successfully`, location });
   } catch (error) {
-    console.error(`Error updating ${params.type} ${params.id}:`, error);
+    console.error(`Error updating ${params.type}:`, error);
     return NextResponse.json({ error: `Failed to update ${params.type}` }, { status: 500 });
   }
 }
 
-// DELETE (or deactivate) location by type and ID
 export async function DELETE(request, { params }) {
   try {
     await connectToDatabase();
     
     const { type, id } = params;
-    const Model = getModelForType(type);
-    const { searchParams } = new URL(request.url);
-    const hardDelete = searchParams.get('hardDelete') === 'true';
     
-    const location = await Model.findById(id);
-    
-    if (!location) {
-      return NextResponse.json({ error: 'Location not found' }, { status: 404 });
+    if (!type || !id) {
+      return NextResponse.json({ error: 'Missing location type or ID' }, { status: 400 });
     }
     
-    if (hardDelete) {
-      // Hard delete - remove from database
-      await Model.findByIdAndDelete(id);
-      return NextResponse.json({ message: `${type} deleted successfully` });
-    } else {
-      // Soft delete - set active to false
-      location.active = false;
-      await location.save();
-      return NextResponse.json({ message: `${type} deactivated successfully` });
+    const Model = await getModelByType(type);
+    const result = await Model.findByIdAndDelete(id);
+    
+    if (!result) {
+      return NextResponse.json({ error: `${type} not found` }, { status: 404 });
     }
+    
+    return NextResponse.json({ message: `${type} deleted successfully` });
   } catch (error) {
-    console.error(`Error deleting ${params.type} ${params.id}:`, error);
+    console.error(`Error deleting ${params.type}:`, error);
     return NextResponse.json({ error: `Failed to delete ${params.type}` }, { status: 500 });
   }
 }

@@ -1,10 +1,6 @@
 import { NextResponse } from 'next/server';
 import axios from 'axios';
-import { getAuth } from 'firebase-admin/auth';
-import { initAdmin } from '@/lib/firebase-admin';
-
-// Initialize Firebase Admin SDK
-initAdmin();
+import firebaseAdmin from '@/lib/firebase-admin'; // Import the improved firebase admin object
 
 const BE_URL = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
 
@@ -36,30 +32,50 @@ export async function GET(request) {
   }
 }
 
-// POST handler - Create a new user with Firebase authentication
+// POST handler - Create a new user - with or without Firebase authentication
 export async function POST(request) {
   try {
     const { email, password, firstName, lastName, appId = '1', active = true } = await request.json();
 
     // Validate required fields
-    if (!email || !password || !firstName || !lastName) {
+    if (!email || !firstName || !lastName) {
       return NextResponse.json(
         { success: false, message: 'Missing required fields' }, 
         { status: 400 }
       );
     }
 
-    // Create user in Firebase
-    const auth = getAuth();
-    const firebaseUser = await auth.createUser({
-      email,
-      password,
-      displayName: `${firstName} ${lastName}`,
-    });
+    // Generate a unique Firebase-like ID for the user (if we don't have Firebase)
+    let firebaseUserId;
+    
+    // Try to create user in Firebase if available
+    if (firebaseAdmin.isAvailable() && password) {
+      const auth = firebaseAdmin.getAuth();
+      
+      try {
+        const firebaseUser = await auth.createUser({
+          email,
+          password,
+          displayName: `${firstName} ${lastName}`,
+        });
+        firebaseUserId = firebaseUser.uid;
+        console.log(`Firebase user created: ${firebaseUserId}`);
+      } catch (firebaseError) {
+        console.warn('Firebase user creation failed, proceeding with temporary ID:', firebaseError);
+        // Continue with a temp ID instead of returning an error
+        firebaseUserId = `temp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      }
+    } else {
+      // Firebase not available, use a temporary ID
+      console.log('Firebase not available, using temporary ID');
+      firebaseUserId = `temp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    }
+    
+    console.log(`Creating user with ID: ${firebaseUserId}`);
 
     // Prepare data for backend
     const userLoginData = {
-      firebaseUserId: firebaseUser.uid,
+      firebaseUserId,
       appId,
       active,
       localUserInfo: {

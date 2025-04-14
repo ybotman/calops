@@ -140,6 +140,38 @@ export default function OrganizersPage() {
     setConnectDialogOpen(true);
   };
   
+  // Function to refresh organizers
+  const refreshOrganizers = async () => {
+    try {
+      // Fetch organizers with a cache-busting parameter
+      const timestamp = new Date().getTime();
+      console.log(`Refreshing organizers at ${timestamp}...`);
+      
+      // Use direct API call to bypass caching
+      const response = await axios.get(`/api/organizers?appId=${appId}&_=${timestamp}`);
+      const organizersData = response.data;
+      
+      // Process organizers data
+      const processedOrganizers = organizersData.map(org => ({
+        ...org,
+        id: org._id,
+        displayName: org.name || 'Unnamed Organizer',
+        shortDisplayName: org.shortName || 'No short name',
+        status: org.isActive ? 'Active' : 'Inactive',
+        approved: org.isApproved ? 'Yes' : 'No',
+        enabled: org.isEnabled ? 'Yes' : 'No',
+        userConnected: org.linkedUserLogin ? 'Yes' : 'No',
+      }));
+      
+      console.log(`Refreshed ${processedOrganizers.length} organizers`);
+      setOrganizers(processedOrganizers);
+      return processedOrganizers;
+    } catch (error) {
+      console.error('Error refreshing organizers:', error);
+      throw error;
+    }
+  };
+
   // Handle delete organizer
   const handleDeleteOrganizer = async (organizer) => {
     try {
@@ -179,26 +211,23 @@ export default function OrganizersPage() {
         }
       }
       
-      // Delete the organizer
-      await axios.delete(`${process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010'}/api/organizers/${organizer._id}?appId=${appId}`);
+      // Delete the organizer using the API
+      const deleteResponse = await axios.delete(`/api/organizers/${organizer._id}?appId=${appId}`);
+      console.log('Delete response:', deleteResponse.data);
       
-      // Refresh organizers list
-      const organizersData = await organizersApi.getOrganizers(appId);
+      // Force a delay before refreshing to allow server-side propagation
+      await new Promise(resolve => setTimeout(resolve, 500));
       
-      // Process organizers data
-      const processedOrganizers = organizersData.map(org => ({
-        ...org,
-        id: org._id,
-        displayName: org.name || 'Unnamed Organizer',
-        shortDisplayName: org.shortName || 'No short name',
-        status: org.isActive ? 'Active' : 'Inactive',
-        approved: org.isApproved ? 'Yes' : 'No',
-        enabled: org.isEnabled ? 'Yes' : 'No',
-        userConnected: org.linkedUserLogin ? 'Yes' : 'No',
-      }));
+      // Refresh the organizers list
+      const updatedOrganizers = await refreshOrganizers();
       
-      setOrganizers(processedOrganizers);
+      // Apply any current filters
       filterOrganizers(searchTerm);
+      
+      // Set a short timeout to reapply filters (sometimes needed for UI refresh)
+      setTimeout(() => {
+        filterOrganizers(searchTerm);
+      }, 100);
       
       alert('Organizer deleted successfully!');
     } catch (error) {

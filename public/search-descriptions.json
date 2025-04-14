@@ -1,0 +1,44 @@
+{
+  "pages": [
+    {
+      "path": "/",
+      "title": "Calendar Admin Home",
+      "description": "Administration portal for the Calendar application - manage users, organizers, and locations"
+    },
+    {
+      "path": "/dashboard",
+      "title": "Calendar Admin Dashboard",
+      "description": "Main dashboard for Calendar Administration with quick access to all management features"
+    },
+    {
+      "path": "/dashboard/users",
+      "title": "User Management",
+      "description": "Manage user accounts, organizer connections, and permissions for Calendar application"
+    },
+    {
+      "path": "/dashboard/organizers",
+      "title": "Organizer Management",
+      "description": "Manage event organizers, contact information, and organizer properties"
+    },
+    {
+      "path": "/dashboard/locations",
+      "title": "Location Management",
+      "description": "Manage countries, regions, divisions, and cities for event organization"
+    },
+    {
+      "path": "/dashboard/applications",
+      "title": "Application Management",
+      "description": "Configure application settings and properties for Calendar instances"
+    }
+  ],
+  "keywords": [
+    "calendar administration",
+    "event management",
+    "user management",
+    "organizer management",
+    "location management",
+    "admin portal",
+    "event organization",
+    "event calendar admin"
+  ]
+}

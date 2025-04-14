@@ -19,11 +19,16 @@ const apiClient = axios.create({
 
 // Users API
 export const usersApi = {
-  getUsers: async (appId = '1', active) => {
+  getUsers: async (appId = '1', active, timestamp) => {
     let url = `/api/userlogins/all?appId=${appId}`;
     if (active !== undefined) {
       url += `&active=${active}`;
     }
+    // Add timestamp for cache busting if needed
+    if (timestamp) {
+      url += `&_=${timestamp}`;
+    }
+    console.log('Getting users with URL:', url);
     const response = await apiClient.get(url);
     return response.data;
   },

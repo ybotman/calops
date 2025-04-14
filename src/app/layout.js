@@ -8,6 +8,10 @@ const inter = Inter({ subsets: ['latin'] });
 export const metadata = {
   title: 'Calendar Admin',
   description: 'Administration for the Calendar Backend',
+  icons: {
+    icon: '/MCAdminIcon.png',
+    apple: '/MCAdminIcon.png',
+  },
 };
 
 export default function RootLayout({ children }) {

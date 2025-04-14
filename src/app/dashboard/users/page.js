@@ -75,8 +75,11 @@ export default function UsersPage() {
     try {
       setLoading(true);
       
-      // Fetch users directly from the backend
-      const usersData = await usersApi.getUsers(appId);
+      // Use timestamp to force fresh data
+      const timestamp = new Date().getTime();
+      
+      // Fetch users directly from the backend with cache busting
+      const usersData = await usersApi.getUsers(appId, undefined, timestamp);
       
       // Process users data to add display name and computed fields
       const processedUsers = usersData.map(user => ({
@@ -95,6 +98,11 @@ export default function UsersPage() {
       setUsers(processedUsers);
       setFilteredUsers(processedUsers);
       setLoading(false);
+      
+      // Set a short timeout to reapply filters (sometimes needed for UI refresh)
+      setTimeout(() => {
+        setFilteredUsers(prev => [...prev]); // Force re-render
+      }, 100);
     } catch (error) {
       console.error('Error fetching users:', error);
       setLoading(false);
@@ -245,8 +253,7 @@ export default function UsersPage() {
       setEditingUser(null);
       setLoading(false);
       
-      // Show success message
-      alert('User updated successfully!');
+      // No success message needed
     } catch (error) {
       console.error('Error updating user:', error);
       alert(`Error updating user: ${error.message}`);
@@ -264,12 +271,16 @@ export default function UsersPage() {
       const isFirebaseUser = !user.firebaseUserId.startsWith('temp_');
       
       // Use the existing user's Firebase ID if available
+      const fullName = `${user.localUserInfo?.firstName || ''} ${user.localUserInfo?.lastName || ''}`.trim() || 'Unnamed Organizer';
+      const shortName = user.localUserInfo?.firstName || 'Unnamed';
+      
       const organizerData = {
         firebaseUserId: user.firebaseUserId,
         linkedUserLogin: user._id,
         appId: user.appId || '1',
-        fullName: `${user.localUserInfo?.firstName || ''} ${user.localUserInfo?.lastName || ''}`.trim() || 'Unnamed Organizer',
-        shortName: user.localUserInfo?.firstName || 'Unnamed',
+        fullName: fullName,
+        name: fullName, // Add name as well to ensure it's displayed in lists
+        shortName: shortName,
         organizerRegion: "66c4d99042ec462ea22484bd", // US region default
         isActive: true,
         isEnabled: true,
@@ -285,7 +296,7 @@ export default function UsersPage() {
       };
       
       // Create the organizer
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010'}/api/organizers`, organizerData);
+      const response = await axios.post(`/api/organizers`, organizerData);
       
       console.log("Organizer created:", response.data);
       
@@ -295,7 +306,7 @@ export default function UsersPage() {
         appId: user.appId || '1',
         regionalOrganizerInfo: {
           ...user.regionalOrganizerInfo,
-          organizerId: response.data._id,
+          organizerId: response.data.organizer._id || response.data._id,
           isApproved: true,
           isEnabled: true,
           isActive: true
@@ -320,11 +331,29 @@ export default function UsersPage() {
         }
       }
       
-      // Refresh users
-      await refreshUsers();
-      filterUsers(searchTerm);
+      // Set a delay to ensure backend updates are processed
+      await new Promise(resolve => setTimeout(resolve, 500));
       
-      alert(`Organizer "${organizerData.fullName}" created successfully and linked to this user!`);
+      // Force a full refresh of the user data with an anti-cache parameter
+      const timestamp = new Date().getTime();
+      const refreshedUsers = await usersApi.getUsers(appId, undefined, timestamp);
+      
+      // Process users data
+      const processedUsers = refreshedUsers.map(user => ({
+        ...user,
+        id: user._id,
+        displayName: `${user.localUserInfo?.firstName || ''} ${user.localUserInfo?.lastName || ''}`.trim() || 'Unnamed User',
+        email: user.firebaseUserInfo?.email || 'No email',
+        roleNames: (user.roleIds || [])
+          .map(role => typeof role === 'object' ? role.roleName : 'Unknown')
+          .join(', '),
+        isActive: user.active ? 'Active' : 'Inactive',
+        isOrganizer: user.regionalOrganizerInfo?.organizerId ? 'Yes' : 'No',
+        tempFirebaseId: user.firebaseUserId || '',
+      }));
+      
+      setUsers(processedUsers);
+      filterUsers(searchTerm);
     } catch (error) {
       console.error("Error creating organizer:", error);
       
@@ -409,13 +438,14 @@ export default function UsersPage() {
   // Handle create new user
   const handleCreateUser = async () => {
     try {
-      // Basic validation
-      if (!newUser.email || !newUser.password || !newUser.firstName || !newUser.lastName) {
-        alert('Please fill in all required fields');
+      // Basic validation - Just need email and names for direct backend creation
+      if (!newUser.email || !newUser.firstName || !newUser.lastName) {
+        alert('Please fill in all required fields (Email, First name, Last name)');
         return;
       }
       
-      if (newUser.password.length < 6) {
+      // Password validation only if we're using it
+      if (newUser.password && newUser.password.length < 6) {
         alert('Password must be at least 6 characters');
         return;
       }
@@ -423,98 +453,134 @@ export default function UsersPage() {
       // Set loading state
       setLoading(true);
       
-      // 1. Create user with Firebase authentication
-      const response = await axios.post('/api/users', {
-        email: newUser.email,
-        password: newUser.password,
-        firstName: newUser.firstName,
-        lastName: newUser.lastName,
-        appId: appId,
-        active: newUser.active,
-      });
+      // Log what we're attempting to do
+      console.log(`Creating new user: ${newUser.email} (${newUser.firstName} ${newUser.lastName})`);
       
-      // Get the newly created user data with Firebase ID
-      const createdUser = response.data;
-      console.log('Created user:', createdUser);
-      
-      // If the user requested to create an organizer, do that now
-      if (newUser.isOrganizer && createdUser.firebaseUserId) {
-        try {
-          // Prepare organizer data
-          const organizerData = {
-            firebaseUserId: createdUser.firebaseUserId,
-            linkedUserLogin: createdUser._id,
-            appId: appId,
-            fullName: `${newUser.firstName} ${newUser.lastName}`.trim(),
-            shortName: newUser.firstName,
-            organizerRegion: "66c4d99042ec462ea22484bd", // US region default
-            isActive: true,
-            isEnabled: true,
-            wantRender: true,
-            organizerTypes: {
-              isEventOrganizer: true,
-              isVenue: false,
-              isTeacher: false,
-              isMaestro: false,
-              isDJ: false,
-              isOrchestra: false
-            }
-          };
-          
-          // Create the organizer
-          const organizerResponse = await axios.post(`${process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010'}/api/organizers`, organizerData);
-          console.log("Organizer created:", organizerResponse.data);
-          
-          // Update user to include organizerId reference
-          const userUpdateData = {
-            firebaseUserId: createdUser.firebaseUserId,
-            appId: appId,
-            regionalOrganizerInfo: {
-              organizerId: organizerResponse.data._id,
-              isApproved: true,
-              isEnabled: true,
-              isActive: true
-            }
-          };
-          
-          // Update user with organizer reference
-          await usersApi.updateUser(userUpdateData);
-          
-          // Add organizer role to the user
-          const organizerRole = roles.find(role => role.roleName === 'RegionalOrganizer');
-          if (organizerRole) {
-            await usersApi.updateUserRoles(createdUser.firebaseUserId, [organizerRole._id], appId);
-          }
-        } catch (organizerError) {
-          console.error("Error creating organizer for new user:", organizerError);
-          
-          // Still continue since the user was created successfully
-          alert(`User created, but could not create organizer: ${organizerError.message}`);
+      // Confirm that the user understands temp users
+      if (!newUser.password || newUser.password.length === 0) {
+        const confirm = window.confirm("You are creating a temporary user without Firebase authentication. This user won't be able to log in. Continue?");
+        if (!confirm) {
+          setLoading(false);
+          return;
         }
       }
       
-      // Refresh the user list
-      await refreshUsers();
-      filterUsers(searchTerm);
-      
-      // Reset form and close dialog
-      setNewUser({
-        email: '',
-        password: '',
-        firstName: '',
-        lastName: '',
-        active: true,
-        isOrganizer: false,
-      });
-      setAddUserDialogOpen(false);
-      
-      alert(`User ${newUser.firstName} ${newUser.lastName} created successfully!`);
+      // 1. Create user - direct backend call
+      try {
+        // Create user data
+        const userData = {
+          email: newUser.email,
+          password: newUser.password || '', // Password is optional, will create temp user if missing
+          firstName: newUser.firstName,
+          lastName: newUser.lastName,
+          appId: appId,
+          active: newUser.active
+        };
+        
+        // Make the API call directly to our backend
+        console.log('Sending user data to API:', userData);
+        const response = await axios.post('/api/users', userData);
+        console.log('User created response:', response.data);
+        
+        if (!response.data) {
+          throw new Error('No data returned from user creation API');
+        }
+        
+        // Get the newly created user data 
+        const createdUser = response.data;
+        
+        // If the user requested to create an organizer, do that now
+        if (newUser.isOrganizer && createdUser.firebaseUserId) {
+          try {
+            // Prepare organizer data
+            const organizerData = {
+              firebaseUserId: createdUser.firebaseUserId,
+              linkedUserLogin: createdUser._id,
+              appId: appId,
+              fullName: `${newUser.firstName} ${newUser.lastName}`.trim(),
+              shortName: newUser.firstName,
+              organizerRegion: "66c4d99042ec462ea22484bd", // US region default
+              isActive: true,
+              isEnabled: true,
+              wantRender: true,
+              organizerTypes: {
+                isEventOrganizer: true,
+                isVenue: false,
+                isTeacher: false,
+                isMaestro: false,
+                isDJ: false,
+                isOrchestra: false
+              }
+            };
+            
+            console.log('Creating organizer for new user with data:', organizerData);
+            
+            // Create the organizer
+            const organizerResponse = await axios.post('/api/organizers', organizerData);
+            console.log("Organizer created:", organizerResponse.data);
+            
+            // Update user to include organizerId reference
+            const userUpdateData = {
+              firebaseUserId: createdUser.firebaseUserId,
+              appId: appId,
+              regionalOrganizerInfo: {
+                organizerId: organizerResponse.data._id,
+                isApproved: true,
+                isEnabled: true,
+                isActive: true
+              }
+            };
+            
+            // Update user with organizer reference
+            await usersApi.updateUser(userUpdateData);
+            
+            // Add organizer role to the user
+            const organizerRole = roles.find(role => role.roleName === 'RegionalOrganizer');
+            if (organizerRole) {
+              await usersApi.updateUserRoles(createdUser.firebaseUserId, [organizerRole._id], appId);
+            }
+          } catch (organizerError) {
+            console.error("Error creating organizer for new user:", organizerError);
+            
+            // Still continue since the user was created successfully
+            alert(`User created, but could not create organizer: ${organizerError.message}`);
+          }
+        }
+        
+        // Refresh the user list with a cache-busting parameter
+        console.log('Refreshing users after creation...');
+        await refreshUsers();
+        filterUsers(searchTerm);
+        
+        // Reset form and close dialog
+        setNewUser({
+          email: '',
+          password: '',
+          firstName: '',
+          lastName: '',
+          active: true,
+          isOrganizer: false,
+        });
+        setAddUserDialogOpen(false);
+        
+        // No success message needed
+      } catch (directError) {
+        console.error('Direct backend creation failed:', directError);
+        throw directError; // Re-throw to be caught by outer catch
+      }
     } catch (error) {
       console.error("Error creating user:", error);
       
       let errorMessage = 'Failed to create user';
-      if (error.response && error.response.data) {
-        errorMessage += `: ${error.response.data.message || JSON.stringify(error.response.data)}`;
+      if (error.response) {
+        console.error('Error response:', error.response);
+        if (typeof error.response.data === 'string' && error.response.data.includes('<!DOCTYPE html>')) {
+          errorMessage += ': Server error - check the console for details';
+        } else if (error.response.data && error.response.data.message) {
+          errorMessage += `: ${error.response.data.message}`;
+        } else {
+          errorMessage += `: ${error.message}`;
+        }
       } else {
         errorMessage += `: ${error.message}`;
       }
@@ -548,7 +614,7 @@ export default function UsersPage() {
             Edit
           </Button>
           
-          {params.row.isOrganizer === 'No' ? (
+          {params.row.isOrganizer === 'No' && (
             <Tooltip title="Create an organizer for this user">
               <Button
                 variant="text"
@@ -559,19 +625,6 @@ export default function UsersPage() {
                 size="small"
               >
                 {creatingOrganizer && selectedUser?._id === params.row._id ? 'Creating...' : 'Create Org'}
-              </Button>
-            </Tooltip>
-          ) : (
-            <Tooltip title="Delete this user's organizer">
-              <Button
-                variant="text"
-                color="error"
-                onClick={() => handleDeleteOrganizer(params.row)}
-                startIcon={<DeleteIcon />}
-                disabled={loading}
-                size="small"
-              >
-                Delete Org
               </Button>
             </Tooltip>
           )}
@@ -758,12 +811,11 @@ export default function UsersPage() {
               <Grid item xs={12}>
                 <TextField
                   fullWidth
-                  required
                   label="Password"
                   type="password"
                   value={newUser.password}
                   onChange={(e) => setNewUser({...newUser, password: e.target.value})}
-                  helperText="Minimum 6 characters"
+                  helperText="Optional. If provided, minimum 6 characters. Empty = create temporary user."
                 />
               </Grid>
               <Grid item xs={12}>

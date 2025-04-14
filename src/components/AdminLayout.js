@@ -75,9 +75,18 @@ export default function AdminLayout({ children }) {
         alignItems: 'center',
         py: 1 
       }}>
-        <Typography variant="h6" component="div" sx={{ flexGrow: 1, textAlign: 'center' }}>
-          Calendar Admin
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+          <Box 
+            component="img"
+            src="/MCAdminSquareSmall.png"
+            alt="Calendar Admin Logo"
+            sx={{ 
+              height: 40,
+              width: 'auto',
+              mr: 1
+            }}
+          />
+        </Box>
       </Toolbar>
       <Divider />
       <List>
