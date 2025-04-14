@@ -29,7 +29,7 @@ export default function OrganizerCreateForm({ onSubmit, appId = '1' }) {
     },
     publicContactInfo: {
       phone: '',
-      Email: '',
+      email: '', // Changed from Email to email for consistency
       url: '',
       address: {
         street1: '',
@@ -63,6 +63,16 @@ export default function OrganizerCreateForm({ onSubmit, appId = '1' }) {
   const handleChange = (e) => {
     const { name, value, checked } = e.target;
     
+    // Special handling for shortName
+    if (name === 'shortName') {
+      const formattedValue = formatShortName(value);
+      setFormData(prev => ({
+        ...prev,
+        shortName: formattedValue
+      }));
+      return;
+    }
+    
     // Handle nested fields
     if (name.includes('.')) {
       const [parent, child] = name.split('.');
@@ -82,6 +92,19 @@ export default function OrganizerCreateForm({ onSubmit, appId = '1' }) {
     }
   };
 
+  // Validate shortName format
+  const validateShortName = (value) => {
+    // Must be <= 10 chars, no spaces, uppercase only, and only allows !?-_
+    const regex = /^[A-Z0-9!?\-_]{1,10}$/;
+    return regex.test(value);
+  };
+
+  // Format shortName to match requirements
+  const formatShortName = (value) => {
+    // Remove spaces, convert to uppercase
+    return value.replace(/\s+/g, '').toUpperCase().substring(0, 10);
+  };
+  
   // Form validation
   const validateForm = () => {
     if (!formData.name.trim()) {
@@ -90,6 +113,10 @@ export default function OrganizerCreateForm({ onSubmit, appId = '1' }) {
     }
     if (!formData.shortName.trim()) {
       setError('Short name is required');
+      return false;
+    }
+    if (!validateShortName(formData.shortName)) {
+      setError('Short Name must be uppercase with no spaces (max 10 chars, only letters, numbers, !?-_)');
       return false;
     }
     if (!formData.fullName.trim()) {
@@ -111,8 +138,23 @@ export default function OrganizerCreateForm({ onSubmit, appId = '1' }) {
     setLoading(true);
     
     try {
+      // Ensure name fields are consistent and properly set
+      const submitData = {
+        ...formData,
+        // Make sure all name fields are consistent
+        name: formData.name,
+        fullName: formData.name || formData.fullName,
+        shortName: formData.shortName || formData.name,
+        // Ensure boolean fields are explicitly true or false
+        isApproved: formData.isApproved === true ? true : false,
+        isActive: formData.isActive === true ? true : false,
+        isEnabled: formData.isEnabled === true ? true : false
+      };
+      
+      console.log('Submitting organizer data:', submitData);
+      
       // Call the onSubmit function passed as prop
-      await onSubmit(formData);
+      await onSubmit(submitData);
       
       // Clear form
       setFormData({
@@ -130,7 +172,7 @@ export default function OrganizerCreateForm({ onSubmit, appId = '1' }) {
         },
         publicContactInfo: {
           phone: '',
-          Email: '',
+          email: '', // Changed from Email to email for consistency
           url: '',
           address: {
             street1: '',
@@ -190,13 +232,17 @@ export default function OrganizerCreateForm({ onSubmit, appId = '1' }) {
         <Grid item xs={12} sm={6}>
           <TextField
             fullWidth
-            label="Short Name"
+            label="Short Name (UPPERCASE, max 10 chars)"
             name="shortName"
             value={formData.shortName}
             onChange={handleChange}
             required
-            error={error.includes('short name')}
-            helperText="Used for URLs and identifiers"
+            inputProps={{ 
+              maxLength: 10,
+              style: { textTransform: 'uppercase' } 
+            }}
+            error={error.includes('short name') || (formData.shortName.length > 0 && !validateShortName(formData.shortName))}
+            helperText="No spaces, letters, numbers, and !?-_ only"
           />
         </Grid>
         

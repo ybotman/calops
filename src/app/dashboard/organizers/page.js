@@ -27,6 +27,7 @@ import { organizersApi, usersApi } from '@/lib/api-client';
 import OrganizerEditForm from '@/components/organizers/OrganizerEditForm';
 import OrganizerCreateForm from '@/components/organizers/OrganizerCreateForm';
 import OrganizerConnectUserForm from '@/components/organizers/OrganizerConnectUserForm';
+import { useAppContext } from '@/lib/AppContext';
 
 // Tab panel component
 function TabPanel(props) {
@@ -51,7 +52,7 @@ export default function OrganizersPage() {
   const [filteredOrganizers, setFilteredOrganizers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [tabValue, setTabValue] = useState(0);
-  const [appId, setAppId] = useState('1'); // Default to TangoTiempo
+  const { currentApp } = useAppContext();
   const [editingOrganizer, setEditingOrganizer] = useState(null);
   const [creatingOrganizer, setCreatingOrganizer] = useState(false);
   const [connectingOrganizer, setConnectingOrganizer] = useState(null);
@@ -59,12 +60,15 @@ export default function OrganizersPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [connectDialogOpen, setConnectDialogOpen] = useState(false);
 
-  // Fetch organizers on component mount
+  // Fetch organizers when tab or app changes
   useEffect(() => {
     const fetchOrganizers = async () => {
       try {
         setLoading(true);
         let organizersData;
+        const appId = currentApp.id;
+        
+        console.log(`Fetching organizers for AppId: ${appId}, Tab: ${tabValue}`);
         
         // Fetch based on tab
         if (tabValue === 0) { // All
@@ -79,7 +83,7 @@ export default function OrganizersPage() {
         const processedOrganizers = organizersData.map(organizer => ({
           ...organizer,
           id: organizer._id, // For DataGrid key
-          displayName: organizer.name || 'Unnamed Organizer',
+          displayName: organizer.fullName || organizer.name || 'Unnamed Organizer',
           shortDisplayName: organizer.shortName || 'No short name',
           status: organizer.isActive ? 'Active' : 'Inactive',
           approved: organizer.isApproved ? 'Yes' : 'No',
@@ -98,7 +102,7 @@ export default function OrganizersPage() {
     };
 
     fetchOrganizers();
-  }, [appId, tabValue]);
+  }, [currentApp.id, tabValue]);
 
   // Handle tab change
   const handleTabChange = (event, newValue) => {
@@ -185,7 +189,7 @@ export default function OrganizersPage() {
       // First, check if this organizer is connected to a user
       if (organizer.linkedUserLogin) {
         // Find which user is connected to this organizer
-        const users = await usersApi.getUsers(appId);
+        const users = await usersApi.getUsers(currentApp.id);
         const connectedUser = users.find(user => 
           user.regionalOrganizerInfo?.organizerId === organizer._id ||
           (typeof user.regionalOrganizerInfo?.organizerId === 'object' && 
@@ -196,7 +200,7 @@ export default function OrganizersPage() {
           // Disconnect organizer from user
           const userUpdateData = {
             firebaseUserId: connectedUser.firebaseUserId,
-            appId: connectedUser.appId || appId,
+            appId: connectedUser.appId || currentApp.id,
             regionalOrganizerInfo: {
               ...connectedUser.regionalOrganizerInfo,
               organizerId: null,
@@ -212,7 +216,7 @@ export default function OrganizersPage() {
       }
       
       // Delete the organizer using the API
-      const deleteResponse = await axios.delete(`/api/organizers/${organizer._id}?appId=${appId}`);
+      const deleteResponse = await axios.delete(`/api/organizers/${organizer._id}?appId=${currentApp.id}`);
       console.log('Delete response:', deleteResponse.data);
       
       // Force a delay before refreshing to allow server-side propagation
@@ -269,11 +273,21 @@ export default function OrganizersPage() {
       
       console.log('Updating organizer:', updatedOrganizer);
       
-      // Make sure we have the appId in the updatedOrganizer
+      // Make sure we have the appId in the updatedOrganizer and ensure boolean fields are properly set
       const organizerWithAppId = {
         ...updatedOrganizer,
-        appId: updatedOrganizer.appId || appId
+        appId: updatedOrganizer.appId || currentApp.id,
+        // Ensure both name fields are set consistently
+        name: updatedOrganizer.name,
+        fullName: updatedOrganizer.name,
+        shortName: updatedOrganizer.shortName || updatedOrganizer.name,
+        // Explicitly convert boolean fields with ternary to ensure true/false values
+        isApproved: updatedOrganizer.isApproved === true ? true : false,
+        isActive: updatedOrganizer.isActive === true ? true : false,
+        isEnabled: updatedOrganizer.isEnabled === true ? true : false
       };
+      
+      console.log('Formatted organizer for update:', organizerWithAppId);
       
       // Try direct update via axios instead of the api-client
       try {
@@ -300,7 +314,7 @@ export default function OrganizersPage() {
       }
       
       // Refresh organizers list
-      const organizersData = await organizersApi.getOrganizers(appId);
+      const organizersData = await organizersApi.getOrganizers(currentApp.id);
       
       // Process organizers data
       const processedOrganizers = organizersData.map(organizer => ({
@@ -350,13 +364,13 @@ export default function OrganizersPage() {
       // Use the test-create endpoint for more reliable organizer creation
       const response = await axios.post('/api/organizers/test-create', {
         ...newOrganizer,
-        appId
+        appId: currentApp.id
       });
       
       console.log('Organizer created:', response.data);
       
       // Refresh organizers list
-      const organizersData = await organizersApi.getOrganizers(appId);
+      const organizersData = await organizersApi.getOrganizers(currentApp.id);
       
       // Process organizers data
       const processedOrganizers = organizersData.map(organizer => ({
@@ -400,10 +414,10 @@ export default function OrganizersPage() {
       console.log('Connecting organizer to user:', { organizerId, firebaseUserId });
       
       // Connect organizer to user
-      await organizersApi.connectToUser(organizerId, firebaseUserId, appId);
+      await organizersApi.connectToUser(organizerId, firebaseUserId, currentApp.id);
       
       // Refresh organizers list
-      const organizersData = await organizersApi.getOrganizers(appId);
+      const organizersData = await organizersApi.getOrganizers(currentApp.id);
       
       // Process organizers data
       const processedOrganizers = organizersData.map(organizer => ({
@@ -606,7 +620,7 @@ export default function OrganizersPage() {
         <DialogContent>
           <OrganizerCreateForm
             onSubmit={handleCreateOrganizerSubmit}
-            appId={appId}
+            appId={currentApp.id}
           />
         </DialogContent>
         <DialogActions>

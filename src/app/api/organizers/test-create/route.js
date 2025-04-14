@@ -22,7 +22,11 @@ export async function POST(request) {
       firebaseUserId: tempFirebaseUserId,
       firstName: data.name || data.fullName || 'Test',
       lastName: 'User',
-      appId: data.appId || '1'
+      appId: data.appId || '1',
+      // Ensure boolean flags are set explicitly
+      isApproved: data.isApproved === true ? true : false,
+      isActive: data.isActive === true ? true : false,
+      isEnabled: data.isEnabled === true ? true : false
     };
     
     console.log('Sending user creation request with data:', userData);

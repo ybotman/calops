@@ -43,13 +43,13 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
       setFormData({
         _id: organizer._id,
         appId: organizer.appId || '1', // Ensure appId is included
-        name: organizer.name || '',
+        name: organizer.name || organizer.fullName || '', // Handle either name format
         fullName: organizer.fullName || organizer.name || '', // Make sure fullName is set 
         shortName: organizer.shortName || '',
         description: organizer.description || '',
-        isActive: organizer.isActive !== false, // Default to true if undefined
-        isApproved: organizer.isApproved || false,
-        isEnabled: organizer.isEnabled || false,
+        isActive: organizer.isActive === true ? true : false,
+        isApproved: organizer.isApproved === true ? true : false,
+        isEnabled: organizer.isEnabled === true ? true : false,
         contactInfo: {
           email: organizer.contactInfo?.email || '',
           phone: organizer.contactInfo?.phone || '',
@@ -76,6 +76,12 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
         }
       });
       
+      console.log('Loaded organizer with:', {
+        name: organizer.name,
+        fullName: organizer.fullName,
+        shortName: organizer.shortName
+      });
+      
       console.log('Initialized form data with:', {
         _id: organizer._id,
         appId: organizer.appId || '1',
@@ -84,9 +90,32 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
     }
   }, [organizer]);
 
+  // Validate shortName format
+  const validateShortName = (value) => {
+    // Must be <= 10 chars, no spaces, uppercase only, and only allows !?-_
+    const regex = /^[A-Z0-9!?\-_]{1,10}$/;
+    return regex.test(value);
+  };
+
+  // Format shortName to match requirements
+  const formatShortName = (value) => {
+    // Remove spaces, convert to uppercase
+    return value.replace(/\s+/g, '').toUpperCase().substring(0, 10);
+  };
+
   // Handle form field changes
   const handleChange = (e) => {
     const { name, value, checked } = e.target;
+    
+    // Special handling for shortName
+    if (name === 'shortName') {
+      const formattedValue = formatShortName(value);
+      setFormData(prev => ({
+        ...prev,
+        shortName: formattedValue
+      }));
+      return;
+    }
     
     // Handle nested fields
     if (name.includes('.')) {
@@ -110,12 +139,35 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
     
+    // Validate shortName
+    if (formData.shortName && !validateShortName(formData.shortName)) {
+      setError('Short Name must be uppercase with no spaces (max 10 chars, only letters, numbers, !?-_)');
+      return;
+    }
+    
+    setLoading(true);
+    
     try {
+      // Ensure all fields are properly formatted before submission
+      const updatedData = {
+        ...formData,
+        // MongoDB backend actually uses fullName (not name)
+        fullName: formData.name,
+        name: formData.name,
+        // Make sure shortName exists and is formatted correctly
+        shortName: formatShortName(formData.shortName || formData.name.substring(0, 10)),
+        // Ensure boolean fields are explicitly true or false
+        isApproved: formData.isApproved === true ? true : false,
+        isActive: formData.isActive === true ? true : false,
+        isEnabled: formData.isEnabled === true ? true : false
+      };
+      
+      console.log('Submitting organizer data:', updatedData);
+      
       // Call the onSubmit function passed as prop
-      await onSubmit(formData);
+      await onSubmit(updatedData);
     } catch (err) {
       setError('Failed to update organizer. Please try again.');
       console.error('Error in organizer update:', err);
@@ -148,11 +200,17 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
         <Grid item xs={12} sm={6}>
           <TextField
             fullWidth
-            label="Short Name"
+            label="Short Name (UPPERCASE, max 10 chars)"
             name="shortName"
             value={formData.shortName}
             onChange={handleChange}
             required
+            inputProps={{ 
+              maxLength: 10,
+              style: { textTransform: 'uppercase' } 
+            }}
+            helperText="No spaces, letters, numbers, and !?-_ only"
+            error={formData.shortName.length > 0 && !validateShortName(formData.shortName)}
           />
         </Grid>
         

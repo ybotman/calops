@@ -6,25 +6,21 @@ import {
   getMasteredDivisionModel, 
   getMasteredCityModel
 } from '@/lib/models';
+import mongoose from 'mongoose';
 
-async function getModelByType(type) {
-  console.log(`Getting model for type: ${type}`);
-  try {
-    switch (type) {
-      case 'country':
-        return await getMasteredCountryModel();
-      case 'region':
-        return await getMasteredRegionModel();
-      case 'division':
-        return await getMasteredDivisionModel();
-      case 'city':
-        return await getMasteredCityModel();
-      default:
-        throw new Error(`Invalid location type: ${type}`);
-    }
-  } catch (error) {
-    console.error(`Error getting model for type ${type}:`, error);
-    throw error;
+// Helper function to get the correct model
+async function getModelForType(type) {
+  switch (type) {
+    case 'country':
+      return await getMasteredCountryModel();
+    case 'region':
+      return await getMasteredRegionModel();
+    case 'division':
+      return await getMasteredDivisionModel();
+    case 'city':
+      return await getMasteredCityModel();
+    default:
+      throw new Error('Invalid geo hierarchy type');
   }
 }
 
@@ -35,38 +31,40 @@ export async function GET(request, { params }) {
     
     const { type, id } = params;
     
-    if (!type || !id) {
-      return NextResponse.json({ error: 'Missing location type or ID' }, { status: 400 });
-    }
-    
     // Validate type
     if (!['country', 'region', 'division', 'city'].includes(type)) {
       return NextResponse.json(
-        { error: 'Invalid location type. Must be one of: country, region, division, city' },
+        { error: 'Invalid geo hierarchy type. Must be one of: country, region, division, city' },
         { status: 400 }
       );
     }
     
+    // Validate ID
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return NextResponse.json({ error: 'Invalid geo hierarchy ID format' }, { status: 400 });
+    }
+    
     try {
-      const Model = await getModelByType(type);
-      let location;
+      const Model = await getModelForType(type);
       
-      // Get the location with populated references
+      let item;
+      
+      // Get the geo hierarchy item with populated references
       switch (type) {
         case 'country':
-          location = await Model.findById(id);
+          item = await Model.findById(id);
           break;
         case 'region':
-          location = await Model.findById(id).populate('masteredCountryId');
+          item = await Model.findById(id).populate('masteredCountryId');
           break;
         case 'division':
-          location = await Model.findById(id).populate({
+          item = await Model.findById(id).populate({
             path: 'masteredRegionId',
             populate: { path: 'masteredCountryId' }
           });
           break;
         case 'city':
-          location = await Model.findById(id).populate({
+          item = await Model.findById(id).populate({
             path: 'masteredDivisionId',
             populate: {
               path: 'masteredRegionId',
@@ -76,17 +74,16 @@ export async function GET(request, { params }) {
           break;
       }
       
-      if (!location) {
-        return NextResponse.json({ error: `${type} with ID ${id} not found` }, { status: 404 });
+      if (!item) {
+        return NextResponse.json({ error: `${type} not found` }, { status: 404 });
       }
       
-      // Force appId to "1" for all responses
-      if (location.appId !== "1") {
-        location.appId = "1";
+      // Force appId to "1"
+      if (item.appId !== "1") {
+        item.appId = "1";
       }
       
-      console.log(`Successfully fetched ${type} with ID ${id}`);
-      return NextResponse.json(location);
+      return NextResponse.json(item);
     } catch (error) {
       console.error(`Error fetching ${type}:`, error);
       return NextResponse.json({ 
@@ -96,7 +93,7 @@ export async function GET(request, { params }) {
       }, { status: 500 });
     }
   } catch (error) {
-    console.error(`Error in location GET route:`, error);
+    console.error('Error in geo hierarchy GET route:', error);
     return NextResponse.json({ 
       error: 'Internal server error',
       details: error.message,
@@ -112,43 +109,44 @@ export async function PUT(request, { params }) {
     
     const { type, id } = params;
     
-    if (!type || !id) {
-      return NextResponse.json({ error: 'Missing location type or ID' }, { status: 400 });
-    }
-    
     // Validate type
     if (!['country', 'region', 'division', 'city'].includes(type)) {
       return NextResponse.json(
-        { error: 'Invalid location type. Must be one of: country, region, division, city' },
+        { error: 'Invalid geo hierarchy type. Must be one of: country, region, division, city' },
         { status: 400 }
       );
     }
     
-    // Validate the data
-    const data = await request.json();
-    console.log(`Update data for ${type}:`, JSON.stringify(data));
+    // Validate ID
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return NextResponse.json({ error: 'Invalid geo hierarchy ID format' }, { status: 400 });
+    }
     
-    // Always set appId to "1" regardless of what's provided
-    data.appId = "1";
+    // Get the update data
+    const updateData = await request.json();
+    console.log(`Update data for ${type}:`, JSON.stringify(updateData));
+    
+    // Always ensure appId is set to "1"
+    updateData.appId = "1";
     
     try {
-      const Model = await getModelByType(type);
+      const Model = await getModelForType(type);
       
-      // Update using findByIdAndUpdate with validators to ensure data integrity
-      const updatedLocation = await Model.findByIdAndUpdate(
+      // Update the geo hierarchy item
+      const updatedItem = await Model.findByIdAndUpdate(
         id,
-        data,
+        updateData,
         { new: true, runValidators: true }
       );
       
-      if (!updatedLocation) {
+      if (!updatedItem) {
         return NextResponse.json({ error: `${type} not found` }, { status: 404 });
       }
       
       console.log(`Successfully updated ${type} with ID ${id}`);
       return NextResponse.json({
         message: `${type} updated successfully`,
-        location: updatedLocation
+        item: updatedItem
       });
     } catch (error) {
       console.error(`Error updating ${type}:`, error);
@@ -174,9 +172,9 @@ export async function PUT(request, { params }) {
       }, { status: 500 });
     }
   } catch (error) {
-    console.error(`Error updating ${params.type}:`, error);
+    console.error('Error in geo hierarchy PUT route:', error);
     return NextResponse.json({ 
-      error: `Failed to update ${params.type}`,
+      error: 'Internal server error',
       details: error.message,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     }, { status: 500 });
@@ -190,16 +188,17 @@ export async function DELETE(request, { params }) {
     
     const { type, id } = params;
     
-    if (!type || !id) {
-      return NextResponse.json({ error: 'Missing location type or ID' }, { status: 400 });
-    }
-    
     // Validate type
     if (!['country', 'region', 'division', 'city'].includes(type)) {
       return NextResponse.json(
-        { error: 'Invalid location type. Must be one of: country, region, division, city' },
+        { error: 'Invalid geo hierarchy type. Must be one of: country, region, division, city' },
         { status: 400 }
       );
+    }
+    
+    // Validate ID
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return NextResponse.json({ error: 'Invalid geo hierarchy ID format' }, { status: 400 });
     }
     
     try {
@@ -248,8 +247,7 @@ export async function DELETE(request, { params }) {
         return NextResponse.json({ error: dependencyMessage }, { status: 400 });
       }
       
-      // Proceed with deletion if no dependencies
-      const Model = await getModelByType(type);
+      const Model = await getModelForType(type);
       const result = await Model.findByIdAndDelete(id);
       
       if (!result) {
@@ -267,7 +265,7 @@ export async function DELETE(request, { params }) {
       }, { status: 500 });
     }
   } catch (error) {
-    console.error(`Error in location DELETE route:`, error);
+    console.error('Error in geo hierarchy DELETE route:', error);
     return NextResponse.json({ 
       error: 'Internal server error',
       details: error.message,

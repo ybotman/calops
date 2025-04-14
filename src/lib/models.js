@@ -13,7 +13,7 @@ import connectToDatabase from './mongodb';
 // Path to the models directory in calendar-be
 // First try from environment variable, then fallback to relative path
 const calendarBeModelsPath = process.env.CALENDAR_BE_MODELS_PATH || 
-                            path.resolve(process.cwd(), '../calendar-be/models');
+                            path.resolve('/Users/tobybalsley/MyDocs/AppDev/MasterCalendar/calendar-be/models');
 
 console.log('Using models path:', calendarBeModelsPath);
 let modelsCache = {};
@@ -26,7 +26,155 @@ let modelsCache = {};
 async function importModel(modelName) {
   // If we've already imported this model, return it from cache
   if (modelsCache[modelName]) {
+    console.log(`Using cached model for ${modelName}`);
     return modelsCache[modelName];
+  }
+  
+  // Special case for MasteredCountry
+  if (modelName === 'MasteredCountry') {
+    try {
+      // Connect to the database to ensure mongoose is ready
+      await connectToDatabase();
+      
+      // Define the model directly
+      const Schema = mongoose.Schema;
+      
+      const masteredCountrySchema = new Schema({
+        appId: { type: String, required: true, default: "1" },
+        countryName: { type: String, required: true },
+        countryCode: { type: String, required: true },
+        continent: { type: String, required: true },
+        active: { type: Boolean, default: true },
+      });
+      
+      // Get existing model or create a new one
+      const model = mongoose.models.masteredCountry || mongoose.model("masteredCountry", masteredCountrySchema);
+      
+      console.log(`Created direct model for MasteredCountry`);
+      modelsCache[modelName] = model;
+      return model;
+    } catch (err) {
+      console.error('Error creating direct model for MasteredCountry:', err);
+      throw err;
+    }
+  }
+
+  // Special case for MasteredRegion
+  if (modelName === 'MasteredRegion') {
+    try {
+      // Connect to the database to ensure mongoose is ready
+      await connectToDatabase();
+      
+      // Define the model directly
+      const Schema = mongoose.Schema;
+      
+      const masteredRegionSchema = new Schema({
+        appId: { type: String, required: true, default: "1" },
+        regionName: { type: String, required: true },
+        regionCode: { type: String, required: true },
+        active: { type: Boolean, default: true },
+        masteredCountryId: {
+          type: Schema.Types.ObjectId,
+          ref: "MasteredCountry",
+          required: true,
+        },
+      });
+      
+      // Get existing model or create a new one
+      const model = mongoose.models.masteredRegion || mongoose.model("masteredRegion", masteredRegionSchema);
+      
+      console.log(`Created direct model for MasteredRegion`);
+      modelsCache[modelName] = model;
+      return model;
+    } catch (err) {
+      console.error('Error creating direct model for MasteredRegion:', err);
+      throw err;
+    }
+  }
+
+  // Special case for MasteredDivision
+  if (modelName === 'MasteredDivision') {
+    try {
+      // Connect to the database to ensure mongoose is ready
+      await connectToDatabase();
+      
+      // Define the model directly
+      const Schema = mongoose.Schema;
+      
+      const masteredDivisionSchema = new Schema({
+        appId: { type: String, required: true, default: "1" },
+        divisionName: { type: String, required: true },
+        divisionCode: { type: String, required: true },
+        active: { type: Boolean, default: true },
+        masteredRegionId: {
+          type: Schema.Types.ObjectId,
+          ref: "MasteredRegion",
+          required: true,
+        },
+        states: { type: [String], required: true },
+      });
+      
+      // Get existing model or create a new one
+      const model = mongoose.models.masteredDivision || mongoose.model("masteredDivision", masteredDivisionSchema);
+      
+      console.log(`Created direct model for MasteredDivision`);
+      modelsCache[modelName] = model;
+      return model;
+    } catch (err) {
+      console.error('Error creating direct model for MasteredDivision:', err);
+      throw err;
+    }
+  }
+  
+  // Special case for masteredCities directly
+  if (modelName === 'MasteredCity') {
+    try {
+      // Connect to the database to ensure mongoose is ready
+      await connectToDatabase();
+      
+      // Define the model directly
+      const Schema = mongoose.Schema;
+      
+      const masteredCitySchema = new Schema({
+        appId: { type: String, required: true, default: "1" },
+        cityName: { type: String, required: true },
+        cityCode: { type: String, required: true },
+        latitude: { type: Number, required: true },
+        longitude: { type: Number, required: true },
+        location: {
+          type: { type: String, enum: ["Point"], required: true, default: "Point" },
+          coordinates: {
+            type: [Number],
+            required: true,
+            validate: {
+              validator: function (value) {
+                return value.length === 2;
+              },
+              message: "Coordinates must be [longitude, latitude]",
+            },
+          },
+        },
+        isActive: { type: Boolean, default: true },
+        masteredDivisionId: {
+          type: Schema.Types.ObjectId,
+          ref: "MasteredDivision",
+          required: true,
+        },
+      });
+      
+      // 2dsphere index
+      masteredCitySchema.index({ location: "2dsphere" });
+      
+      // Get existing model or create a new one
+      const model = mongoose.models.masteredCity || mongoose.model("masteredCity", masteredCitySchema);
+      
+      console.log(`Created direct model for MasteredCity`);
+      modelsCache[modelName] = model;
+      return model;
+    } catch (err) {
+      console.error('Error creating direct model for MasteredCity:', err);
+      throw err;
+    }
   }
 
   try {
@@ -45,13 +193,16 @@ async function importModel(modelName) {
         modelFileName = 'roles.js';
         break;
       case 'MasteredCountry':
+        modelFileName = 'masteredCountries.js';
+        break;
       case 'MasteredRegion':
+        modelFileName = 'masteredRegions.js';
+        break;
       case 'MasteredDivision':
+        modelFileName = 'masteredDivisions.js';
+        break;
       case 'MasteredCity':
-        if (modelName === 'MasteredCountry') modelFileName = 'masteredCountries.js';
-        if (modelName === 'MasteredRegion') modelFileName = 'masteredRegions.js';
-        if (modelName === 'MasteredDivision') modelFileName = 'masteredDivisions.js';
-        if (modelName === 'MasteredCity') modelFileName = 'masteredCities.js';
+        modelFileName = 'masteredCities.js';
         break;
       case 'Organizers':
         modelFileName = 'organizers.js';
@@ -59,8 +210,10 @@ async function importModel(modelName) {
       default:
         modelFileName = `${modelName.toLowerCase()}.js`;
     }
+    
+    console.log(`Looking for model file: ${modelFileName}`);
 
-    const modelPath = path.join(calendarBeModelsPath, modelFileName);
+    let modelPath = path.join(calendarBeModelsPath, modelFileName);
 
     console.log(`Attempting to import model ${modelName} from ${modelPath}`);
 
@@ -71,7 +224,27 @@ async function importModel(modelName) {
 
     // Check if the file exists
     if (!fs.existsSync(modelPath)) {
-      throw new Error(`Model file not found: ${modelPath}`);
+      // Try different casing for filename (some systems are case-sensitive)
+      const dirContents = fs.readdirSync(calendarBeModelsPath);
+      console.log('Directory contents:', dirContents);
+      
+      const alternateFile = dirContents.find(
+        file => file.toLowerCase() === modelFileName.toLowerCase()
+      );
+      
+      if (alternateFile) {
+        console.log(`Found model with different casing: ${alternateFile}`);
+        modelFileName = alternateFile;
+        modelPath = path.join(calendarBeModelsPath, modelFileName);
+      } else {
+        // Try finding similar files
+        const possibleMatches = dirContents.filter(
+          file => file.toLowerCase().includes(modelName.toLowerCase())
+        );
+        console.log(`Possible matches for ${modelName}: ${possibleMatches.join(", ")}`);
+        
+        throw new Error(`Model file not found: ${modelPath}`);
+      }
     }
 
     // List available models
@@ -81,7 +254,10 @@ async function importModel(modelName) {
     console.log(`Available models: ${availableModels}`);
 
     // Import the model from calendar-be (dynamic import)
+    console.log(`Requiring model from: ${modelPath}`);
     const importedModel = require(modelPath);
+    
+    console.log(`Import result: ${typeof importedModel}`);
     
     if (!importedModel) {
       throw new Error(`Failed to import model from ${modelPath} - returned empty or undefined`);

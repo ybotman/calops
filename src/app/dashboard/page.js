@@ -7,12 +7,14 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 import BusinessIcon from '@mui/icons-material/Business';
 import EventIcon from '@mui/icons-material/Event';
 import { usersApi, organizersApi } from '@/lib/api-client';
+import StatusPanel from './components/StatusPanel';
+import { useAppContext } from '@/lib/AppContext';
 
 export default function Dashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [currentApp, setCurrentApp] = useState('1'); // Default to TangoTiempo
+  const { currentApp } = useAppContext();
   const [userFilter, setUserFilter] = useState('all'); // 'all', 'active', 'inactive'
   const [organizerFilter, setOrganizerFilter] = useState('all'); // 'all', 'active', 'inactive'
 
@@ -39,13 +41,13 @@ export default function Dashboard() {
         // Create promises for parallel API requests
         const requests = [
           // Fetch all users
-          usersApi.getUsers(currentApp),
+          usersApi.getUsers(currentApp.id),
           // Fetch active users
-          usersApi.getUsers(currentApp, true),
+          usersApi.getUsers(currentApp.id, true),
           // Fetch all organizers
-          organizersApi.getOrganizers(currentApp),
+          organizersApi.getOrganizers(currentApp.id),
           // Fetch active organizers
-          organizersApi.getOrganizers(currentApp, true)
+          organizersApi.getOrganizers(currentApp.id, true)
         ];
         
         // Execute all requests in parallel
@@ -106,7 +108,7 @@ export default function Dashboard() {
     };
 
     fetchStats();
-  }, [currentApp]);
+  }, [currentApp.id]);
 
   if (loading) {
     return (
@@ -159,8 +161,10 @@ export default function Dashboard() {
       </Typography>
       
       <Typography variant="subtitle1" gutterBottom color="text.secondary">
-        System overview for {currentApp === '1' ? 'TangoTiempo' : 'HarmonyJunction'}
+        System overview for {currentApp.name}
       </Typography>
+      
+      <StatusPanel />
       
       <Grid container spacing={3} sx={{ mt: 2 }}>
         {/* Users Stats */}

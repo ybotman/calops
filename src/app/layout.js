@@ -1,6 +1,7 @@
 import { Inter } from 'next/font/google';
 import { ThemeRegistry } from '@/components/ThemeRegistry';
 import { AuthProvider } from '@/lib/firebase-auth';
+import { AppProvider } from '@/lib/AppContext';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -20,7 +21,9 @@ export default function RootLayout({ children }) {
       <body className={inter.className}>
         <ThemeRegistry>
           <AuthProvider>
-            {children}
+            <AppProvider>
+              {children}
+            </AppProvider>
           </AuthProvider>
         </ThemeRegistry>
       </body>

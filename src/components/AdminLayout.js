@@ -14,6 +14,7 @@ import IconButton from '@mui/material/IconButton';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Avatar from '@mui/material/Avatar';
+import { useAppContext } from '@/lib/AppContext';
 
 // Icons
 import MenuIcon from '@mui/icons-material/Menu';
@@ -29,16 +30,15 @@ import ExitToAppIcon from '@mui/icons-material/ExitToApp';
 const mainNavItems = [
   { name: 'Dashboard', icon: <DashboardIcon />, href: '/dashboard' },
   { name: 'Users', icon: <PeopleIcon />, href: '/dashboard/users' },
-  { name: 'Locations', icon: <LocationOnIcon />, href: '/dashboard/locations' },
   { name: 'Organizers', icon: <BusinessIcon />, href: '/dashboard/organizers' },
-  { name: 'Applications', icon: <AppsIcon />, href: '/dashboard/applications' },
+  { name: 'Geo Hierarchy', icon: <LocationOnIcon />, href: '/dashboard/geo-hierarchy' },
 ];
 
 const drawerWidth = 240;
 
 export default function AdminLayout({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [currentApp, setCurrentApp] = useState({ id: '1', name: 'TangoTiempo' });
+  const { currentApp, updateCurrentApp } = useAppContext();
   const [anchorEl, setAnchorEl] = useState(null);
   const [appMenuAnchor, setAppMenuAnchor] = useState(null);
 
@@ -63,7 +63,7 @@ export default function AdminLayout({ children }) {
   };
 
   const handleAppChange = (app) => {
-    setCurrentApp(app);
+    updateCurrentApp(app);
     setAppMenuAnchor(null);
   };
 

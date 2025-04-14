@@ -52,9 +52,18 @@ export async function PATCH(request, { params }) {
       ...updates,
       appId,
       _id: id, // Ensure _id is included
-      fullName: updates.name || updates.fullName, // Make sure fullName is set if only name is provided
+      // Both fullName and name need to be synchronized for compatibility
+      fullName: updates.name || updates.fullName, // The backend actually uses fullName (not name)
+      name: updates.name || updates.fullName, // Admin UI uses name but backend expects fullName
+      shortName: updates.shortName || updates.name || updates.fullName, // Ensure shortName exists
+      // Ensure boolean fields are properly sent as booleans
+      isApproved: updates.isApproved === true || updates.isApproved === 'true' ? true : false,
+      isActive: updates.isActive === true || updates.isActive === 'true' ? true : false,
+      isEnabled: updates.isEnabled === true || updates.isEnabled === 'true' ? true : false,
       organizerRegion: updates.organizerRegion || "66c4d99042ec462ea22484bd" // Default US region
     };
+    
+    console.log('API: Normalized organizer data:', JSON.stringify(organizer, null, 2));
     
     // Forward request to backend
     try {
