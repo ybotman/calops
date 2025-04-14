@@ -1,12 +1,117 @@
 import { NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import mongoose from 'mongoose';
-import { 
-  getMasteredCountryModel, 
-  getMasteredRegionModel, 
-  getMasteredDivisionModel, 
-  getMasteredCityModel
-} from '@/lib/models';
+
+// Direct model definitions to avoid importing from calendar-be
+let modelsCache = {};
+
+// Helper functions for getting models
+async function getMasteredCountryModel() {
+  if (modelsCache.MasteredCountry) {
+    return modelsCache.MasteredCountry;
+  }
+  
+  const Schema = mongoose.Schema;
+  const masteredCountrySchema = new Schema({
+    appId: { type: String, required: true, default: "1" },
+    countryName: { type: String, required: true },
+    countryCode: { type: String, required: true },
+    continent: { type: String, required: true },
+    active: { type: Boolean, default: true },
+  });
+  
+  const model = mongoose.models.masteredCountry || mongoose.model("masteredCountry", masteredCountrySchema);
+  modelsCache.MasteredCountry = model;
+  return model;
+}
+
+async function getMasteredRegionModel() {
+  if (modelsCache.MasteredRegion) {
+    return modelsCache.MasteredRegion;
+  }
+  
+  const Schema = mongoose.Schema;
+  const masteredRegionSchema = new Schema({
+    appId: { type: String, required: true, default: "1" },
+    regionName: { type: String, required: true },
+    regionCode: { type: String, required: true },
+    active: { type: Boolean, default: true },
+    masteredCountryId: {
+      type: Schema.Types.ObjectId,
+      ref: "masteredCountry",
+      required: true,
+    },
+  });
+  
+  const model = mongoose.models.masteredRegion || mongoose.model("masteredRegion", masteredRegionSchema);
+  modelsCache.MasteredRegion = model;
+  return model;
+}
+
+async function getMasteredDivisionModel() {
+  if (modelsCache.MasteredDivision) {
+    return modelsCache.MasteredDivision;
+  }
+  
+  const Schema = mongoose.Schema;
+  const masteredDivisionSchema = new Schema({
+    appId: { type: String, required: true, default: "1" },
+    divisionName: { type: String, required: true },
+    divisionCode: { type: String, required: true },
+    active: { type: Boolean, default: true },
+    masteredRegionId: {
+      type: Schema.Types.ObjectId,
+      ref: "masteredRegion",
+      required: true,
+    },
+    states: { type: [String], required: true },
+  });
+  
+  const model = mongoose.models.masteredDivision || mongoose.model("masteredDivision", masteredDivisionSchema);
+  modelsCache.MasteredDivision = model;
+  return model;
+}
+
+async function getMasteredCityModel() {
+  if (modelsCache.MasteredCity) {
+    return modelsCache.MasteredCity;
+  }
+  
+  const Schema = mongoose.Schema;
+  const masteredCitySchema = new Schema({
+    appId: { type: String, required: true, default: "1" },
+    cityName: { type: String, required: true },
+    cityCode: { type: String, required: true },
+    latitude: { type: Number, required: true },
+    longitude: { type: Number, required: true },
+    location: {
+      type: { type: String, enum: ["Point"], required: true, default: "Point" },
+      coordinates: {
+        type: [Number],
+        required: true,
+        validate: {
+          validator: function (value) {
+            return value.length === 2;
+          },
+          message: "Coordinates must be [longitude, latitude]",
+        },
+      },
+    },
+    isActive: { type: Boolean, default: true },
+    masteredDivisionId: {
+      type: Schema.Types.ObjectId,
+      ref: "masteredDivision",
+      required: true,
+    },
+  });
+  
+  // Create 2dsphere index for geospatial queries
+  masteredCitySchema.index({ location: "2dsphere" });
+  
+  const model = mongoose.models.masteredCity || mongoose.model("masteredCity", masteredCitySchema);
+  modelsCache.MasteredCity = model;
+  return model;
+}
 
 export async function GET() {
   try {
