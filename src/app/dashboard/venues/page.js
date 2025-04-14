@@ -59,6 +59,9 @@ export default function VenuesPage() {
     latitude: '',
     longitude: '',
     masteredCityId: '',
+    masteredDivisionId: '',
+    masteredRegionId: '',
+    masteredCountryId: '',
     isActive: false,
   });
   const [editMode, setEditMode] = useState(false);
@@ -68,6 +71,17 @@ export default function VenuesPage() {
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [venueToDelete, setVenueToDelete] = useState(null);
   const [fetchingNearest, setFetchingNearest] = useState(false);
+  
+  // Geo Hierarchy data for selection dropdowns
+  const [countries, setCountries] = useState([]);
+  const [regions, setRegions] = useState([]);
+  const [divisions, setDivisions] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [loadingGeoHierarchy, setLoadingGeoHierarchy] = useState(false);
+  const [hierarchySelectMode, setHierarchySelectMode] = useState(false);
+
+  // Initialize with error state
+  const [error, setError] = useState(null);
 
   // Fetch venues on component mount and when app changes
   useEffect(() => {
@@ -77,7 +91,16 @@ export default function VenuesPage() {
   const fetchVenues = async () => {
     try {
       setLoading(true);
+      setError(null);
       console.log(`Fetching venues for AppId: ${currentApp.id}`);
+      
+      // First check the debug endpoint to confirm API connectivity
+      try {
+        await axios.get('/api/venues-debug');
+        console.log('Venues debug API check successful');
+      } catch (debugError) {
+        console.error('Error checking venues debug endpoint:', debugError);
+      }
       
       const response = await axios.get('/api/venues', {
         params: {
@@ -94,10 +117,25 @@ export default function VenuesPage() {
           ...prev,
           total: response.data.pagination.total,
         }));
+      } else {
+        setVenues([]);
+        setPagination(prev => ({
+          ...prev,
+          total: 0,
+        }));
       }
     } catch (error) {
       console.error('Error fetching venues:', error);
-      alert(`Failed to fetch venues: ${error.message}`);
+      
+      // Extract a more detailed error message if available
+      let errorMessage = error.message;
+      if (error.response) {
+        // Server responded with error
+        console.error('Server error details:', error.response.data);
+        errorMessage = error.response.data?.details || error.response.data?.error || error.message;
+      }
+      
+      setError(`Failed to fetch venues: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -105,6 +143,38 @@ export default function VenuesPage() {
 
   const handleSearchChange = (event) => {
     setSearchTerm(event.target.value);
+  };
+
+  // Fetch all Geo Hierarchy data
+  const fetchGeoHierarchy = async () => {
+    try {
+      setLoadingGeoHierarchy(true);
+      
+      const response = await axios.get('/api/geo-hierarchy', {
+        params: {
+          type: 'all',
+          appId: currentApp.id,
+        }
+      });
+      
+      if (response.data) {
+        // Filter to only show active items
+        const activeCountries = response.data.countries?.filter(c => c.active) || [];
+        const activeRegions = response.data.regions?.filter(r => r.active) || [];
+        const activeDivisions = response.data.divisions?.filter(d => d.active) || [];
+        const activeCities = response.data.cities?.filter(c => c.isActive) || [];
+        
+        setCountries(activeCountries);
+        setRegions(activeRegions);
+        setDivisions(activeDivisions);
+        setCities(activeCities);
+      }
+    } catch (error) {
+      console.error('Error fetching geo hierarchy:', error);
+      alert('Failed to load geo hierarchy data. Please try again.');
+    } finally {
+      setLoadingGeoHierarchy(false);
+    }
   };
 
   const handleAddVenue = () => {
@@ -123,10 +193,14 @@ export default function VenuesPage() {
       latitude: '',
       longitude: '',
       masteredCityId: '',
+      masteredDivisionId: '',
+      masteredRegionId: '',
+      masteredCountryId: '',
       isActive: false,
     });
     setNearestCities([]);
     setFormErrors({});
+    fetchGeoHierarchy(); // Load the geo hierarchy data for dropdowns
     setDialogOpen(true);
   };
 
@@ -149,11 +223,17 @@ export default function VenuesPage() {
       latitude: venue.latitude || '',
       longitude: venue.longitude || '',
       masteredCityId: venue.masteredCityId?._id || '',
+      masteredDivisionId: venue.masteredDivisionId?._id || '',
+      masteredRegionId: venue.masteredRegionId?._id || '',
+      masteredCountryId: venue.masteredCountryId?._id || '',
       isActive: venue.isActive || false,
     };
     
     setVenueForm(formData);
     setFormErrors({});
+    
+    // Fetch geo hierarchy for dropdowns
+    await fetchGeoHierarchy();
     
     // If venue has coordinates, fetch nearest cities
     if (venue.latitude && venue.longitude) {
@@ -277,7 +357,13 @@ export default function VenuesPage() {
       });
       
       if (response.data && response.data.length > 0) {
-        setNearestCities(response.data);
+        // Only show active cities
+        const activeCities = response.data.filter(city => city.isActive);
+        setNearestCities(activeCities);
+        
+        if (activeCities.length === 0) {
+          alert('No active cities found nearby. You may need to manually assign the geo hierarchy.');
+        }
       } else {
         setNearestCities([]);
         alert('No nearby cities found. You may need to manually assign the geo hierarchy.');
@@ -287,6 +373,54 @@ export default function VenuesPage() {
       alert(`Failed to find nearest cities: ${error.message}`);
     } finally {
       setFetchingNearest(false);
+    }
+  };
+  
+  // Handle geo hierarchy selection change
+  const handleCountryChange = (e) => {
+    const countryId = e.target.value;
+    setVenueForm(prev => ({
+      ...prev,
+      masteredCountryId: countryId,
+      masteredRegionId: '',
+      masteredDivisionId: '',
+      masteredCityId: '',
+    }));
+  };
+  
+  const handleRegionChange = (e) => {
+    const regionId = e.target.value;
+    setVenueForm(prev => ({
+      ...prev,
+      masteredRegionId: regionId,
+      masteredDivisionId: '',
+      masteredCityId: '',
+    }));
+  };
+  
+  const handleDivisionChange = (e) => {
+    const divisionId = e.target.value;
+    setVenueForm(prev => ({
+      ...prev,
+      masteredDivisionId: divisionId,
+      masteredCityId: '',
+    }));
+  };
+  
+  const handleCityChange = (e) => {
+    const cityId = e.target.value;
+    setVenueForm(prev => ({
+      ...prev,
+      masteredCityId: cityId,
+    }));
+  };
+  
+  // Toggle between hierarchy selection modes
+  const toggleHierarchyMode = () => {
+    setHierarchySelectMode(!hierarchySelectMode);
+    // If switching to hierarchy mode, clear nearest cities
+    if (!hierarchySelectMode) {
+      setNearestCities([]);
     }
   };
 
@@ -302,14 +436,23 @@ export default function VenuesPage() {
     setVenueForm(prev => ({
       ...prev,
       masteredCityId: city._id,
+      masteredDivisionId: city.masteredDivisionId?._id || '',
+      masteredRegionId: city.masteredDivisionId?.masteredRegionId?._id || '',
+      masteredCountryId: city.masteredDivisionId?.masteredRegionId?.masteredCountryId?._id || '',
     }));
   };
 
   // Define columns for DataGrid
   const columns = [
     { field: 'name', headerName: 'Venue Name', flex: 1.5 },
-    { field: 'address', headerName: 'Address', flex: 1.5, 
-      valueGetter: (params) => {
+    { 
+      field: 'address', 
+      headerName: 'Address', 
+      flex: 1.5, 
+      valueFormatter: (params) => {
+        // Simple concatenation of address parts directly from the row (safer approach)
+        if (!params) return '';
+        
         const row = params.row || {};
         return [
           row.address1,
@@ -319,19 +462,33 @@ export default function VenuesPage() {
         ].filter(Boolean).join(', ');
       }
     },
-    { field: 'masteredCityName', headerName: 'Mastered City', flex: 1, 
-      valueGetter: (params) => {
-        const row = params.row || {};
-        return row.masteredCityId?.cityName || 'None';
+    { 
+      field: 'masteredCityName', 
+      headerName: 'Mastered City', 
+      flex: 1,
+      // Use valueFormatter instead which is more reliable
+      valueFormatter: (params) => {
+        if (!params || !params.row) return 'None';
+        
+        const row = params.row;
+        const cityName = row.masteredCityId?.cityName;
+        return cityName || 'None';
       }
     },
-    { field: 'isActive', headerName: 'Status', width: 120,
+    { 
+      field: 'isActive', 
+      headerName: 'Status', 
+      width: 120,
+      type: 'boolean',
       renderCell: (params) => {
-        const row = params.row || {};
+        // Simple boolean check avoiding params.value/row complexity
+        if (!params) return <Chip label="Unknown" size="small" />;
+        
+        const isActive = Boolean(params.row?.isActive);
         return (
           <Chip 
-            label={row.isActive ? 'Active' : 'Inactive'} 
-            color={row.isActive ? 'success' : 'default'}
+            label={isActive ? 'Active' : 'Inactive'} 
+            color={isActive ? 'success' : 'default'}
             size="small"
           />
         );
@@ -341,29 +498,36 @@ export default function VenuesPage() {
       field: 'actions', 
       headerName: 'Actions', 
       width: 200,
-      renderCell: (params) => (
-        <Box>
-          <Button
-            variant="text"
-            color="primary"
-            onClick={() => handleEditVenue(params.row)}
-            startIcon={<EditIcon />}
-            sx={{ mr: 1 }}
-            size="small"
-          >
-            Edit
-          </Button>
-          <Button
-            variant="text"
-            color="error"
-            onClick={() => handleDeleteVenue(params.row)}
-            startIcon={<DeleteIcon />}
-            size="small"
-          >
-            Delete
-          </Button>
-        </Box>
-      ) 
+      renderCell: (params) => {
+        // Make sure params.row is defined before using it
+        if (!params.row) {
+          return <Box>Loading...</Box>;
+        }
+        
+        return (
+          <Box>
+            <Button
+              variant="text"
+              color="primary"
+              onClick={() => handleEditVenue(params.row)}
+              startIcon={<EditIcon />}
+              sx={{ mr: 1 }}
+              size="small"
+            >
+              Edit
+            </Button>
+            <Button
+              variant="text"
+              color="error"
+              onClick={() => handleDeleteVenue(params.row)}
+              startIcon={<DeleteIcon />}
+              size="small"
+            >
+              Delete
+            </Button>
+          </Box>
+        );
+      } 
     },
   ];
 
@@ -407,18 +571,72 @@ export default function VenuesPage() {
         />
       </Box>
       
+      {error && (
+        <Alert 
+          severity="error" 
+          sx={{ mb: 2 }}
+          action={
+            <Button color="inherit" size="small" onClick={fetchVenues}>
+              Retry
+            </Button>
+          }
+        >
+          {error}
+        </Alert>
+      )}
+      
       <Paper sx={{ height: 600, width: '100%' }}>
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
             <CircularProgress />
           </Box>
+        ) : error ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', flexDirection: 'column', gap: 2 }}>
+            <Typography variant="body1" color="error">
+              Failed to load venues
+            </Typography>
+            <Button 
+              variant="contained" 
+              onClick={() => {
+                setError(null);
+                fetchVenues();
+              }}
+            >
+              Retry
+            </Button>
+          </Box>
         ) : (
           <DataGrid
-            rows={venues.map(venue => ({ ...venue, id: venue._id }))}
+            rows={venues.map((venue, index) => {
+              // Safely prepare row data with defaults
+              const safeVenue = venue || {};
+              
+              // Ensure every row has a unique ID
+              const rowId = safeVenue._id || safeVenue.id || `row-${index}-${Math.random().toString(36).substring(2, 9)}`;
+              
+              // Extract cityName to a separate field to avoid nested property access in grid
+              const masteredCityName = safeVenue.masteredCityId?.cityName || '';
+              
+              return {
+                // Only include safe properties
+                id: rowId,
+                name: safeVenue.name || '',
+                address1: safeVenue.address1 || '',
+                city: safeVenue.city || '',
+                state: safeVenue.state || '',
+                zip: safeVenue.zip || '',
+                isActive: Boolean(safeVenue.isActive),
+                masteredCityId: safeVenue.masteredCityId || null,
+                masteredCityName: masteredCityName,
+                masteredDivisionId: safeVenue.masteredDivisionId || null,
+                masteredRegionId: safeVenue.masteredRegionId || null,
+                masteredCountryId: safeVenue.masteredCountryId || null,
+              };
+            })}
             columns={columns}
             pagination
             paginationMode="server"
-            rowCount={pagination.total}
+            rowCount={pagination.total || 0}
             pageSize={pagination.pageSize}
             page={pagination.page}
             onPageChange={handlePageChange}
@@ -426,6 +644,11 @@ export default function VenuesPage() {
             rowsPerPageOptions={[10, 25, 50]}
             disableSelectionOnClick
             density="standard"
+            initialState={{
+              pagination: {
+                pageSize: pagination.pageSize,
+              },
+            }}
           />
         )}
       </Paper>
@@ -585,39 +808,171 @@ export default function VenuesPage() {
               
               <Grid item xs={12}>
                 <Divider sx={{ my: 1 }} />
-                <Typography variant="subtitle1" gutterBottom>
-                  Geo Hierarchy Assignment
-                </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Typography variant="subtitle1">
+                    Geo Hierarchy Assignment
+                  </Typography>
+                  <Button 
+                    size="small" 
+                    onClick={toggleHierarchyMode}
+                    variant="outlined"
+                  >
+                    {hierarchySelectMode ? 'Switch to Nearest City' : 'Switch to Manual Selection'}
+                  </Button>
+                </Box>
                 
-                {nearestCities.length > 0 ? (
+                {/* Top-down hierarchy selection */}
+                {hierarchySelectMode ? (
                   <Box sx={{ mt: 1, mb: 2 }}>
                     <Typography variant="body2" color="text.secondary" gutterBottom>
-                      Select a city to assign to this venue:
+                      Select from geo hierarchy (top down):
                     </Typography>
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                      {nearestCities.map(city => (
-                        <Chip
-                          key={city._id}
-                          label={`${city.cityName} (${city.distanceInKm} km)`}
-                          onClick={() => handleSelectCity(city)}
-                          variant={venueForm.masteredCityId === city._id ? 'filled' : 'outlined'}
-                          color={venueForm.masteredCityId === city._id ? 'primary' : 'default'}
-                          clickable
-                        />
-                      ))}
-                    </Box>
+                    
+                    {loadingGeoHierarchy ? (
+                      <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
+                        <CircularProgress size={24} />
+                      </Box>
+                    ) : (
+                      <Grid container spacing={2}>
+                        {/* Country selection */}
+                        <Grid item xs={12} sm={6}>
+                          <FormControl fullWidth>
+                            <InputLabel>Country</InputLabel>
+                            <Select
+                              value={venueForm.masteredCountryId}
+                              onChange={handleCountryChange}
+                              label="Country"
+                              disabled={countries.length === 0}
+                            >
+                              <MenuItem value="">
+                                <em>None</em>
+                              </MenuItem>
+                              {countries.map(country => (
+                                <MenuItem key={country._id} value={country._id}>
+                                  {country.countryName}
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        </Grid>
+                        
+                        {/* Region selection */}
+                        <Grid item xs={12} sm={6}>
+                          <FormControl fullWidth>
+                            <InputLabel>Region</InputLabel>
+                            <Select
+                              value={venueForm.masteredRegionId}
+                              onChange={handleRegionChange}
+                              label="Region"
+                              disabled={!venueForm.masteredCountryId}
+                            >
+                              <MenuItem value="">
+                                <em>None</em>
+                              </MenuItem>
+                              {regions
+                                .filter(region => 
+                                  region.masteredCountryId?._id === venueForm.masteredCountryId ||
+                                  region.masteredCountryId === venueForm.masteredCountryId
+                                )
+                                .map(region => (
+                                  <MenuItem key={region._id} value={region._id}>
+                                    {region.regionName}
+                                  </MenuItem>
+                                ))}
+                            </Select>
+                          </FormControl>
+                        </Grid>
+                        
+                        {/* Division selection */}
+                        <Grid item xs={12} sm={6}>
+                          <FormControl fullWidth>
+                            <InputLabel>Division</InputLabel>
+                            <Select
+                              value={venueForm.masteredDivisionId}
+                              onChange={handleDivisionChange}
+                              label="Division"
+                              disabled={!venueForm.masteredRegionId}
+                            >
+                              <MenuItem value="">
+                                <em>None</em>
+                              </MenuItem>
+                              {divisions
+                                .filter(division => 
+                                  division.masteredRegionId?._id === venueForm.masteredRegionId ||
+                                  division.masteredRegionId === venueForm.masteredRegionId
+                                )
+                                .map(division => (
+                                  <MenuItem key={division._id} value={division._id}>
+                                    {division.divisionName}
+                                  </MenuItem>
+                                ))}
+                            </Select>
+                          </FormControl>
+                        </Grid>
+                        
+                        {/* City selection */}
+                        <Grid item xs={12} sm={6}>
+                          <FormControl fullWidth>
+                            <InputLabel>City</InputLabel>
+                            <Select
+                              value={venueForm.masteredCityId}
+                              onChange={handleCityChange}
+                              label="City"
+                              disabled={!venueForm.masteredDivisionId}
+                            >
+                              <MenuItem value="">
+                                <em>None</em>
+                              </MenuItem>
+                              {cities
+                                .filter(city => 
+                                  city.masteredDivisionId?._id === venueForm.masteredDivisionId ||
+                                  city.masteredDivisionId === venueForm.masteredDivisionId
+                                )
+                                .map(city => (
+                                  <MenuItem key={city._id} value={city._id}>
+                                    {city.cityName}
+                                  </MenuItem>
+                                ))}
+                            </Select>
+                          </FormControl>
+                        </Grid>
+                      </Grid>
+                    )}
                   </Box>
-                ) : venueForm.latitude && venueForm.longitude ? (
-                  <Alert severity="info" sx={{ mb: 2 }}>
-                    Click "Find" to locate the nearest cities for this venue.
-                  </Alert>
                 ) : (
-                  <Alert severity="info" sx={{ mb: 2 }}>
-                    Enter latitude and longitude to find nearest cities.
-                  </Alert>
+                  // Nearest city selection
+                  <Box>
+                    {nearestCities.length > 0 ? (
+                      <Box sx={{ mt: 1, mb: 2 }}>
+                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                          Select a city to assign to this venue:
+                        </Typography>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                          {nearestCities.map(city => (
+                            <Chip
+                              key={city._id}
+                              label={`${city.cityName} (${city.distanceInKm} km)`}
+                              onClick={() => handleSelectCity(city)}
+                              variant={venueForm.masteredCityId === city._id ? 'filled' : 'outlined'}
+                              color={venueForm.masteredCityId === city._id ? 'primary' : 'default'}
+                              clickable
+                            />
+                          ))}
+                        </Box>
+                      </Box>
+                    ) : venueForm.latitude && venueForm.longitude ? (
+                      <Alert severity="info" sx={{ mb: 2 }}>
+                        Click "Find" to locate the nearest cities for this venue.
+                      </Alert>
+                    ) : (
+                      <Alert severity="info" sx={{ mb: 2 }}>
+                        Enter latitude and longitude to find nearest cities.
+                      </Alert>
+                    )}
+                  </Box>
                 )}
                 
-                {venueForm.masteredCityId && (
+                {venueForm.masteredCityId && !hierarchySelectMode && (
                   <Box sx={{ mb: 2 }}>
                     <Typography variant="body2" fontWeight="bold">
                       Selected Geo Location:

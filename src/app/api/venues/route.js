@@ -132,15 +132,17 @@ export async function GET(request) {
     const appId = searchParams.get('appId') || "1";
     const limit = parseInt(searchParams.get('limit') || '100', 10);
     const page = parseInt(searchParams.get('page') || '1', 10);
-    const isActive = searchParams.get('isActive');
+    const isActiveParam = searchParams.get('isActive');
     const search = searchParams.get('search') || '';
+    
+    console.log('Query parameters:', { appId, limit, page, isActiveParam, search });
     
     // Build query
     const query = { appId };
     
     // Add isActive filter if provided
-    if (isActive !== null && isActive !== undefined) {
-      query.isActive = isActive === 'true';
+    if (isActiveParam !== null && isActiveParam !== undefined) {
+      query.isActive = isActiveParam === 'true';
     }
     
     // Add search filter if provided
@@ -154,41 +156,65 @@ export async function GET(request) {
       ];
     }
     
-    console.log('Using query:', query);
+    console.log('Using query:', JSON.stringify(query));
     
     // Calculate pagination
     const skip = (page - 1) * limit;
     
-    // Count total matching documents
-    const total = await Venue.countDocuments(query);
-    
-    // Get venues with pagination
-    const venues = await Venue.find(query)
-      .populate({
-        path: 'masteredCityId',
-        populate: {
-          path: 'masteredDivisionId',
-          populate: {
-            path: 'masteredRegionId',
-            populate: { path: 'masteredCountryId' }
-          }
+    try {
+      // Count total matching documents - handle as a separate try-catch
+      const total = await Venue.countDocuments(query);
+      console.log(`Total matching documents: ${total}`);
+      
+      // Get venues with pagination
+      const venues = await Venue.find(query)
+        .sort({ name: 1 })
+        .skip(skip)
+        .limit(limit);
+      
+      console.log(`Found ${venues.length} venues`);
+      
+      // Only populate if there are venues to avoid errors
+      let populatedVenues = [];
+      if (venues.length > 0) {
+        try {
+          // Populate hierarchical data
+          populatedVenues = await Venue.populate(venues, {
+            path: 'masteredCityId',
+            populate: {
+              path: 'masteredDivisionId',
+              populate: {
+                path: 'masteredRegionId',
+                populate: { path: 'masteredCountryId' }
+              }
+            }
+          });
+        } catch (populateError) {
+          console.error('Error populating venue hierarchy:', populateError);
+          // If population fails, just return the unpopulated venues
+          populatedVenues = venues;
         }
-      })
-      .sort({ name: 1 })
-      .skip(skip)
-      .limit(limit);
-    
-    console.log(`Found ${venues.length} venues`);
-    
-    return NextResponse.json({
-      data: venues,
-      pagination: {
-        total,
-        page,
-        limit,
-        pages: Math.ceil(total / limit)
+      } else {
+        populatedVenues = venues;
       }
-    });
+      
+      return NextResponse.json({
+        data: populatedVenues,
+        pagination: {
+          total,
+          page,
+          limit,
+          pages: Math.ceil(total / limit)
+        }
+      });
+    } catch (queryError) {
+      console.error('Error executing venue query:', queryError);
+      return NextResponse.json({ 
+        error: 'Failed to query venues', 
+        details: queryError.message,
+        stack: process.env.NODE_ENV === 'development' ? queryError.stack : undefined
+      }, { status: 500 });
+    }
   } catch (error) {
     console.error('Error fetching venues:', error);
     return NextResponse.json({ 
