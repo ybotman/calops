@@ -205,8 +205,18 @@ export default function VenuesPage() {
   };
 
   const handleEditVenue = async (venue) => {
+    // Ensure we have a valid venue with an ID
+    if (!venue || (!venue._id && !venue.id)) {
+      console.error('Invalid venue object or missing ID:', venue);
+      alert('Cannot edit this venue: invalid data');
+      return;
+    }
+    
+    const venueId = venue._id || venue.id;
+    console.log(`Editing venue with ID: ${venueId}`, venue);
+    
     setEditMode(true);
-    setSelectedVenueId(venue._id);
+    setSelectedVenueId(venueId);
     
     // Format the form data from the venue
     const formData = {
@@ -222,10 +232,10 @@ export default function VenuesPage() {
       comments: venue.comments || '',
       latitude: venue.latitude || '',
       longitude: venue.longitude || '',
-      masteredCityId: venue.masteredCityId?._id || '',
-      masteredDivisionId: venue.masteredDivisionId?._id || '',
-      masteredRegionId: venue.masteredRegionId?._id || '',
-      masteredCountryId: venue.masteredCountryId?._id || '',
+      masteredCityId: venue.masteredCityId?._id || venue.masteredCityId || '',
+      masteredDivisionId: venue.masteredDivisionId?._id || venue.masteredDivisionId || '',
+      masteredRegionId: venue.masteredRegionId?._id || venue.masteredRegionId || '',
+      masteredCountryId: venue.masteredCountryId?._id || venue.masteredCountryId || '',
       isActive: venue.isActive || false,
     };
     
@@ -246,15 +256,29 @@ export default function VenuesPage() {
   };
 
   const handleDeleteVenue = (venue) => {
+    // Ensure we have a valid venue with an ID
+    if (!venue || (!venue._id && !venue.id)) {
+      console.error('Invalid venue object or missing ID:', venue);
+      alert('Cannot delete this venue: invalid data');
+      return;
+    }
+    
     setVenueToDelete(venue);
     setConfirmDeleteOpen(true);
   };
 
   const confirmDelete = async () => {
     try {
+      if (!venueToDelete || (!venueToDelete._id && !venueToDelete.id)) {
+        throw new Error('No valid venue ID for deletion');
+      }
+      
+      const venueId = venueToDelete._id || venueToDelete.id;
+      console.log(`Deleting venue with ID: ${venueId}`);
+      
       setLoading(true);
       
-      await axios.delete(`/api/venues/${venueToDelete._id}`);
+      await axios.delete(`/api/venues/${venueId}`);
       
       // Refresh the venues list
       fetchVenues();
@@ -315,12 +339,14 @@ export default function VenuesPage() {
         appId: currentApp.id,
       };
       
-      if (editMode) {
+      if (editMode && selectedVenueId) {
         // Update existing venue
+        console.log(`Updating venue with ID: ${selectedVenueId}`);
         await axios.put(`/api/venues/${selectedVenueId}`, formattedData);
         alert('Venue updated successfully!');
       } else {
         // Create new venue
+        console.log('Creating new venue');
         await axios.post('/api/venues', formattedData);
         alert('Venue created successfully!');
       }
