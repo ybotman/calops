@@ -168,15 +168,53 @@ export async function PUT(request, { params }) {
     // Get Venue model
     const Venue = await getVenueModel();
     
+    // First check if the venue exists
+    const existingVenue = await Venue.findById(params.id);
+    if (!existingVenue) {
+      console.error(`Venue with ID ${params.id} not found`);
+      return NextResponse.json({ error: 'Venue not found' }, { status: 404 });
+    }
+    console.log('Found existing venue:', existingVenue._id);
+    
     // Parse request body
-    const updateData = await request.json();
-    console.log('Update data:', updateData);
+    let updateData;
+    try {
+      updateData = await request.json();
+      console.log('Update data:', JSON.stringify(updateData, null, 2));
+    } catch (parseError) {
+      console.error('Error parsing request body:', parseError);
+      return NextResponse.json({ 
+        error: 'Failed to parse request body', 
+        details: parseError.message 
+      }, { status: 400 });
+    }
+    
+    // Check for required fields
+    if (!updateData.name) {
+      return NextResponse.json({ error: 'Venue name is required' }, { status: 400 });
+    }
+    
+    // Sanitize ObjectId fields to ensure they're proper ObjectIds
+    ['masteredCityId', 'masteredDivisionId', 'masteredRegionId', 'masteredCountryId'].forEach(field => {
+      if (updateData[field]) {
+        if (mongoose.Types.ObjectId.isValid(updateData[field])) {
+          // Convert string ID to ObjectId
+          updateData[field] = new mongoose.Types.ObjectId(updateData[field]);
+        } else if (updateData[field] === '') {
+          // If empty string, set to null
+          updateData[field] = null;
+        } else {
+          console.warn(`Invalid ObjectId for ${field}: ${updateData[field]}, setting to null`);
+          updateData[field] = null;
+        }
+      }
+    });
     
     // Handle geolocation
     if (updateData.latitude && updateData.longitude) {
       updateData.geolocation = {
         type: "Point",
-        coordinates: [updateData.longitude, updateData.latitude]
+        coordinates: [parseFloat(updateData.longitude), parseFloat(updateData.latitude)]
       };
       
       // If masteredCityId is not provided but coordinates changed, find the nearest city
@@ -199,30 +237,38 @@ export async function PUT(request, { params }) {
       }
     }
     
-    // Update venue
-    const updatedVenue = await Venue.findByIdAndUpdate(
-      params.id,
-      updateData,
-      { new: true, runValidators: true }
-    ).populate({
-      path: 'masteredCityId',
-      populate: {
-        path: 'masteredDivisionId',
-        populate: {
-          path: 'masteredRegionId',
-          populate: { path: 'masteredCountryId' }
-        }
+    console.log('Performing update with data:', JSON.stringify(updateData, null, 2));
+    
+    // Ensure numeric values are properly typed
+    if (typeof updateData.latitude === 'string') updateData.latitude = parseFloat(updateData.latitude) || null;
+    if (typeof updateData.longitude === 'string') updateData.longitude = parseFloat(updateData.longitude) || null;
+    
+    // Update venue - using findOneAndUpdate for more control
+    const updatedVenue = await Venue.findOneAndUpdate(
+      { _id: params.id }, // Query by _id
+      { $set: updateData }, // Use $set to only update provided fields
+      { 
+        new: true, // Return the updated document
+        runValidators: true, // Run schema validators
+        lean: true // Return a plain JavaScript object instead of a Mongoose document
       }
-    });
+    );
     
     if (!updatedVenue) {
-      return NextResponse.json({ error: 'Venue not found' }, { status: 404 });
+      console.error('Failed to update venue - not found in second check');
+      return NextResponse.json({ error: 'Venue not found during update' }, { status: 404 });
     }
     
     console.log('Venue updated successfully');
-    return NextResponse.json(updatedVenue);
+    
+    // Return simple object without trying to populate (which can cause errors)
+    return NextResponse.json({
+      message: 'Venue updated successfully',
+      venue: updatedVenue
+    });
   } catch (error) {
     console.error('Error updating venue:', error);
+    console.error('Error stack:', error.stack);
     
     // Handle validation errors
     if (error.name === 'ValidationError') {
@@ -238,9 +284,22 @@ export async function PUT(request, { params }) {
       }, { status: 400 });
     }
     
+    // Handle Cast errors (often from invalid ObjectId)
+    if (error.name === 'CastError') {
+      return NextResponse.json({
+        error: 'Data format error',
+        details: `Cannot convert ${error.path} value: ${error.value} to ${error.kind}`,
+        message: error.message
+      }, { status: 400 });
+    }
+    
+    // Enhanced error info
     return NextResponse.json({ 
       error: 'Failed to update venue', 
+      name: error.name,
+      code: error.code,
       details: error.message,
+      venue_id: params.id,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     }, { status: 500 });
   }

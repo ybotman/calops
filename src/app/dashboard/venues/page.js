@@ -112,11 +112,42 @@ export default function VenuesPage() {
       });
       
       if (response.data && response.data.data) {
-        setVenues(response.data.data);
+        // Process venues to ensure masteredCityName is correctly populated
+        const processedVenues = response.data.data.map(venue => {
+          // Extract the city name from the nested object structure
+          let masteredCityName = 'None';
+          
+          if (venue.masteredCityId) {
+            if (typeof venue.masteredCityId === 'object' && venue.masteredCityId.cityName) {
+              masteredCityName = venue.masteredCityId.cityName;
+            } else if (typeof venue.masteredCityId === 'string') {
+              // If we just have an ID, we'll display the ID for now
+              masteredCityName = `City ID: ${venue.masteredCityId.substring(0, 8)}...`;
+            }
+          }
+          
+          // Add full address string for display purposes
+          const fullAddress = [
+            venue.address1,
+            venue.city,
+            venue.state,
+            venue.zip
+          ].filter(Boolean).join(', ');
+          
+          return {
+            ...venue,
+            masteredCityName,
+            fullAddress
+          };
+        });
+        
+        setVenues(processedVenues);
         setPagination(prev => ({
           ...prev,
           total: response.data.pagination.total,
         }));
+        
+        console.log('Processed venues:', processedVenues);
       } else {
         setVenues([]);
         setPagination(prev => ({
@@ -215,28 +246,59 @@ export default function VenuesPage() {
     const venueId = venue._id || venue.id;
     console.log(`Editing venue with ID: ${venueId}`, venue);
     
+    // For debugging, log all important fields
+    console.log('Venue edit details:', {
+      name: venue.name,
+      address1: venue.address1,
+      city: venue.city,
+      masteredCityId: venue.masteredCityId,
+      masteredCityName: venue.masteredCityName,
+    });
+    
     setEditMode(true);
     setSelectedVenueId(venueId);
     
+    // If we need more details, fetch the complete venue data
+    let completeVenue = venue;
+    
+    try {
+      // Only fetch if essential data is missing
+      if (!venue.address1 || (venue.masteredCityId && typeof venue.masteredCityId === 'string')) {
+        console.log('Fetching complete venue details...');
+        const response = await axios.get(`/api/venues/${venueId}`);
+        if (response.data) {
+          completeVenue = response.data;
+          console.log('Fetched complete venue:', completeVenue);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching complete venue details:', error);
+      // Continue with what we have
+    }
+    
     // Format the form data from the venue
     const formData = {
-      name: venue.name || '',
-      shortName: venue.shortName || '',
-      address1: venue.address1 || '',
-      address2: venue.address2 || '',
-      address3: venue.address3 || '',
-      city: venue.city || '',
-      state: venue.state || '',
-      zip: venue.zip || '',
-      phone: venue.phone || '',
-      comments: venue.comments || '',
-      latitude: venue.latitude || '',
-      longitude: venue.longitude || '',
-      masteredCityId: venue.masteredCityId?._id || venue.masteredCityId || '',
-      masteredDivisionId: venue.masteredDivisionId?._id || venue.masteredDivisionId || '',
-      masteredRegionId: venue.masteredRegionId?._id || venue.masteredRegionId || '',
-      masteredCountryId: venue.masteredCountryId?._id || venue.masteredCountryId || '',
-      isActive: venue.isActive || false,
+      name: completeVenue.name || '',
+      shortName: completeVenue.shortName || '',
+      address1: completeVenue.address1 || '',
+      address2: completeVenue.address2 || '',
+      address3: completeVenue.address3 || '',
+      city: completeVenue.city || '',
+      state: completeVenue.state || '',
+      zip: completeVenue.zip || '',
+      phone: completeVenue.phone || '',
+      comments: completeVenue.comments || '',
+      latitude: completeVenue.latitude || '',
+      longitude: completeVenue.longitude || '',
+      masteredCityId: 
+        (typeof completeVenue.masteredCityId === 'object' ? completeVenue.masteredCityId?._id : completeVenue.masteredCityId) || '',
+      masteredDivisionId: 
+        (typeof completeVenue.masteredDivisionId === 'object' ? completeVenue.masteredDivisionId?._id : completeVenue.masteredDivisionId) || '',
+      masteredRegionId: 
+        (typeof completeVenue.masteredRegionId === 'object' ? completeVenue.masteredRegionId?._id : completeVenue.masteredRegionId) || '',
+      masteredCountryId: 
+        (typeof completeVenue.masteredCountryId === 'object' ? completeVenue.masteredCountryId?._id : completeVenue.masteredCountryId) || '',
+      isActive: completeVenue.isActive || false,
     };
     
     setVenueForm(formData);
@@ -342,13 +404,25 @@ export default function VenuesPage() {
       if (editMode && selectedVenueId) {
         // Update existing venue
         console.log(`Updating venue with ID: ${selectedVenueId}`);
-        await axios.put(`/api/venues/${selectedVenueId}`, formattedData);
-        alert('Venue updated successfully!');
+        const response = await axios.put(`/api/venues/${selectedVenueId}`, formattedData);
+        console.log('Update response:', response.data);
+        
+        if (response.data.message) {
+          alert(response.data.message);
+        } else {
+          alert('Venue updated successfully!');
+        }
       } else {
         // Create new venue
         console.log('Creating new venue');
-        await axios.post('/api/venues', formattedData);
-        alert('Venue created successfully!');
+        const response = await axios.post('/api/venues', formattedData);
+        console.log('Create response:', response.data);
+        
+        if (response.data.message) {
+          alert(response.data.message);
+        } else {
+          alert('Venue created successfully!');
+        }
       }
       
       // Refresh the venues list
@@ -492,13 +566,9 @@ export default function VenuesPage() {
       field: 'masteredCityName', 
       headerName: 'Mastered City', 
       flex: 1,
-      // Use valueFormatter instead which is more reliable
-      valueFormatter: (params) => {
-        if (!params || !params.row) return 'None';
-        
-        const row = params.row;
-        const cityName = row.masteredCityId?.cityName;
-        return cityName || 'None';
+      valueGetter: (params) => {
+        // The masteredCityName field is already prepared in the row transformation
+        return params.row?.masteredCityName || 'None';
       }
     },
     { 
@@ -640,23 +710,42 @@ export default function VenuesPage() {
               // Ensure every row has a unique ID
               const rowId = safeVenue._id || safeVenue.id || `row-${index}-${Math.random().toString(36).substring(2, 9)}`;
               
-              // Extract cityName to a separate field to avoid nested property access in grid
-              const masteredCityName = safeVenue.masteredCityId?.cityName || '';
+              // Make sure we have the masteredCityName
+              // First check if we already have a processed masteredCityName
+              let masteredCityName = safeVenue.masteredCityName;
+              
+              // If not, try to extract it
+              if (!masteredCityName) {
+                if (typeof safeVenue.masteredCityId === 'object' && safeVenue.masteredCityId?.cityName) {
+                  masteredCityName = safeVenue.masteredCityId.cityName;
+                } else if (safeVenue.masteredCityId) {
+                  masteredCityName = `City ID: ${String(safeVenue.masteredCityId).substring(0, 8)}...`;
+                } else {
+                  masteredCityName = 'None';
+                }
+              }
+              
+              // For display in the list
+              const address = [
+                safeVenue.address1,
+                safeVenue.city,
+                safeVenue.state,
+                safeVenue.zip
+              ].filter(Boolean).join(', ');
               
               return {
-                // Only include safe properties
+                // Return a complete object for the DataGrid
+                ...safeVenue,
                 id: rowId,
                 name: safeVenue.name || '',
                 address1: safeVenue.address1 || '',
+                address: address,
                 city: safeVenue.city || '',
                 state: safeVenue.state || '',
                 zip: safeVenue.zip || '',
                 isActive: Boolean(safeVenue.isActive),
                 masteredCityId: safeVenue.masteredCityId || null,
                 masteredCityName: masteredCityName,
-                masteredDivisionId: safeVenue.masteredDivisionId || null,
-                masteredRegionId: safeVenue.masteredRegionId || null,
-                masteredCountryId: safeVenue.masteredCountryId || null,
               };
             })}
             columns={columns}
