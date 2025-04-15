@@ -1,0 +1,60 @@
+[
+  {
+    "uid": "firebase123456789",
+    "email": "user@example.com",
+    "displayName": "John Smith",
+    "emailVerified": true,
+    "providerData": [
+      {
+        "providerId": "password",
+        "uid": "user@example.com",
+        "displayName": "John Smith",
+        "email": "user@example.com",
+        "photoURL": null
+      }
+    ],
+    "metadata": {
+      "creationTime": "2023-01-01T12:00:00Z",
+      "lastSignInTime": "2023-04-01T15:30:00Z"
+    }
+  },
+  {
+    "uid": "google123456789",
+    "email": "googleuser@gmail.com",
+    "displayName": "Jane Doe",
+    "emailVerified": true,
+    "providerData": [
+      {
+        "providerId": "google.com",
+        "uid": "googleuser@gmail.com",
+        "displayName": "Jane Doe",
+        "email": "googleuser@gmail.com",
+        "photoURL": "https://lh3.googleusercontent.com/profile-image"
+      }
+    ],
+    "metadata": {
+      "creationTime": "2023-02-15T09:30:00Z",
+      "lastSignInTime": "2023-04-10T11:45:00Z"
+    },
+    "isRegionalOrganizer": true
+  },
+  {
+    "uid": "facebook123456789",
+    "email": "fbuser@example.com",
+    "displayName": "Bob Johnson",
+    "emailVerified": true,
+    "providerData": [
+      {
+        "providerId": "facebook.com",
+        "uid": "10203040506070",
+        "displayName": "Bob Johnson",
+        "email": "fbuser@example.com",
+        "photoURL": "https://graph.facebook.com/profile-image"
+      }
+    ],
+    "metadata": {
+      "creationTime": "2023-03-05T14:20:00Z",
+      "lastSignInTime": "2023-04-05T19:15:00Z"
+    }
+  }
+]

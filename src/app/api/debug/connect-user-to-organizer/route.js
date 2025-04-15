@@ -29,11 +29,32 @@ async function getUserLoginModel() {
   }
 }
 
+// Function to get a MongoDB model for Organizer
+async function getOrganizerModel() {
+  await connectToDatabase();
+  
+  try {
+    // Return existing model if it's already defined
+    return mongoose.model('Organizer');
+  } catch (e) {
+    // If model doesn't exist, define it with a minimal schema
+    const schema = new mongoose.Schema({
+      firebaseUserId: String,
+      appId: String,
+      linkedUserLogin: mongoose.Schema.Types.ObjectId,
+      fullName: String,
+      shortName: String
+    }, { collection: 'organizers', strict: false });
+    
+    return mongoose.model('Organizer', schema);
+  }
+}
+
 // POST handler for connecting user to organizer directly
 export async function POST(request) {
   try {
     // Parse the request body
-    const { firebaseUserId, organizerId, appId = '1' } = await request.json();
+    const { firebaseUserId, organizerId, appId = '1', clearExisting = false } = await request.json();
     
     console.log(`Debug API: Connecting user ${firebaseUserId} to organizer ${organizerId} with appId ${appId}`);
     
@@ -43,6 +64,38 @@ export async function POST(request) {
         success: false,
         error: 'Both firebaseUserId and organizerId are required'
       }, { status: 400 });
+    }
+    
+    // Check if this Firebase ID is already in use by another organizer
+    if (clearExisting) {
+      try {
+        // Connect to the database
+        await connectToDatabase();
+        
+        // Get the organizer model
+        const Organizer = await getOrganizerModel();
+        
+        // Find any organizers using this Firebase ID (should only be one due to unique index)
+        const existingOrganizer = await Organizer.findOne({ 
+          firebaseUserId, 
+          appId,
+          _id: { $ne: organizerId } // Not equal to the target organizer
+        });
+        
+        if (existingOrganizer) {
+          console.log(`Found existing organizer ${existingOrganizer._id} using Firebase ID ${firebaseUserId}, clearing...`);
+          
+          // Clear the Firebase ID from this organizer
+          existingOrganizer.firebaseUserId = null;
+          existingOrganizer.linkedUserLogin = null;
+          
+          await existingOrganizer.save();
+          console.log(`Cleared Firebase ID from organizer ${existingOrganizer._id}`);
+        }
+      } catch (clearError) {
+        console.warn('Error clearing existing Firebase ID usage:', clearError.message);
+        // Continue with connect attempt
+      }
     }
     
     try {

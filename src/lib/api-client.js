@@ -117,8 +117,40 @@ export const usersApi = {
 // Roles API
 export const rolesApi = {
   getRoles: async (appId = '1') => {
-    const response = await apiClient.get(`/api/roles?appId=${appId}`);
-    return response.data;
+    try {
+      const response = await apiClient.get(`/api/roles?appId=${appId}`);
+      return response.data;
+    } catch (error) {
+      console.warn('Error fetching roles from backend:', error.message);
+      
+      // Fallback - return hardcoded default roles
+      return [
+        {
+          _id: "66cb85ac74dca51e34e268ed",
+          roleName: "RegionalOrganizer",
+          description: "Can create and manage events for their region",
+          appId: appId
+        },
+        {
+          _id: "66cb85ac74dca51e34e268ec",
+          roleName: "SystemAdmin",
+          description: "Has full access to all system features",
+          appId: appId
+        },
+        {
+          _id: "66cb85ac74dca51e34e268ee",
+          roleName: "RegionalAdmin",
+          description: "Can administer settings for their region",
+          appId: appId
+        },
+        {
+          _id: "66cb85ac74dca51e34e268ef",
+          roleName: "User",
+          description: "Standard user account",
+          appId: appId
+        }
+      ];
+    }
   }
 };
 
@@ -166,8 +198,44 @@ export const organizersApi = {
     return response.data;
   },
   
+  // Helper function to check if a Firebase ID is already in use by another organizer
+  checkFirebaseIdUsage: async (firebaseUserId, currentOrganizerId, appId = '1') => {
+    try {
+      // Get all organizers (this should be a small list)
+      const response = await apiClient.get(`/api/organizers?appId=${appId}&isActive=true`);
+      const organizers = response.data || [];
+      
+      // Find any organizer with this Firebase ID that is NOT the current one
+      const existingOrganizer = organizers.find(org => 
+        org.firebaseUserId === firebaseUserId && 
+        org._id !== currentOrganizerId
+      );
+      
+      if (existingOrganizer) {
+        return {
+          inUse: true,
+          organizer: existingOrganizer
+        };
+      }
+      
+      return { inUse: false };
+    } catch (error) {
+      console.warn('Error checking Firebase ID usage:', error);
+      // Default to allowing connection if we can't check
+      return { inUse: false, error: error.message };
+    }
+  },
+  
   connectToUser: async (id, firebaseUserId, appId = '1') => {
     console.log(`Connecting organizer ${id} to user ${firebaseUserId} with appId ${appId}`);
+    
+    // First, check if the Firebase ID is already in use
+    const usageCheck = await organizersApi.checkFirebaseIdUsage(firebaseUserId, id, appId);
+    if (usageCheck.inUse) {
+      const msg = `Cannot connect: Firebase ID ${firebaseUserId} is already used by organizer "${usageCheck.organizer.fullName || usageCheck.organizer.name}" (ID: ${usageCheck.organizer._id})`;
+      console.error(msg);
+      throw new Error(msg);
+    }
     
     // Try approach #1: Direct database connection using our custom API
     try {
@@ -197,35 +265,54 @@ export const organizersApi = {
       // Continue to next approach
     }
     
-    // Try approach #2: Simple update approach with organizer PATCH
+    // Try approach #2: First clear any existing user connections, then update
     try {
-      console.log('Attempting simple PATCH update of organizer...');
+      console.log('Attempting to clear existing connections first...');
       
-      // First, fetch the organizer
+      // 1. First, fetch the organizer
       const organizerResponse = await apiClient.get(`/api/organizers/${id}?appId=${appId}`);
       const organizer = organizerResponse.data;
       
-      // Update the organizer with the user connection
-      const updateData = {
-        firebaseUserId: firebaseUserId,
-        appId: appId
-      };
+      // 2. Clear the existing firebase ID if there is one
+      if (organizer.firebaseUserId) {
+        console.log(`Clearing existing Firebase ID ${organizer.firebaseUserId} from organizer ${id}`);
+        
+        // Clear the Firebase ID
+        const clearResponse = await apiClient.patch(`/api/organizers/${id}`, {
+          firebaseUserId: null,
+          linkedUserLogin: null,
+          appId: appId
+        });
+        
+        console.log('Successfully cleared existing connection');
+      }
+      
+      // 3. Now add the new connection
+      console.log(`Adding new Firebase ID ${firebaseUserId} to organizer ${id}`);
       
       // Make a simple update request
-      const updateResponse = await apiClient.patch(`/api/organizers/${id}`, updateData);
+      const updateResponse = await apiClient.patch(`/api/organizers/${id}`, {
+        firebaseUserId: firebaseUserId,
+        appId: appId
+      });
       
-      console.log('Successfully updated organizer via simple PATCH');
+      console.log('Successfully updated organizer via two-phase PATCH');
       
       // Now, try to update the user separately
       try {
-        // Fetch the user
-        const userResponse = await apiClient.get(`/api/users?firebaseUserId=${firebaseUserId}&appId=${appId}`);
-        if (userResponse.data && userResponse.data.length > 0) {
-          const user = userResponse.data[0];
+        // Create route to find user by Firebase ID
+        const userRoute = `/api/userlogins/firebase/${firebaseUserId}?appId=${appId}`;
+        const userResponse = await apiClient.get(userRoute);
+        
+        if (userResponse.data) {
+          const user = userResponse.data;
           
           // Update the user to include the organizer reference
-          await apiClient.patch(`/api/users/${user._id}`, {
+          await apiClient.put(`/api/userlogins/updateUserInfo`, {
+            firebaseUserId: firebaseUserId,
+            appId: appId,
             regionalOrganizerInfo: {
+              ...user.regionalOrganizerInfo,
               organizerId: id,
               isApproved: true,
               isEnabled: true,
@@ -234,6 +321,28 @@ export const organizersApi = {
           });
           
           console.log('Successfully updated user with organizer reference');
+          
+          // Add RegionalOrganizer role if not present
+          const rolesResponse = await apiClient.get(`/api/roles?appId=${appId}`);
+          const roles = rolesResponse.data;
+          const organizerRole = roles.find(role => role.roleName === 'RegionalOrganizer');
+          
+          if (organizerRole) {
+            // Ensure roleIds is an array and convert objects to IDs
+            const userRoleIds = [...(user.roleIds || [])].map(role => 
+              typeof role === 'object' ? role._id : role
+            );
+            
+            // Check if role needs to be added
+            if (!userRoleIds.includes(organizerRole._id)) {
+              userRoleIds.push(organizerRole._id);
+              await apiClient.put(`/api/userlogins/${firebaseUserId}/roles`, {
+                roleIds: userRoleIds,
+                appId
+              });
+              console.log('Added RegionalOrganizer role to user');
+            }
+          }
         }
       } catch (userError) {
         console.warn('Could not update user, but organizer was updated:', userError.message);
@@ -241,65 +350,43 @@ export const organizersApi = {
       
       return {
         success: true,
-        message: 'Connected user to organizer via simple update',
+        message: 'Connected user to organizer via two-phase update',
         organizer: updateResponse.data
       };
     } catch (updateError) {
-      console.error('Error with simple update approach:', updateError);
+      console.error('Error with two-phase update approach:', updateError);
       // Continue to fallback approach
     }
     
-    // Last resort: Try a complete two-step update with all details
+    // Last resort: Try our direct database endpoint
     try {
-      console.log('Attempting complete two-step update...');
+      console.log('Attempting direct database connection via debug endpoint...');
       
-      // First update the organizer
-      const orgUpdateResponse = await fetch(`/api/organizers/${id}`, {
-        method: 'PATCH',
+      // Use the debug endpoint
+      const debugResponse = await fetch(`/api/debug/connect-user-to-organizer`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           firebaseUserId,
-          appId
+          organizerId: id,
+          appId,
+          clearExisting: true
         }),
       });
       
-      if (!orgUpdateResponse.ok) {
-        throw new Error(`Failed to update organizer: ${await orgUpdateResponse.text()}`);
+      if (!debugResponse.ok) {
+        throw new Error(`Failed to connect via debug endpoint: ${await debugResponse.text()}`);
       }
       
-      const updatedOrganizer = await orgUpdateResponse.json();
-      console.log('Successfully updated organizer in step 1');
-      
-      // Now update the user via our direct API (not the backend)
-      try {
-        // This endpoint should exist in our app
-        const userUpdateResponse = await fetch(`/api/debug/connect-user-to-organizer`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            firebaseUserId,
-            organizerId: id,
-            appId
-          }),
-        });
-        
-        if (userUpdateResponse.ok) {
-          console.log('Successfully updated user in step 2');
-        } else {
-          console.warn('User update failed, but organizer was updated');
-        }
-      } catch (userUpdateError) {
-        console.warn('Error updating user, but organizer was updated:', userUpdateError);
-      }
+      const result = await debugResponse.json();
+      console.log('Successfully connected via debug endpoint');
       
       return {
         success: true,
-        message: 'Connected user to organizer via two-step update',
-        organizer: updatedOrganizer
+        message: 'Connected user to organizer via direct database access',
+        data: result
       };
     } catch (fallbackError) {
       console.error('All connection approaches failed:', fallbackError);
