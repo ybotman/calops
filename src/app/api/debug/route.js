@@ -11,7 +11,398 @@ import {
   getMasteredCityModel 
 } from '@/lib/models';
 
+// Create a model for UserLogin - used for direct deletion
+async function getUserLoginModel() {
+  await connectToDatabase();
+  
+  try {
+    // Return existing model if it's already defined
+    return mongoose.model('UserLogin');
+  } catch (e) {
+    // If model doesn't exist, define it with a minimal schema
+    const schema = new mongoose.Schema({
+      firebaseUserId: String,
+      appId: String,
+      active: Boolean,
+      // Using strict: false allows us to work with documents
+      // that might have fields not defined in the schema
+    }, { collection: 'userLogins', strict: false });
+    
+    return mongoose.model('UserLogin', schema);
+  }
+}
+
 const BE_URL = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
+
+// Get Organizer model
+async function getOrganizerModel() {
+  await connectToDatabase();
+  
+  try {
+    // Return existing model if it's already defined
+    return mongoose.model('Organizer');
+  } catch (e) {
+    // If model doesn't exist, define it with a minimal schema
+    const schema = new mongoose.Schema({
+      appId: String,
+      firebaseUserId: String,
+      linkedUserLogin: mongoose.Schema.Types.ObjectId,
+      fullName: String,
+      shortName: String,
+      isActive: Boolean,
+      isEnabled: Boolean,
+      wantRender: Boolean,
+    }, { collection: 'organizers', strict: false });
+    
+    return mongoose.model('Organizer', schema);
+  }
+}
+
+// Special route for direct user operations - for debugging and fixing issues
+// POST route for various operations
+export async function POST(request) {
+  try {
+    // Get request body
+    const body = await request.json();
+    
+    // Check action type
+    const validActions = ['deleteUsers', 'deleteAllTempUsers', 'connectOrganizerToUser'];
+    if (!validActions.includes(body.action)) {
+      return NextResponse.json({
+        success: false,
+        error: `Invalid action type. Supported actions: ${validActions.join(', ')}`
+      }, { status: 400 });
+    }
+    
+    // Handle connectOrganizerToUser action
+    if (body.action === 'connectOrganizerToUser') {
+      const { organizerId, firebaseUserId, appId = '1' } = body;
+      
+      if (!organizerId || !firebaseUserId) {
+        return NextResponse.json({
+          success: false,
+          error: 'Missing required parameters: organizerId, firebaseUserId'
+        }, { status: 400 });
+      }
+      
+      try {
+        console.log(`Debug API: Connecting organizer ${organizerId} to user ${firebaseUserId}`);
+        
+        // Connect to the database
+        await connectToDatabase();
+        
+        // Get the necessary models
+        const UserLogin = await getUserLoginModel();
+        const Organizer = await getOrganizerModel();
+        
+        // Convert organizerId to ObjectId if needed
+        let orgObjectId;
+        try {
+          orgObjectId = new mongoose.Types.ObjectId(organizerId);
+        } catch (e) {
+          console.warn(`Could not convert ${organizerId} to ObjectId. Using as-is.`);
+          orgObjectId = organizerId;
+        }
+        
+        // First, find the organizer
+        let organizer;
+        try {
+          organizer = await Organizer.findOne({
+            $or: [
+              { _id: orgObjectId },
+              { _id: organizerId }
+            ],
+            appId
+          });
+        } catch (findOrgError) {
+          console.error('Error finding organizer:', findOrgError);
+          return NextResponse.json({
+            success: false,
+            error: `Error finding organizer: ${findOrgError.message}`
+          }, { status: 500 });
+        }
+        
+        if (!organizer) {
+          return NextResponse.json({
+            success: false,
+            error: 'Organizer not found'
+          }, { status: 404 });
+        }
+        
+        // Next, find the user
+        let user;
+        try {
+          user = await UserLogin.findOne({ firebaseUserId, appId });
+        } catch (findUserError) {
+          console.error('Error finding user:', findUserError);
+          return NextResponse.json({
+            success: false,
+            error: `Error finding user: ${findUserError.message}`
+          }, { status: 500 });
+        }
+        
+        if (!user) {
+          return NextResponse.json({
+            success: false,
+            error: 'User not found'
+          }, { status: 404 });
+        }
+        
+        console.log(`Found organizer ${organizer._id} and user ${user._id}`);
+        
+        // Now update the organizer with the user's information
+        organizer.firebaseUserId = firebaseUserId;
+        organizer.linkedUserLogin = user._id;
+        
+        // Update the user's regionalOrganizerInfo
+        if (!user.regionalOrganizerInfo) {
+          user.regionalOrganizerInfo = {};
+        }
+        
+        user.regionalOrganizerInfo = {
+          ...user.regionalOrganizerInfo,
+          organizerId: organizer._id,
+          isApproved: true,
+          isEnabled: true,
+          isActive: true,
+          ApprovalDate: new Date()
+        };
+        
+        // Get roles for adding RegionalOrganizer role
+        try {
+          // Define minimal Role schema
+          const RoleSchema = new mongoose.Schema({
+            roleName: String,
+            appId: String
+          }, { collection: 'roles' });
+          
+          const RoleModel = mongoose.models.Role || mongoose.model('Role', RoleSchema);
+          const roles = await RoleModel.find({ appId });
+          
+          // Find the RegionalOrganizer role
+          const organizerRole = roles.find(role => role.roleName === 'RegionalOrganizer');
+          
+          // Add RegionalOrganizer role if not already present
+          if (organizerRole && !user.roleIds.some(r => 
+            r.toString() === organizerRole._id.toString()
+          )) {
+            user.roleIds.push(organizerRole._id);
+            console.log('Added RegionalOrganizer role to user');
+          }
+        } catch (roleError) {
+          console.warn('Could not add RegionalOrganizer role:', roleError.message);
+          // Continue without adding role
+        }
+        
+        // Save both the user and organizer updates
+        try {
+          await Promise.all([
+            user.save(),
+            organizer.save()
+          ]);
+          
+          console.log('Successfully saved user and organizer updates');
+        } catch (saveError) {
+          console.error('Error saving updates:', saveError);
+          return NextResponse.json({
+            success: false,
+            error: `Failed to save user or organizer updates: ${saveError.message}`
+          }, { status: 500 });
+        }
+        
+        return NextResponse.json({
+          success: true,
+          message: 'User connected to organizer successfully via direct database update',
+          user: {
+            _id: user._id,
+            firebaseUserId: user.firebaseUserId,
+            regionalOrganizerInfo: user.regionalOrganizerInfo,
+            roleIds: user.roleIds
+          },
+          organizer: {
+            _id: organizer._id,
+            firebaseUserId: organizer.firebaseUserId,
+            linkedUserLogin: organizer.linkedUserLogin
+          }
+        });
+      } catch (error) {
+        console.error('Error in connectOrganizerToUser operation:', error);
+        return NextResponse.json({
+          success: false,
+          error: error.message,
+          stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        }, { status: 500 });
+      }
+    }
+    
+    // Handle deleteAllTempUsers action separately
+    if (body.action === 'deleteAllTempUsers') {
+      const appId = body.appId || '1';
+      
+      try {
+        // Connect to the database
+        await connectToDatabase();
+        
+        // Get the user model
+        const UserLogin = await getUserLoginModel();
+        
+        // Delete all users with temp_ prefix in firebaseUserId
+        const result = await UserLogin.deleteMany({
+          firebaseUserId: { $regex: '^temp_' },
+          appId: appId
+        });
+        
+        return NextResponse.json({
+          success: true,
+          message: `${result.deletedCount} temporary users deleted successfully`,
+          details: result
+        });
+      } catch (dbError) {
+        console.error('Database error during temp user deletion:', dbError);
+        return NextResponse.json({
+          success: false,
+          error: dbError.message,
+          stack: process.env.NODE_ENV === 'development' ? dbError.stack : undefined
+        }, { status: 500 });
+      }
+    }
+    
+    // Validate userIds
+    if (!body.userIds || !Array.isArray(body.userIds) || body.userIds.length === 0) {
+      return NextResponse.json({
+        success: false,
+        error: 'Missing or invalid userIds. Must provide an array of user IDs.'
+      }, { status: 400 });
+    }
+    
+    // Extract parameters
+    const userIds = body.userIds;
+    const appId = body.appId || '1';
+    const isTempOnly = body.tempOnly === true; // Only delete temp users
+    
+    try {
+      // Connect to the database
+      await connectToDatabase();
+      
+      // Get the user model
+      const UserLogin = await getUserLoginModel();
+      
+      // Convert IDs to ObjectIds where possible
+      const objectIds = userIds.map(id => {
+        try {
+          return new mongoose.Types.ObjectId(id);
+        } catch (e) {
+          return id; // Use as-is if not a valid ObjectId
+        }
+      });
+      
+      // Build query
+      let query = {
+        _id: { $in: [...objectIds, ...userIds] }, // Try both formats
+        appId: appId
+      };
+      
+      // If tempOnly is true, add condition to only delete temp users
+      if (isTempOnly) {
+        query.firebaseUserId = { $regex: '^temp_' };
+      }
+      
+      // Delete matching users
+      const result = await UserLogin.deleteMany(query);
+      
+      return NextResponse.json({
+        success: true,
+        message: `${result.deletedCount} users deleted successfully`,
+        details: result
+      });
+    } catch (dbError) {
+      console.error('Database error during bulk user deletion:', dbError);
+      return NextResponse.json({
+        success: false,
+        error: dbError.message,
+        stack: process.env.NODE_ENV === 'development' ? dbError.stack : undefined
+      }, { status: 500 });
+    }
+  } catch (error) {
+    console.error('Bulk user deletion error:', error);
+    return NextResponse.json({
+      success: false,
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    }, { status: 500 });
+  }
+}
+
+export async function DELETE(request) {
+  try {
+    // Get the user ID from the URL or query parameters
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
+    const appId = searchParams.get('appId') || '1';
+    
+    // Validate parameters
+    if (!userId) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Missing userId parameter' 
+      }, { status: 400 });
+    }
+    
+    try {
+      // Connect to the database
+      await connectToDatabase();
+      
+      // Get the user model
+      const UserLogin = await getUserLoginModel();
+      
+      // Attempt to convert to ObjectId (in case it's a string ID)
+      let objectId;
+      try {
+        objectId = new mongoose.Types.ObjectId(userId);
+      } catch (e) {
+        console.warn(`Could not convert ${userId} to ObjectId. Using as-is.`);
+        objectId = userId; // Use as-is if not a valid ObjectId
+      }
+      
+      // Try both the string ID and ObjectId to be safe
+      const result = await UserLogin.deleteOne({
+        $or: [
+          { _id: objectId },
+          { _id: userId }
+        ],
+        appId: appId
+      });
+      
+      if (result.deletedCount === 0) {
+        return NextResponse.json({
+          success: false,
+          message: 'User not found',
+          details: `No user found with ID ${userId} and appId ${appId}`
+        }, { status: 404 });
+      }
+      
+      return NextResponse.json({
+        success: true,
+        message: 'User deleted successfully',
+        details: result
+      });
+    } catch (dbError) {
+      console.error('Database error during user deletion:', dbError);
+      return NextResponse.json({
+        success: false,
+        error: dbError.message,
+        stack: process.env.NODE_ENV === 'development' ? dbError.stack : undefined
+      }, { status: 500 });
+    }
+  } catch (error) {
+    console.error('User deletion error:', error);
+    return NextResponse.json({
+      success: false,
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    }, { status: 500 });
+  }
+}
 
 export async function GET() {
   try {

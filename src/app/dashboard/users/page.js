@@ -435,6 +435,126 @@ export default function UsersPage() {
     }
   };
   
+  // Handle delete user with proper organizer relationship cleanup
+  const handleDeleteUser = async (user) => {
+    try {
+      // Get confirmation with clear warning
+      const isTemp = user.firebaseUserId?.startsWith('temp_');
+      let confirmMessage = `Are you sure you want to delete user "${user.displayName}"?`;
+      
+      if (isTemp) {
+        confirmMessage += "\nThis is a temporary user created during import.";
+      } else {
+        confirmMessage += "\n\nWARNING: This will permanently remove this user and they will no longer be able to log in.";
+      }
+      
+      // Check if user is linked to an organizer
+      const hasOrganizer = user.regionalOrganizerInfo?.organizerId;
+      if (hasOrganizer) {
+        confirmMessage += "\n\nIMPORTANT: This user is linked to an organizer. The organizer will NOT be deleted, but will have its user connection removed.";
+        confirmMessage += "\nThe organizer will need to be reassigned to another user or it will become inaccessible.";
+      }
+      
+      confirmMessage += "\n\nThis action cannot be undone.";
+      
+      if (!window.confirm(confirmMessage)) {
+        return;
+      }
+
+      setSelectedUser(user);
+      setLoading(true);
+      
+      // If user has an organizer connection, first remove that connection to prevent orphaned references
+      if (hasOrganizer) {
+        try {
+          console.log(`User has organizer connection. Updating organizer before deleting user...`);
+          
+          // Get the organizer ID (handling both string and object formats)
+          const organizerId = typeof user.regionalOrganizerInfo.organizerId === 'object'
+            ? user.regionalOrganizerInfo.organizerId._id
+            : user.regionalOrganizerInfo.organizerId;
+          
+          // Update the organizer to remove user references
+          await axios.patch(`/api/organizers/${organizerId}`, {
+            firebaseUserId: null,
+            linkedUserLogin: null,
+            appId: user.appId || '1'
+          });
+          
+          console.log(`Successfully disconnected user from organizer ${organizerId}`);
+        } catch (organizerError) {
+          console.error('Error disconnecting user from organizer:', organizerError);
+          // Continue with user deletion even if organizer update fails
+        }
+      }
+
+      // Delete the user
+      await usersApi.deleteUser(user._id, user.appId || '1');
+
+      // Refresh the user list
+      await refreshUsers();
+      filterUsers(searchTerm);
+
+      alert('User deleted successfully!');
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      
+      let errorMessage = 'Failed to delete user';
+      if (error.response && error.response.data) {
+        errorMessage += `: ${error.response.data.message || JSON.stringify(error.response.data)}`;
+      } else {
+        errorMessage += `: ${error.message}`;
+      }
+      
+      alert(errorMessage);
+    } finally {
+      setLoading(false);
+      setSelectedUser(null);
+    }
+  };
+  
+  // Handle delete all temporary users
+  const handleDeleteAllTempUsers = async () => {
+    try {
+      // Find all temporary users
+      const tempUsers = users.filter(user => 
+        user.firebaseUserId?.startsWith('temp_')
+      );
+      
+      if (tempUsers.length === 0) {
+        alert('No temporary users found to delete.');
+        return;
+      }
+      
+      // Get confirmation
+      const confirmMessage = `Are you sure you want to delete ALL ${tempUsers.length} temporary users?\n\nThis action cannot be undone.`;
+      if (!window.confirm(confirmMessage)) {
+        return;
+      }
+      
+      setLoading(true);
+      
+      // Use our direct bulk deletion endpoint
+      const result = await usersApi.deleteAllTempUsers(appId);
+      
+      // Refresh the user list
+      await refreshUsers();
+      filterUsers(searchTerm);
+      
+      // Show results
+      if (result.success) {
+        alert(`Successfully deleted ${result.message}`);
+      } else {
+        alert(`Error deleting temporary users: ${result.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error("Error in bulk delete process:", error);
+      alert(`Error in bulk delete process: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
   // Handle create new user
   const handleCreateUser = async () => {
     try {
@@ -601,35 +721,59 @@ export default function UsersPage() {
     { 
       field: 'actions', 
       headerName: 'Actions', 
-      width: 220,
-      renderCell: (params) => (
-        <Box>
-          <Button
-            variant="text"
-            color="primary"
-            onClick={() => handleEditUser(params.row)}
-            startIcon={<EditIcon />}
-            sx={{ mr: 1 }}
-          >
-            Edit
-          </Button>
-          
-          {params.row.isOrganizer === 'No' && (
-            <Tooltip title="Create an organizer for this user">
+      width: 280,
+      renderCell: (params) => {
+        const user = params.row;
+        const isDeleting = loading && selectedUser?._id === user._id;
+        const isTemp = user.firebaseUserId?.startsWith('temp_');
+        
+        return (
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
+              variant="text"
+              color="primary"
+              onClick={() => handleEditUser(user)}
+              startIcon={<EditIcon />}
+              size="small"
+            >
+              Edit
+            </Button>
+            
+            {user.isOrganizer === 'No' && (
+              <Tooltip title="Create an organizer for this user">
+                <Button
+                  variant="text"
+                  color="secondary"
+                  onClick={() => handleQuickCreateOrganizer(user)}
+                  startIcon={<LinkIcon />}
+                  disabled={creatingOrganizer}
+                  size="small"
+                >
+                  {creatingOrganizer && selectedUser?._id === user._id ? 'Creating...' : 'Create Org'}
+                </Button>
+              </Tooltip>
+            )}
+            
+            <Tooltip title={isTemp ? "Delete temporary user" : "Delete user permanently"}>
               <Button
                 variant="text"
-                color="secondary"
-                onClick={() => handleQuickCreateOrganizer(params.row)}
-                startIcon={<LinkIcon />}
-                disabled={creatingOrganizer}
+                color="error"
+                onClick={() => handleDeleteUser(user)}
+                startIcon={<DeleteIcon />}
+                disabled={isDeleting}
                 size="small"
+                sx={{ 
+                  marginLeft: 'auto',
+                  // Make delete button more prominent for temp users
+                  ...(isTemp && { fontWeight: 'bold' })
+                }}
               >
-                {creatingOrganizer && selectedUser?._id === params.row._id ? 'Creating...' : 'Create Org'}
+                {isDeleting ? 'Deleting...' : 'Delete'}
               </Button>
             </Tooltip>
-          )}
-        </Box>
-      ) 
+          </Box>
+        );
+      }
     },
   ];
 
@@ -729,6 +873,17 @@ export default function UsersPage() {
       </TabPanel>
       
       <TabPanel value={tabValue} index={3}>
+        <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
+          <Button
+            variant="contained"
+            color="error"
+            startIcon={<DeleteIcon />}
+            onClick={handleDeleteAllTempUsers}
+            disabled={loading || filteredUsers.length === 0}
+          >
+            Delete All Temporary Users ({filteredUsers.length})
+          </Button>
+        </Box>
         <Paper sx={{ height: 600, width: '100%' }}>
           {loading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>

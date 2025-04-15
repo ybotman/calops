@@ -46,6 +46,24 @@ After completing the migration:
 2. For future imports, consider implementing a proper import utility in the backend
 3. Any similar functionality should be integrated into the main organizer creation flow
 
+## Cleanup Process
+
+After completing the import and verifying the data, use the cleanup scripts to remove temporary records:
+
+```bash
+# From the project root directory
+node scripts/remove-temp-users.js
+node scripts/remove-temp-organizers.js
+```
+
+These scripts will:
+1. Identify temporary users with `firebaseUserId` starting with "temp_"
+2. Identify temporary organizers from the BTC import
+3. Provide a dry run option to preview what would be deleted
+4. Support multiple endpoints and connection methods for resilience
+
+See the detailed documentation in `scripts/CLEANUP_SCRIPTS_README.md` for configuration options.
+
 ## Usage Notes
 
 The endpoint is called by the organizer import functionality in the admin dashboard and should not be used directly. It expects transformed BTC organizer data and returns either:

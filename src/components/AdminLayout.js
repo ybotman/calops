@@ -23,7 +23,7 @@ import PeopleIcon from '@mui/icons-material/People';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import BusinessIcon from '@mui/icons-material/Business';
 import AppsIcon from '@mui/icons-material/Apps';
-import SettingsIcon from '@mui/icons-material/Settings';
+import BuildIcon from '@mui/icons-material/Build';
 import ExitToAppIcon from '@mui/icons-material/ExitToApp';
 
 // Navigation items
@@ -104,9 +104,9 @@ export default function AdminLayout({ children }) {
       <Divider />
       <List>
         <ListItem disablePadding>
-          <ListItemButton component="a" href="/settings">
-            <ListItemIcon><SettingsIcon /></ListItemIcon>
-            <ListItemText primary="Settings" />
+          <ListItemButton component="a" href="/dashboard/maintenance">
+            <ListItemIcon><BuildIcon /></ListItemIcon>
+            <ListItemText primary="Maintenance" />
           </ListItemButton>
         </ListItem>
         <ListItem disablePadding>

@@ -66,20 +66,45 @@ export default function UserEditForm({ user, roles, onSubmit }) {
         // Use the appId from the user if available, or default to "1"
         const appId = user?.appId || "1";
         
-        // Make sure to add isActive=true as a parameter to satisfy backend requirements
-        const response = await axios.get(`/api/organizers?appId=${appId}&isActive=true`);
+        // Try first approach - using our specific API endpoint
+        try {
+          // Make sure to add isActive=true as a parameter to satisfy backend requirements
+          const response = await axios.get(`/api/organizers?appId=${appId}&isActive=true`);
+          
+          if (response.data && Array.isArray(response.data)) {
+            console.log(`Loaded ${response.data.length} organizers for dropdown`);
+            setOrganizers(response.data);
+            setOrganizersLoading(false);
+            return; // Exit early if successful
+          } else {
+            console.warn('Invalid organizers data format, trying direct backend access:', response.data);
+            // Continue to fallback approach
+          }
+        } catch (apiError) {
+          console.warn('First organizer fetch approach failed, trying direct backend access:', apiError);
+          // Continue to fallback approach
+        }
         
-        if (response.data && Array.isArray(response.data)) {
-          console.log(`Loaded ${response.data.length} organizers for dropdown`);
-          setOrganizers(response.data);
-        } else {
-          console.error('Invalid organizers data format:', response.data);
-          setOrganizers([]);
+        // Fallback - try fetching directly from backend
+        try {
+          const BE_URL = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
+          const directResponse = await axios.get(`${BE_URL}/api/organizers/all?appId=${appId}&isActive=true`);
+          
+          if (directResponse.data && Array.isArray(directResponse.data)) {
+            console.log(`Loaded ${directResponse.data.length} organizers from direct backend call`);
+            setOrganizers(directResponse.data);
+          } else {
+            console.error('Invalid organizers data from direct backend call:', directResponse.data);
+            setOrganizers([]);
+          }
+        } catch (directError) {
+          console.error('All organizer fetch approaches failed:', directError);
+          setOrganizers([]); // Set empty array to prevent errors
         }
         
         setOrganizersLoading(false);
       } catch (error) {
-        console.error('Error fetching organizers:', error);
+        console.error('Error in organizer fetch process:', error);
         setOrganizersLoading(false);
         setOrganizers([]); // Set empty array to prevent errors
       }
@@ -180,12 +205,47 @@ export default function UserEditForm({ user, roles, onSubmit }) {
     setError('');
     
     try {
-      // Update user information
+      // Check if the organizer relationship has changed
+      const originalOrganizerId = user.regionalOrganizerInfo?.organizerId 
+        ? (typeof user.regionalOrganizerInfo.organizerId === 'object' 
+           ? user.regionalOrganizerInfo.organizerId._id 
+           : user.regionalOrganizerInfo.organizerId)
+        : null;
+      
+      const newOrganizerId = formData.regionalOrganizerInfo.organizerId;
+      
+      // If the user has selected a different organizer, use connectToUser API
+      if (newOrganizerId && newOrganizerId !== originalOrganizerId) {
+        try {
+          console.log(`Connecting user ${formData.firebaseUserId} to organizer ${newOrganizerId} before saving user data`);
+          
+          // Call the organizer connect-user API to establish the relationship
+          const connectResponse = await axios.patch(`/api/organizers/${newOrganizerId}/connect-user`, {
+            firebaseUserId: formData.firebaseUserId,
+            appId: user.appId || '1'
+          });
+          
+          console.log('Successfully connected user to organizer:', connectResponse.data);
+          
+          // Make sure the RegionalOrganizer role is also included
+          const organizerRole = roles.find(role => role.roleName === 'RegionalOrganizer');
+          if (organizerRole && !formData.roleIds.includes(organizerRole._id)) {
+            formData.roleIds.push(organizerRole._id);
+            console.log('Added RegionalOrganizer role to user roles');
+          }
+        } catch (connectError) {
+          console.warn('Error connecting user to organizer via API, will rely on standard update:', connectError);
+          // Continue with regular update, which will set the organizerId reference
+        }
+      }
+      
+      // Update user information with the prepared data
       onSubmit({
         ...formData,
         appId: user.appId || '1', // Default to TangoTiempo if not specified
       });
     } catch (err) {
+      console.error('Error in form submission:', err);
       setError('Failed to update user. Please try again.');
       setLoading(false);
     }
