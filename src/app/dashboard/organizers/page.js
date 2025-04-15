@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import axios from 'axios';
 import {
   Box,
@@ -492,6 +493,17 @@ export default function OrganizersPage() {
           }
         } catch (error) {
           console.error(`Error importing organizer ${organizer.fullName}:`, error);
+          
+          // Show more detailed error information
+          if (error.response) {
+            console.error('Error response data:', error.response.data);
+            console.error('Error response status:', error.response.status);
+            
+            // If we have detailed error information, display it in the console
+            if (error.response.data) {
+              console.error('Detailed error:', JSON.stringify(error.response.data, null, 2));
+            }
+          }
           
           setImportResults(prev => ({
             ...prev,
@@ -1037,6 +1049,7 @@ export default function OrganizersPage() {
                     control={
                       <Checkbox
                         checked={importedOrganizers.length > 0 && 
+                          Object.values(selectedOrganizers).length > 0 &&
                           Object.values(selectedOrganizers).every(value => value === true)}
                         indeterminate={Object.values(selectedOrganizers).some(value => value === true) && 
                           Object.values(selectedOrganizers).some(value => value === false)}
@@ -1068,6 +1081,7 @@ export default function OrganizersPage() {
                       <TableCell padding="checkbox">
                         <Checkbox 
                           checked={importedOrganizers.length > 0 && 
+                            Object.values(selectedOrganizers).length > 0 &&
                             Object.values(selectedOrganizers).every(value => value === true)}
                           indeterminate={Object.values(selectedOrganizers).some(value => value === true) && 
                             Object.values(selectedOrganizers).some(value => value === false)}
