@@ -25,6 +25,17 @@ import {
   Chip,
   Divider,
   Alert,
+  List,
+  ListItem,
+  ListItemText,
+  Checkbox,
+  LinearProgress,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import SearchIcon from '@mui/icons-material/Search';
@@ -82,6 +93,15 @@ export default function VenuesPage() {
 
   // Initialize with error state
   const [error, setError] = useState(null);
+  
+  // Import dialog state
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importStatus, setImportStatus] = useState('idle'); // idle, loading, success, error
+  const [importedVenues, setImportedVenues] = useState([]);
+  const [selectedVenues, setSelectedVenues] = useState({});
+  const [importProgress, setImportProgress] = useState(0);
+  const [importResults, setImportResults] = useState({ success: 0, error: 0, skipped: 0 });
+  const [fetchingBTCVenues, setFetchingBTCVenues] = useState(false);
 
   // Fetch venues on component mount and when app changes
   useEffect(() => {
@@ -126,18 +146,15 @@ export default function VenuesPage() {
             }
           }
           
-          // Add full address string for display purposes
-          const fullAddress = [
-            venue.address1,
-            venue.city,
-            venue.state,
-            venue.zip
-          ].filter(Boolean).join(', ');
+          // Ensure address1 and city are set properly
+          const address1 = venue.address1 || '';
+          const city = venue.city || '';
           
           return {
             ...venue,
             masteredCityName,
-            fullAddress
+            address1,
+            city
           };
         });
         
@@ -531,6 +548,256 @@ export default function VenuesPage() {
       alert('Please enter both latitude and longitude first');
     }
   };
+  
+  const handleImportVenues = async () => {
+    try {
+      setImportDialogOpen(true);
+      setImportStatus('loading');
+      setFetchingBTCVenues(true);
+      setImportedVenues([]);
+      setSelectedVenues({});
+      
+      // Get all existing venues for comparison
+      const existingVenuesResponse = await axios.get('/api/venues', {
+        params: {
+          appId: currentApp.id,
+          limit: 1000 // Get a large number to check for duplicates
+        }
+      });
+      
+      const existingVenues = existingVenuesResponse.data?.data || [];
+      console.log(`Found ${existingVenues.length} existing venues for comparison`);
+      
+      // Fetch all pages from BTC WordPress API using pagination
+      let allVenues = [];
+      let currentPage = 1;
+      let totalPages = 1;
+      
+      do {
+        console.log(`Fetching BTC venues page ${currentPage}...`);
+        const response = await axios.get(`https://bostontangocalendar.com/wp-json/tribe/events/v1/venues`, {
+          params: {
+            page: currentPage
+          }
+        });
+        
+        // Get total pages from headers or response
+        if (currentPage === 1) {
+          // Try to get from X-WP-TotalPages header
+          const totalPagesHeader = response.headers['x-wp-totalpages'] || response.headers['X-WP-TotalPages'];
+          if (totalPagesHeader) {
+            totalPages = parseInt(totalPagesHeader, 10);
+          } else if (response.data && response.data.total_pages) {
+            // Fallback to response data
+            totalPages = response.data.total_pages;
+          }
+          console.log(`Total pages of venues: ${totalPages}`);
+        }
+        
+        if (response.data && response.data.venues) {
+          allVenues = [...allVenues, ...response.data.venues];
+          console.log(`Fetched ${response.data.venues.length} venues from page ${currentPage}`);
+        } else {
+          throw new Error(`Invalid response format from BTC API on page ${currentPage}`);
+        }
+        
+        currentPage++;
+      } while (currentPage <= totalPages);
+      
+      console.log(`Fetched a total of ${allVenues.length} venues from BTC API`);
+      
+      // Transform the WordPress venue format to our application format
+      const transformedVenues = allVenues.map(venue => {
+        // Extract coordinates from WordPress venue
+        let latitude = null;
+        let longitude = null;
+        
+        // Check if we have geo coordinates
+        if (venue.geo_lat && venue.geo_lng) {
+          latitude = parseFloat(venue.geo_lat);
+          longitude = parseFloat(venue.geo_lng);
+        }
+        
+        // Check if this venue already exists in our system
+        // Match by name AND address or by exact coordinates
+        const isDuplicate = existingVenues.some(existingVenue => {
+          // Main match: same name and similar address
+          const nameMatch = existingVenue.name?.toLowerCase() === venue.venue?.toLowerCase();
+          const addressMatch = existingVenue.address1?.toLowerCase()?.includes(venue.address?.toLowerCase()) ||
+                               venue.address?.toLowerCase()?.includes(existingVenue.address1?.toLowerCase());
+          
+          // Alternate match: exact coordinates match (if available)
+          const coordMatch = venue.geo_lat && venue.geo_lng && 
+                             existingVenue.latitude === parseFloat(venue.geo_lat) && 
+                             existingVenue.longitude === parseFloat(venue.geo_lng);
+          
+          return (nameMatch && addressMatch) || coordMatch;
+        });
+        
+        // Create a venue object in our application's format
+        return {
+          id: venue.id,
+          originalId: venue.id,
+          name: venue.venue || '',
+          shortName: '',
+          address1: venue.address || '',
+          address2: '',
+          address3: '',
+          city: venue.city || '',
+          state: venue.state || '',
+          zip: venue.zip || '',
+          phone: venue.phone || '',
+          comments: venue.description || '',
+          latitude,
+          longitude,
+          isActive: true,
+          masteredCityId: '',
+          source: 'BTC WordPress',
+          sourceId: venue.id,
+          url: venue.url || '',
+          isDuplicate, // Add flag indicating if venue already exists
+          // Original WordPress data for reference
+          original: venue
+        };
+      });
+      
+      // Initialize venues as selected by default (except duplicates)
+      const initialSelected = {};
+      transformedVenues.forEach(venue => {
+        initialSelected[venue.id] = !venue.isDuplicate; // Only select non-duplicates by default
+      });
+      
+      setImportedVenues(transformedVenues);
+      setSelectedVenues(initialSelected);
+      setImportStatus('ready');
+    } catch (error) {
+      console.error('Error fetching BTC venues:', error);
+      setImportStatus('error');
+      alert(`Failed to fetch venues from BTC: ${error.message}`);
+    } finally {
+      setFetchingBTCVenues(false);
+    }
+  };
+  
+  const handleSelectAllVenues = (event) => {
+    const checked = event.target.checked;
+    const newSelected = {};
+    
+    importedVenues.forEach(venue => {
+      newSelected[venue.id] = checked;
+    });
+    
+    setSelectedVenues(newSelected);
+  };
+  
+  const handleSelectVenue = (event, id) => {
+    setSelectedVenues(prev => ({
+      ...prev,
+      [id]: event.target.checked
+    }));
+  };
+  
+  const processImport = async () => {
+    try {
+      // Get only the selected venues
+      const venuesToImport = importedVenues.filter(venue => selectedVenues[venue.id]);
+      
+      if (venuesToImport.length === 0) {
+        alert('No venues selected for import');
+        return;
+      }
+      
+      // Count how many duplicates were selected
+      const selectedDuplicates = venuesToImport.filter(venue => venue.isDuplicate).length;
+      
+      setImportStatus('importing');
+      setImportProgress(0);
+      setImportResults({ success: 0, error: 0, skipped: 0 });
+      
+      // Process venues one by one
+      for (let i = 0; i < venuesToImport.length; i++) {
+        const venue = venuesToImport[i];
+        
+        try {
+          // If the venue is already in the system and the user selected it anyway,
+          // we'll still try to import it, but record it separately
+          let isDuplicate = venue.isDuplicate;
+          
+          // Try to find the nearest city if we have coordinates
+          if (venue.latitude && venue.longitude) {
+            const cityResponse = await axios.get('/api/venues/nearest-city', {
+              params: {
+                longitude: venue.longitude,
+                latitude: venue.latitude,
+                appId: currentApp.id,
+                limit: 1
+              }
+            });
+            
+            if (cityResponse.data && cityResponse.data.length > 0) {
+              const nearestCity = cityResponse.data[0];
+              venue.masteredCityId = nearestCity._id;
+              venue.masteredDivisionId = nearestCity.masteredDivisionId?._id || '';
+              venue.masteredRegionId = nearestCity.masteredDivisionId?.masteredRegionId?._id || '';
+              venue.masteredCountryId = nearestCity.masteredDivisionId?.masteredRegionId?.masteredCountryId?._id || '';
+              venue.nearestCityName = nearestCity.cityName;
+              venue.distanceInKm = nearestCity.distanceInKm;
+            }
+          }
+          
+          // Add the application ID
+          venue.appId = currentApp.id;
+          
+          if (isDuplicate) {
+            console.log(`Skipping duplicate venue: ${venue.name}`);
+            
+            setImportResults(prev => ({
+              ...prev,
+              skipped: prev.skipped + 1
+            }));
+          } else {
+            // Save to the database
+            const response = await axios.post('/api/venues', venue);
+            console.log(`Successfully imported venue: ${venue.name}`, response.data);
+            
+            setImportResults(prev => ({
+              ...prev,
+              success: prev.success + 1
+            }));
+          }
+        } catch (error) {
+          console.error(`Error importing venue ${venue.name}:`, error);
+          
+          setImportResults(prev => ({
+            ...prev,
+            error: prev.error + 1
+          }));
+        }
+        
+        // Update progress
+        setImportProgress(Math.round(((i + 1) / venuesToImport.length) * 100));
+      }
+      
+      setImportStatus('complete');
+      
+      // Refresh the venues list
+      fetchVenues();
+      
+      // Provide a detailed summary in the console
+      console.log('Import summary:', {
+        totalSelected: venuesToImport.length,
+        duplicatesSelected: selectedDuplicates,
+        imported: setImportResults.success,
+        failed: setImportResults.error,
+        skipped: setImportResults.skipped
+      });
+      
+    } catch (error) {
+      console.error('Error during import process:', error);
+      setImportStatus('error');
+      alert(`Import process failed: ${error.message}`);
+    }
+  };
 
   const handleSelectCity = (city) => {
     setVenueForm(prev => ({
@@ -546,21 +813,14 @@ export default function VenuesPage() {
   const columns = [
     { field: 'name', headerName: 'Venue Name', flex: 1.5 },
     { 
-      field: 'address', 
+      field: 'address1', 
       headerName: 'Address', 
-      flex: 1.5, 
-      valueFormatter: (params) => {
-        // Simple concatenation of address parts directly from the row (safer approach)
-        if (!params) return '';
-        
-        const row = params.row || {};
-        return [
-          row.address1,
-          row.city,
-          row.state,
-          row.zip
-        ].filter(Boolean).join(', ');
-      }
+      flex: 1.5
+    },
+    {
+      field: 'city',
+      headerName: 'City',
+      flex: 1
     },
     { 
       field: 'masteredCityName', 
@@ -640,14 +900,23 @@ export default function VenuesPage() {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4">Venue Management</Typography>
-        <Button 
-          variant="contained" 
-          color="primary" 
-          startIcon={<AddIcon />}
-          onClick={handleAddVenue}
-        >
-          Add Venue
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button 
+            variant="outlined" 
+            color="secondary" 
+            onClick={() => handleImportVenues()}
+          >
+            Import from BTC
+          </Button>
+          <Button 
+            variant="contained" 
+            color="primary" 
+            startIcon={<AddIcon />}
+            onClick={handleAddVenue}
+          >
+            Add Venue
+          </Button>
+        </Box>
       </Box>
       
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
@@ -739,7 +1008,6 @@ export default function VenuesPage() {
                 id: rowId,
                 name: safeVenue.name || '',
                 address1: safeVenue.address1 || '',
-                address: address,
                 city: safeVenue.city || '',
                 state: safeVenue.state || '',
                 zip: safeVenue.zip || '',
@@ -1142,6 +1410,252 @@ export default function VenuesPage() {
           <Button onClick={confirmDelete} color="error" variant="contained">
             Delete
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Import Venues Dialog */}
+      <Dialog
+        open={importDialogOpen}
+        onClose={() => {
+          if (importStatus !== 'importing') {
+            setImportDialogOpen(false);
+          }
+        }}
+        maxWidth="lg"
+        fullWidth
+      >
+        <DialogTitle>Import Venues from BTC</DialogTitle>
+        <DialogContent>
+          {importStatus === 'loading' || fetchingBTCVenues ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', my: 4 }}>
+              <CircularProgress />
+              <Typography variant="body1" sx={{ mt: 2 }}>
+                Fetching venues from BostonTangoCalendar...
+              </Typography>
+            </Box>
+          ) : importStatus === 'error' ? (
+            <Alert severity="error" sx={{ my: 2 }}>
+              Failed to fetch venues. Please try again.
+            </Alert>
+          ) : importStatus === 'importing' ? (
+            <Box sx={{ my: 2 }}>
+              <Typography variant="body1" gutterBottom>
+                Importing venues...
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+                <Box sx={{ width: '100%', mr: 1 }}>
+                  <LinearProgress variant="determinate" value={importProgress} />
+                </Box>
+                <Box sx={{ minWidth: 35 }}>
+                  <Typography variant="body2" color="text.secondary">{`${importProgress}%`}</Typography>
+                </Box>
+              </Box>
+              <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
+                <Box sx={{ bgcolor: 'success.light', px: 2, py: 1, borderRadius: 1 }}>
+                  <Typography variant="body2" fontWeight="bold">
+                    Imported: {importResults.success}
+                  </Typography>
+                </Box>
+                {importResults.skipped > 0 && (
+                  <Box sx={{ bgcolor: 'warning.light', px: 2, py: 1, borderRadius: 1 }}>
+                    <Typography variant="body2" fontWeight="bold">
+                      Skipped: {importResults.skipped}
+                    </Typography>
+                  </Box>
+                )}
+                {importResults.error > 0 && (
+                  <Box sx={{ bgcolor: 'error.light', px: 2, py: 1, borderRadius: 1 }}>
+                    <Typography variant="body2" fontWeight="bold">
+                      Failed: {importResults.error}
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            </Box>
+          ) : importStatus === 'complete' ? (
+            <Box sx={{ my: 2 }}>
+              <Alert severity="success" sx={{ mb: 2 }}>
+                Import completed!
+              </Alert>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <Typography variant="body1">
+                  Successfully imported {importResults.success} venues.
+                </Typography>
+                
+                {importResults.skipped > 0 && (
+                  <Typography variant="body1" sx={{ color: 'warning.main' }}>
+                    Skipped {importResults.skipped} venues (already exist in system).
+                  </Typography>
+                )}
+                
+                {importResults.error > 0 && (
+                  <Typography variant="body1" color="error">
+                    Failed to import {importResults.error} venues.
+                  </Typography>
+                )}
+              </Box>
+              
+              <Box sx={{ mt: 2 }}>
+                <Alert severity="info">
+                  <Typography variant="body2">
+                    Don't forget to manually check venues without coordinates to assign them to the correct city in your geo hierarchy.
+                  </Typography>
+                </Alert>
+              </Box>
+            </Box>
+          ) : (
+            <Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Box>
+                  <Typography variant="body1">
+                    Found {importedVenues.length} venues from BostonTangoCalendar
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {importedVenues.filter(v => v.isDuplicate).length} already exist in the system
+                  </Typography>
+                </Box>
+                <Box>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={importedVenues.length > 0 && 
+                          Object.values(selectedVenues).every(value => value === true)}
+                        indeterminate={Object.values(selectedVenues).some(value => value === true) && 
+                          Object.values(selectedVenues).some(value => value === false)}
+                        onChange={handleSelectAllVenues}
+                      />
+                    }
+                    label="Select All"
+                  />
+                  <Button
+                    size="small"
+                    onClick={() => {
+                      const newSelected = {};
+                      importedVenues.forEach(venue => {
+                        newSelected[venue.id] = !venue.isDuplicate;
+                      });
+                      setSelectedVenues(newSelected);
+                    }}
+                    sx={{ ml: 1 }}
+                  >
+                    Select New Only
+                  </Button>
+                </Box>
+              </Box>
+              
+              <TableContainer component={Paper} sx={{ maxHeight: 400 }}>
+                <Table stickyHeader size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell padding="checkbox">
+                        <Checkbox 
+                          checked={importedVenues.length > 0 && 
+                            Object.values(selectedVenues).every(value => value === true)}
+                          indeterminate={Object.values(selectedVenues).some(value => value === true) && 
+                            Object.values(selectedVenues).some(value => value === false)}
+                          onChange={handleSelectAllVenues}
+                        />
+                      </TableCell>
+                      <TableCell>Found</TableCell>
+                      <TableCell>Name</TableCell>
+                      <TableCell>Address</TableCell>
+                      <TableCell>City</TableCell>
+                      <TableCell>Coordinates</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {importedVenues.map((venue) => (
+                      <TableRow key={venue.id}>
+                        <TableCell padding="checkbox">
+                          <Checkbox
+                            checked={!!selectedVenues[venue.id]}
+                            onChange={(e) => handleSelectVenue(e, venue.id)}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          {venue.isDuplicate ? (
+                            <Chip 
+                              label="Exists" 
+                              size="small" 
+                              color="warning"
+                              variant="outlined"
+                            />
+                          ) : (
+                            <Chip 
+                              label="New" 
+                              size="small" 
+                              color="success"
+                              variant="outlined"
+                            />
+                          )}
+                        </TableCell>
+                        <TableCell>{venue.name}</TableCell>
+                        <TableCell>{venue.address1 || ''}</TableCell>
+                        <TableCell>{venue.city || ''}</TableCell>
+                        <TableCell>
+                          {venue.latitude && venue.longitude ? 
+                            `${venue.latitude.toFixed(6)}, ${venue.longitude.toFixed(6)}` : 
+                            'No coordinates'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              
+              <Box sx={{ mt: 2 }}>
+                <Alert severity="info">
+                  <Typography variant="body2" gutterBottom>
+                    Selected venues will be imported into the current application.
+                    The system will attempt to associate each venue with the nearest city in your geo hierarchy.
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Notes:</strong>
+                    <ul>
+                      <li>Venues marked as "Exists" are already in your system (based on matching name and address).</li>
+                      <li>By default, only new venues are selected for import.</li>
+                      <li>For venues with coordinates, the system will automatically find the nearest city.</li>
+                      <li>Venues without coordinates will need manual geo assignment after import.</li>
+                    </ul>
+                  </Typography>
+                </Alert>
+              </Box>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          {(importStatus === 'ready') && (
+            <>
+              <Button 
+                onClick={() => setImportDialogOpen(false)} 
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={processImport} 
+                variant="contained" 
+                color="primary"
+                disabled={Object.values(selectedVenues).every(value => value === false)}
+              >
+                Import Selected ({Object.values(selectedVenues).filter(v => v).length})
+              </Button>
+            </>
+          )}
+          
+          {(importStatus === 'error' || importStatus === 'complete') && (
+            <Button 
+              onClick={() => setImportDialogOpen(false)} 
+              variant="contained"
+            >
+              Close
+            </Button>
+          )}
+          
+          {importStatus === 'importing' && (
+            <Button disabled>
+              Importing...
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
     </Box>

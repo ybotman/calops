@@ -16,6 +16,17 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  FormControlLabel,
+  Checkbox,
+  Alert,
+  LinearProgress,
+  TableContainer,
+  Table,
+  TableHead,
+  TableBody,
+  TableCell,
+  TableRow,
+  Chip,
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import SearchIcon from '@mui/icons-material/Search';
@@ -59,6 +70,15 @@ export default function OrganizersPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [connectDialogOpen, setConnectDialogOpen] = useState(false);
+  
+  // Import dialog state
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importStatus, setImportStatus] = useState('idle'); // idle, loading, success, error
+  const [importedOrganizers, setImportedOrganizers] = useState([]);
+  const [selectedOrganizers, setSelectedOrganizers] = useState({});
+  const [importProgress, setImportProgress] = useState(0);
+  const [importResults, setImportResults] = useState({ success: 0, error: 0, skipped: 0 });
+  const [fetchingBTCOrganizers, setFetchingBTCOrganizers] = useState(false);
 
   // Fetch organizers when tab or app changes
   useEffect(() => {
@@ -264,6 +284,259 @@ export default function OrganizersPage() {
   const handleConnectDialogClose = () => {
     setConnectDialogOpen(false);
     setConnectingOrganizer(null);
+  };
+  
+  // Handle import organizers from BTC
+  const handleImportOrganizers = async () => {
+    try {
+      setImportDialogOpen(true);
+      setImportStatus('loading');
+      setFetchingBTCOrganizers(true);
+      setImportedOrganizers([]);
+      setSelectedOrganizers({});
+      
+      // Get all existing organizers for comparison
+      const existingOrganizersResponse = await organizersApi.getOrganizers(currentApp.id);
+      
+      const existingOrganizers = existingOrganizersResponse || [];
+      console.log(`Found ${existingOrganizers.length} existing organizers for comparison`);
+      
+      // Fetch all pages from BTC WordPress API using pagination
+      let allOrganizers = [];
+      let currentPage = 1;
+      let totalPages = 1;
+      
+      do {
+        console.log(`Fetching BTC organizers page ${currentPage}...`);
+        const response = await axios.get(`https://bostontangocalendar.com/wp-json/tribe/events/v1/organizers`, {
+          params: {
+            page: currentPage
+          }
+        });
+        
+        // Get total pages from headers or response
+        if (currentPage === 1) {
+          // Try to get from X-WP-TotalPages header
+          const totalPagesHeader = response.headers['x-wp-totalpages'] || response.headers['X-WP-TotalPages'];
+          if (totalPagesHeader) {
+            totalPages = parseInt(totalPagesHeader, 10);
+          } else if (response.data && response.data.total_pages) {
+            // Fallback to response data
+            totalPages = response.data.total_pages;
+          }
+          console.log(`Total pages of organizers: ${totalPages}`);
+        }
+        
+        if (response.data && response.data.organizers) {
+          allOrganizers = [...allOrganizers, ...response.data.organizers];
+          console.log(`Fetched ${response.data.organizers.length} organizers from page ${currentPage}`);
+        } else {
+          throw new Error(`Invalid response format from BTC API on page ${currentPage}`);
+        }
+        
+        currentPage++;
+      } while (currentPage <= totalPages);
+      
+      console.log(`Fetched a total of ${allOrganizers.length} organizers from BTC API`);
+      
+      // Transform the WordPress organizer format to our application format
+      const transformedOrganizers = allOrganizers.map(organizer => {
+        // Check if the organizer object is valid
+        if (!organizer || typeof organizer !== 'object') {
+          console.error('Invalid organizer data:', organizer);
+          return null;
+        }
+        
+        // Determine if this organizer already exists in our system (check by fullName field)
+        const isDuplicate = existingOrganizers.some(existingOrganizer => 
+          existingOrganizer.fullName?.toLowerCase() === organizer.organizer?.toLowerCase()
+        );
+        
+        // Format shortName from organizer name (slug)
+        let shortName = '';
+        try {
+          shortName = organizer.slug ? 
+            organizer.slug.replace(/\s+/g, '').replace(/-/g, '').toUpperCase().substring(0, 10) : 
+            organizer.organizer ? organizer.organizer.replace(/\s+/g, '').toUpperCase().substring(0, 10) : '';
+        } catch (err) {
+          console.error('Error formatting shortName:', err);
+          shortName = organizer.id?.toString().substring(0, 10) || 'UNKNOWN';
+        }
+        
+        // Create an organizer object in our application's format
+        return {
+          id: organizer.id,
+          originalId: organizer.id,
+          fullName: organizer.organizer || '',
+          name: organizer.organizer || '',
+          shortName: shortName,
+          description: organizer.description || '',
+          btcNiceName: organizer.id?.toString() || '',
+          // Contact info
+          publicContactInfo: {
+            phone: organizer.phone || '',
+            email: organizer.email || '',
+            url: organizer.website || '',
+          },
+          // Other attributes
+          appId: currentApp.id,
+          isActive: true,
+          isEnabled: true,
+          isRendered: true,
+          wantRender: true,
+          isActiveAsOrganizer: false,
+          // Organizer types
+          organizerTypes: {
+            isEventOrganizer: true,
+            isTeacher: false,
+            isDJ: false,
+            isOrchestra: false
+          },
+          // Images
+          images: organizer.image && organizer.image.url ? {
+            originalUrl: organizer.image.url
+          } : {},
+          // Set updated date
+          updatedAt: new Date().toISOString(),
+          isDuplicate, // Flag to indicate if this organizer already exists
+          // Original WordPress data for reference
+          original: organizer
+        };
+      }).filter(Boolean); // Remove any null entries
+      
+      // Initialize organizers as selected by default (except duplicates)
+      const initialSelected = {};
+      transformedOrganizers.forEach(organizer => {
+        initialSelected[organizer.id] = !organizer.isDuplicate; // Only select non-duplicates by default
+      });
+      
+      setImportedOrganizers(transformedOrganizers);
+      setSelectedOrganizers(initialSelected);
+      setImportStatus('ready');
+    } catch (error) {
+      console.error('Error fetching BTC organizers:', error);
+      setImportStatus('error');
+      alert(`Failed to fetch organizers from BTC: ${error.message}`);
+    } finally {
+      setFetchingBTCOrganizers(false);
+    }
+  };
+  
+  // Handle select all organizers
+  const handleSelectAllOrganizers = (event) => {
+    const checked = event.target.checked;
+    const newSelected = {};
+    
+    importedOrganizers.forEach(organizer => {
+      newSelected[organizer.id] = checked;
+    });
+    
+    setSelectedOrganizers(newSelected);
+  };
+  
+  // Handle select individual organizer
+  const handleSelectOrganizer = (event, id) => {
+    setSelectedOrganizers(prev => ({
+      ...prev,
+      [id]: event.target.checked
+    }));
+  };
+  
+  // Process organizer import
+  const processOrganizerImport = async () => {
+    try {
+      // Get only the selected organizers
+      const organizersToImport = importedOrganizers.filter(organizer => selectedOrganizers[organizer.id]);
+      
+      if (organizersToImport.length === 0) {
+        alert('No organizers selected for import');
+        return;
+      }
+      
+      // Count how many duplicates were selected
+      const selectedDuplicates = organizersToImport.filter(organizer => organizer.isDuplicate).length;
+      
+      setImportStatus('importing');
+      setImportProgress(0);
+      setImportResults({ success: 0, error: 0, skipped: 0 });
+      
+      // Process organizers one by one
+      for (let i = 0; i < organizersToImport.length; i++) {
+        const organizer = organizersToImport[i];
+        
+        try {
+          // If the organizer is already in the system and the user selected it anyway,
+          // we'll skip it and record it separately
+          let isDuplicate = organizer.isDuplicate;
+          
+          if (isDuplicate) {
+            console.log(`Skipping duplicate organizer: ${organizer.fullName}`);
+            
+            setImportResults(prev => ({
+              ...prev,
+              skipped: prev.skipped + 1
+            }));
+          } else {
+            // Save to the database - use the test-create endpoint for reliable organizer creation
+            const response = await axios.post('/api/organizers/test-create', {
+              ...organizer,
+              appId: currentApp.id
+            });
+            
+            console.log(`Successfully imported organizer: ${organizer.fullName}`, response.data);
+            
+            setImportResults(prev => ({
+              ...prev,
+              success: prev.success + 1
+            }));
+          }
+        } catch (error) {
+          console.error(`Error importing organizer ${organizer.fullName}:`, error);
+          
+          setImportResults(prev => ({
+            ...prev,
+            error: prev.error + 1
+          }));
+        }
+        
+        // Update progress
+        setImportProgress(Math.round(((i + 1) / organizersToImport.length) * 100));
+      }
+      
+      setImportStatus('complete');
+      
+      // Refresh organizers list
+      const organizersData = await organizersApi.getOrganizers(currentApp.id);
+      
+      // Process organizers data
+      const processedOrganizers = organizersData.map(organizer => ({
+        ...organizer,
+        id: organizer._id,
+        displayName: organizer.fullName || organizer.name || 'Unnamed Organizer',
+        shortDisplayName: organizer.shortName || 'No short name',
+        status: organizer.isActive ? 'Active' : 'Inactive',
+        approved: organizer.isApproved ? 'Yes' : 'No',
+        enabled: organizer.isEnabled ? 'Yes' : 'No',
+        userConnected: organizer.linkedUserLogin ? 'Yes' : 'No',
+      }));
+      
+      setOrganizers(processedOrganizers);
+      filterOrganizers(searchTerm);
+      
+      // Provide a detailed summary in the console
+      console.log('Import summary:', {
+        totalSelected: organizersToImport.length,
+        duplicatesSelected: selectedDuplicates,
+        imported: importResults.success,
+        failed: importResults.error,
+        skipped: importResults.skipped
+      });
+      
+    } catch (error) {
+      console.error('Error during import process:', error);
+      setImportStatus('error');
+      alert(`Import process failed: ${error.message}`);
+    }
   };
 
   // Handle organizer update
@@ -498,14 +771,23 @@ export default function OrganizersPage() {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4">Organizer Management</Typography>
-        <Button 
-          variant="contained" 
-          color="primary" 
-          startIcon={<AddIcon />}
-          onClick={handleCreateOrganizer}
-        >
-          Add Organizer
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button 
+            variant="outlined" 
+            color="secondary" 
+            onClick={() => handleImportOrganizers()}
+          >
+            Import from BTC
+          </Button>
+          <Button 
+            variant="contained" 
+            color="primary" 
+            startIcon={<AddIcon />}
+            onClick={handleCreateOrganizer}
+          >
+            Add Organizer
+          </Button>
+        </Box>
       </Box>
       
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
@@ -646,6 +928,249 @@ export default function OrganizersPage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleConnectDialogClose}>Cancel</Button>
+        </DialogActions>
+      </Dialog>
+      
+      {/* Import Organizers Dialog */}
+      <Dialog
+        open={importDialogOpen}
+        onClose={() => {
+          if (importStatus !== 'importing') {
+            setImportDialogOpen(false);
+          }
+        }}
+        maxWidth="lg"
+        fullWidth
+      >
+        <DialogTitle>Import Organizers from BTC</DialogTitle>
+        <DialogContent>
+          {importStatus === 'loading' || fetchingBTCOrganizers ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', my: 4 }}>
+              <CircularProgress />
+              <Typography variant="body1" sx={{ mt: 2 }}>
+                Fetching organizers from BostonTangoCalendar...
+              </Typography>
+            </Box>
+          ) : importStatus === 'error' ? (
+            <Alert severity="error" sx={{ my: 2 }}>
+              Failed to fetch organizers. Please try again.
+            </Alert>
+          ) : importStatus === 'importing' ? (
+            <Box sx={{ my: 2 }}>
+              <Typography variant="body1" gutterBottom>
+                Importing organizers...
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+                <Box sx={{ width: '100%', mr: 1 }}>
+                  <LinearProgress variant="determinate" value={importProgress} />
+                </Box>
+                <Box sx={{ minWidth: 35 }}>
+                  <Typography variant="body2" color="text.secondary">{`${importProgress}%`}</Typography>
+                </Box>
+              </Box>
+              <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
+                <Box sx={{ bgcolor: 'success.light', px: 2, py: 1, borderRadius: 1 }}>
+                  <Typography variant="body2" fontWeight="bold">
+                    Imported: {importResults.success}
+                  </Typography>
+                </Box>
+                {importResults.skipped > 0 && (
+                  <Box sx={{ bgcolor: 'warning.light', px: 2, py: 1, borderRadius: 1 }}>
+                    <Typography variant="body2" fontWeight="bold">
+                      Skipped: {importResults.skipped}
+                    </Typography>
+                  </Box>
+                )}
+                {importResults.error > 0 && (
+                  <Box sx={{ bgcolor: 'error.light', px: 2, py: 1, borderRadius: 1 }}>
+                    <Typography variant="body2" fontWeight="bold">
+                      Failed: {importResults.error}
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            </Box>
+          ) : importStatus === 'complete' ? (
+            <Box sx={{ my: 2 }}>
+              <Alert severity="success" sx={{ mb: 2 }}>
+                Import completed!
+              </Alert>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <Typography variant="body1">
+                  Successfully imported {importResults.success} organizers.
+                </Typography>
+                
+                {importResults.skipped > 0 && (
+                  <Typography variant="body1" sx={{ color: 'warning.main' }}>
+                    Skipped {importResults.skipped} organizers (already exist in system).
+                  </Typography>
+                )}
+                
+                {importResults.error > 0 && (
+                  <Typography variant="body1" color="error">
+                    Failed to import {importResults.error} organizers.
+                  </Typography>
+                )}
+              </Box>
+              
+              <Box sx={{ mt: 2 }}>
+                <Alert severity="info">
+                  <Typography variant="body2">
+                    The imported organizers are now available in your system.
+                  </Typography>
+                </Alert>
+              </Box>
+            </Box>
+          ) : (
+            <Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Box>
+                  <Typography variant="body1">
+                    Found {importedOrganizers.length} organizers from BostonTangoCalendar
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {importedOrganizers.filter(o => o.isDuplicate).length} already exist in the system
+                  </Typography>
+                </Box>
+                <Box>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={importedOrganizers.length > 0 && 
+                          Object.values(selectedOrganizers).every(value => value === true)}
+                        indeterminate={Object.values(selectedOrganizers).some(value => value === true) && 
+                          Object.values(selectedOrganizers).some(value => value === false)}
+                        onChange={handleSelectAllOrganizers}
+                      />
+                    }
+                    label="Select All"
+                  />
+                  <Button
+                    size="small"
+                    onClick={() => {
+                      const newSelected = {};
+                      importedOrganizers.forEach(organizer => {
+                        newSelected[organizer.id] = !organizer.isDuplicate;
+                      });
+                      setSelectedOrganizers(newSelected);
+                    }}
+                    sx={{ ml: 1 }}
+                  >
+                    Select New Only
+                  </Button>
+                </Box>
+              </Box>
+              
+              <TableContainer component={Paper} sx={{ maxHeight: 400 }}>
+                <Table stickyHeader size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell padding="checkbox">
+                        <Checkbox 
+                          checked={importedOrganizers.length > 0 && 
+                            Object.values(selectedOrganizers).every(value => value === true)}
+                          indeterminate={Object.values(selectedOrganizers).some(value => value === true) && 
+                            Object.values(selectedOrganizers).some(value => value === false)}
+                          onChange={handleSelectAllOrganizers}
+                        />
+                      </TableCell>
+                      <TableCell>Found</TableCell>
+                      <TableCell>Name</TableCell>
+                      <TableCell>Short Name</TableCell>
+                      <TableCell>Email</TableCell>
+                      <TableCell>Phone</TableCell>
+                      <TableCell>Website</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {importedOrganizers.map((organizer) => (
+                      <TableRow key={organizer.id}>
+                        <TableCell padding="checkbox">
+                          <Checkbox
+                            checked={!!selectedOrganizers[organizer.id]}
+                            onChange={(e) => handleSelectOrganizer(e, organizer.id)}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          {organizer.isDuplicate ? (
+                            <Chip 
+                              label="Exists" 
+                              size="small" 
+                              color="warning"
+                              variant="outlined"
+                            />
+                          ) : (
+                            <Chip 
+                              label="New" 
+                              size="small" 
+                              color="success"
+                              variant="outlined"
+                            />
+                          )}
+                        </TableCell>
+                        <TableCell>{organizer.fullName || ''}</TableCell>
+                        <TableCell>{organizer.shortName || ''}</TableCell>
+                        <TableCell>{organizer.publicContactInfo?.email || ''}</TableCell>
+                        <TableCell>{organizer.publicContactInfo?.phone || ''}</TableCell>
+                        <TableCell>{organizer.publicContactInfo?.url || ''}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              
+              <Box sx={{ mt: 2 }}>
+                <Alert severity="info">
+                  <Typography variant="body2" gutterBottom>
+                    Selected organizers will be imported into the current application.
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Notes:</strong>
+                    <ul>
+                      <li>Organizers marked as "Exists" are already in your system (based on matching name).</li>
+                      <li>By default, only new organizers are selected for import.</li>
+                      <li>All imported organizers will be set to active and enabled.</li>
+                      <li>Organizer types will be set to EventOrganizer by default.</li>
+                    </ul>
+                  </Typography>
+                </Alert>
+              </Box>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          {(importStatus === 'ready') && (
+            <>
+              <Button 
+                onClick={() => setImportDialogOpen(false)} 
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={processOrganizerImport} 
+                variant="contained" 
+                color="primary"
+                disabled={Object.values(selectedOrganizers).every(value => value === false)}
+              >
+                Import Selected ({Object.values(selectedOrganizers).filter(v => v).length})
+              </Button>
+            </>
+          )}
+          
+          {(importStatus === 'error' || importStatus === 'complete') && (
+            <Button 
+              onClick={() => setImportDialogOpen(false)} 
+              variant="contained"
+            >
+              Close
+            </Button>
+          )}
+          
+          {importStatus === 'importing' && (
+            <Button disabled>
+              Importing...
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
     </Box>
