@@ -486,59 +486,198 @@ export const eventsApi = {
         endDate, 
         status, 
         organizerId, 
+        venueId,
         masteredRegionName, 
+        masteredDivisionName,
         masteredCityName,
+        titleSearch,
+        descriptionSearch,
+        categories,
         page = 1,
         limit = 100
       } = filters;
       
       // Create URL with required parameters
       let queryParams = new URLSearchParams({
-        appId: appId,
-        page: page,
-        limit: limit
+        appId: appId
       });
       
-      // Add optional filters
-      if (active !== undefined) queryParams.append('active', active);
-      if (startDate) queryParams.append('startDate', startDate);
-      if (endDate) queryParams.append('endDate', endDate);
-      if (status) queryParams.append('status', status);
+      // Only add pagination if not retrieving all
+      if (filters.allRecords !== true) {
+        queryParams.append('page', page);
+        queryParams.append('limit', limit);
+      }
+      
+      // Simplified approach - just a single flag to signal this is an explicit search
+      if (filters.explicit_search) {
+        queryParams.append('explicit_search', 'true');
+      }
+      
+      // Handle active status with explicit parameter
+      if (active !== undefined) {
+        queryParams.append('active', active);
+        // Also add as specific parameter for backend API
+        queryParams.append('is_active', active);
+      }
+      
+      // Variables to store formatted dates
+      let formattedStartDate;
+      let formattedEndDate;
+      
+      // Add a flag to indicate we're doing date range filtering on event start date
+      if (startDate && endDate) {
+        queryParams.append('dateRangeField', 'startDate'); // Indicate we're filtering on the startDate field
+      }
+      
+      // Properly format dates as ISO strings for startDate and endDate
+      if (startDate) {
+        formattedStartDate = startDate;
+        if (startDate instanceof Date || typeof startDate === 'object') {
+          try {
+            // Format as YYYY-MM-DD
+            const date = new Date(startDate);
+            formattedStartDate = date.toISOString().split('T')[0];
+            console.log('Formatted startDate:', formattedStartDate);
+          } catch (err) {
+            console.warn('Error formatting startDate:', err);
+          }
+        }
+        
+        // Use MongoDB-style comparison operator for start date (primary filter)
+        queryParams.append('startDate[$gte]', formattedStartDate);
+        
+        // Add alternative formats for different API implementations
+        queryParams.append('filter[startDate][gte]', formattedStartDate); // REST API style
+        queryParams.append('startDate_gte', formattedStartDate);         // Another common format
+      }
+      
+      if (endDate) {
+        formattedEndDate = endDate;
+        if (endDate instanceof Date || typeof endDate === 'object') {
+          try {
+            // Format as YYYY-MM-DD
+            const date = new Date(endDate);
+            formattedEndDate = date.toISOString().split('T')[0];
+            console.log('Formatted endDate:', formattedEndDate);
+          } catch (err) {
+            console.warn('Error formatting endDate:', err);
+          }
+        }
+        
+        // Use MongoDB-style comparison operator for end date (primary filter)
+        queryParams.append('startDate[$lte]', formattedEndDate);
+        
+        // Add alternative formats for different API implementations
+        queryParams.append('filter[startDate][lte]', formattedEndDate); // REST API style
+        queryParams.append('startDate_lte', formattedEndDate);         // Another common format
+      }
+      // Handle status parameter with multiple possible formats
+      if (status) {
+        queryParams.append('status', status);
+        
+        // Convert 'all'/'active'/'inactive' to boolean for 'active' parameter if needed
+        if (status === 'active' && active === undefined) {
+          queryParams.append('active', 'true');
+          queryParams.append('is_active', 'true');
+        } else if (status === 'inactive' && active === undefined) {
+          queryParams.append('active', 'false');
+          queryParams.append('is_active', 'false');
+        }
+      }
       if (organizerId) queryParams.append('organizerId', organizerId);
-      if (masteredRegionName) queryParams.append('masteredRegionName', masteredRegionName);
-      if (masteredCityName) queryParams.append('masteredCityName', masteredCityName);
+      // Simplified venue ID parameter
+      if (venueId) {
+        console.log(`Adding venue filter, ID: ${venueId}`);
+        queryParams.append('venueId', venueId);
+      }
+      
+      // Simplified geo hierarchy filters
+      if (masteredRegionName) {
+        queryParams.append('masteredRegionName', masteredRegionName);
+      }
+      
+      if (masteredDivisionName) {
+        queryParams.append('masteredDivisionName', masteredDivisionName);
+      }
+      
+      if (masteredCityName) {
+        queryParams.append('masteredCityName', masteredCityName);
+      }
+      
+      if (titleSearch) queryParams.append('titleSearch', titleSearch);
+      if (descriptionSearch) queryParams.append('descriptionSearch', descriptionSearch);
+      
+      // Handle categories properly - can be string, array, or comma-separated list
+      if (categories) {
+        // Determine what type of categories we're dealing with
+        if (Array.isArray(categories)) {
+          // For arrays, extract each category and add individually
+          const categoryList = categories
+            .map(cat => {
+              if (typeof cat === 'string') return cat;
+              return cat.id || cat._id || cat.name || cat.categoryName || '';
+            })
+            .filter(id => id); // Remove empty values
+            
+          // Add individual category parameters for each selected category
+          categoryList.forEach((category, index) => {
+            queryParams.append(`category${index+1}`, category);
+          });
+          
+          // Also add the comma-separated list
+          queryParams.append('categories', categoryList.join(','));
+          console.log(`Adding ${categoryList.length} categories:`, categoryList);
+        } else if (typeof categories === 'string') {
+          // If it's already a string, just add it
+          queryParams.append('categories', categories);
+        }
+      }
+      
+      // Log a simple summary of active filters - being careful with the date variables
+      const activeFilters = {
+        ...(startDate && { 'startDate >=': formattedStartDate || startDate }),
+        ...(endDate && { 'startDate <=': formattedEndDate || endDate }),
+        ...(status && { status }),
+        ...(venueId && { venueId }),
+        ...(masteredRegionName && { region: masteredRegionName }),
+        ...(masteredDivisionName && { division: masteredDivisionName }),
+        ...(masteredCityName && { city: masteredCityName }),
+        ...(titleSearch && { titleSearch }),
+        ...(descriptionSearch && { descriptionSearch }),
+        ...(active !== undefined && { active })
+      };
+      
+      if (Object.keys(activeFilters).length > 0) {
+        console.log('Using filters:', activeFilters);
+      }
       
       // Make the request
       const url = `/api/events?${queryParams.toString()}`;
-      console.log('Getting events with URL:', url);
+      // Only log a summarized version of the URL to reduce noise
+      console.log(`API request: GET ${url.substring(0, 60)}${url.length > 60 ? '...' : ''}`);
       const response = await apiClient.get(url);
       
-      // Handle multiple response formats
+      // Handle multiple response formats without excessive logging
+      let events = [];
+      let pagination = {};
+      
       if (response.data && response.data.events && Array.isArray(response.data.events)) {
-        console.log(`Received ${response.data.events.length} events from API (in events field)`);
-        return {
-          events: response.data.events,
-          pagination: response.data.pagination || {}
-        };
+        events = response.data.events;
+        pagination = response.data.pagination || {};
       } 
       else if (response.data && response.data.data && Array.isArray(response.data.data)) {
-        console.log(`Received ${response.data.data.length} events from API (in data field)`);
-        return {
-          events: response.data.data,
-          pagination: response.data.pagination || {}
-        };
+        events = response.data.data;
+        pagination = response.data.pagination || {};
       }
       else if (Array.isArray(response.data)) {
-        console.log(`Received ${response.data.length} events directly as array`);
-        return {
-          events: response.data,
-          pagination: { total: response.data.length, page: 1, pages: 1 }
-        };
+        events = response.data;
+        pagination = { total: response.data.length, page: 1, pages: 1 };
       }
-      else {
-        console.warn('eventsApi.getEvents: API response format unexpected', response.data);
-        return { events: [], pagination: {} };
-      }
+      
+      // Just log a count of events received
+      console.log(`API response: ${events.length} events received`);
+      
+      return { events, pagination };
     } catch (error) {
       console.error('Error fetching events:', error);
       return { events: [], pagination: {} };

@@ -6,6 +6,8 @@ import PeopleIcon from '@mui/icons-material/People';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import BusinessIcon from '@mui/icons-material/Business';
 import EventIcon from '@mui/icons-material/Event';
+import SchoolIcon from '@mui/icons-material/School';
+import PlaceIcon from '@mui/icons-material/Place';
 import { usersApi, organizersApi, eventsApi } from '@/lib/api-client';
 import StatusPanel from './components/StatusPanel';
 import { useAppContext } from '@/lib/AppContext';
@@ -224,32 +226,6 @@ export default function Dashboard() {
           </Paper>
         </Grid>
         
-        {/* Locations Stats */}
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper 
-            sx={{ 
-              p: 3, 
-              display: 'flex',
-              flexDirection: 'column',
-              height: 180,
-              borderTop: '4px solid #9c27b0'
-            }}
-          >
-            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-              <Typography variant="h6" color="text.secondary">Locations</Typography>
-              <LocationOnIcon sx={{ color: '#9c27b0' }} />
-            </Box>
-            <Typography variant="h3" sx={{ mt: 2 }}>{stats.locations.cities}</Typography>
-            <Divider sx={{ my: 1 }} />
-            <Typography variant="body2" color="text.secondary">
-              {stats.locations.cities} cities across {stats.locations.regions} regions
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {stats.locations.divisions} divisions total
-            </Typography>
-          </Paper>
-        </Grid>
-        
         {/* Organizers Stats */}
         <Grid item xs={12} sm={6} md={3}>
           <Paper 
@@ -263,7 +239,7 @@ export default function Dashboard() {
           >
             <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
               <Typography variant="h6" color="text.secondary">Organizers</Typography>
-              <BusinessIcon sx={{ color: '#ed6c02' }} />
+              <SchoolIcon sx={{ color: '#ed6c02' }} />
             </Box>
             <Typography variant="h3" sx={{ mt: 1 }}>{getOrganizerCount()}</Typography>
             <Box sx={{ mt: 1 }}>
@@ -281,6 +257,32 @@ export default function Dashboard() {
             <Divider sx={{ my: 1 }} />
             <Typography variant="body2" color="text.secondary">
               {stats.organizers.pending} pending approval
+            </Typography>
+          </Paper>
+        </Grid>
+        
+        {/* Venues Stats */}
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper 
+            sx={{ 
+              p: 3, 
+              display: 'flex',
+              flexDirection: 'column',
+              height: 180,
+              borderTop: '4px solid #9c27b0'
+            }}
+          >
+            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+              <Typography variant="h6" color="text.secondary">Venues</Typography>
+              <BusinessIcon sx={{ color: '#9c27b0' }} />
+            </Box>
+            <Typography variant="h3" sx={{ mt: 2 }}>{stats.locations.cities}</Typography>
+            <Divider sx={{ my: 1 }} />
+            <Typography variant="body2" color="text.secondary">
+              {stats.locations.cities} venues in {stats.locations.regions} regions
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Across {stats.locations.divisions} divisions
             </Typography>
           </Paper>
         </Grid>

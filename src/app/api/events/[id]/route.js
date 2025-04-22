@@ -31,18 +31,54 @@ export async function GET(request, { params }) {
     }
     
     console.log(`Proxying GET request for event ${id} to backend`);
-    const response = await axios.get(`${BE_URL}/api/events/id/${id}?appId=${appId}`);
     
-    return NextResponse.json(response.data);
+    try {
+      const response = await axios.get(`${BE_URL}/api/events/id/${id}?appId=${appId}`, {
+        timeout: 8000 // 8 seconds timeout
+      });
+      
+      return NextResponse.json(response.data);
+    } catch (backendError) {
+      console.error(`Backend API error when fetching event ${id}:`, backendError.message);
+      
+      // Error handling based on error type
+      if (backendError.code === 'ECONNABORTED') {
+        return NextResponse.json(
+          { error: 'Backend API request timed out' },
+          { status: 504 }
+        );
+      }
+      
+      if (backendError.code === 'ECONNREFUSED') {
+        return NextResponse.json(
+          { error: 'Could not connect to backend API' },
+          { status: 502 }
+        );
+      }
+      
+      // If it's a 404, the event doesn't exist
+      if (backendError.response?.status === 404) {
+        return NextResponse.json(
+          { error: `Event with ID ${id} not found` },
+          { status: 404 }
+        );
+      }
+      
+      // Any other error
+      const status = backendError.response?.status || 500;
+      const message = backendError.response?.data?.message || backendError.message || 'Error fetching event';
+      
+      return NextResponse.json(
+        { error: message },
+        { status }
+      );
+    }
   } catch (error) {
-    console.error(`Error proxying GET event by ID request:`, error.message);
-    
-    const status = error.response?.status || 500;
-    const message = error.response?.data?.message || error.message || 'Unknown server error';
+    console.error(`Error processing GET event by ID request:`, error.message);
     
     return NextResponse.json(
-      { error: message },
-      { status }
+      { error: 'Internal server error while fetching event' },
+      { status: 500 }
     );
   }
 }

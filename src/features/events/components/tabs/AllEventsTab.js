@@ -115,6 +115,7 @@ const AllEventsTab = ({
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
         <CircularProgress />
+        <Typography sx={{ ml: 2 }}>Loading events...</Typography>
       </Box>
     );
   }
@@ -130,7 +131,10 @@ const AllEventsTab = ({
   if (!events || events.length === 0) {
     return (
       <Paper sx={{ p: 3, textAlign: 'center' }}>
-        <Typography color="textSecondary">No events found</Typography>
+        <Typography color="textSecondary">
+          No events found matching your filter criteria. 
+          {events && events.length === 0 && ' Try adjusting your filters for different results.'}
+        </Typography>
       </Paper>
     );
   }

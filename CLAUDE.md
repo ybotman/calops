@@ -85,12 +85,22 @@ The backend provides these main API endpoints that serve all frontend applicatio
 - Failover solutions : do not code short cuts. Move to instruct what is needed to complete.
 - Follow world class best practives. Better stable solid practives architecture and best pattern are much better than a working solution.
 - Code assuming the code is expected to go from DEV to TEST to PROD.
-- Code with productyion ready great coding.
+- Produce Code that is world class and production ready.
+- The data is present and dont make it up.
 
 
 ### Prohibited Patterns
 
-4. ## Fallback pattnerns to get code to 'work' . Dont defer great codet to later. Do it how.
+## 1 - Dont create Fallback patterns . 
+ - Dont defer great code to later. Build in error patterns not failback.
+
+## 2 - dont make mock data (unless told to).
+ - mock data desires probably mean you need an api or clafiricagtions of the data
+
+## 3 - dont use logic that is "API is not fully implemented there fore."
+ - if the API need complete, then tell me and we will do it.
+
+
 
 ## Project Structure
 

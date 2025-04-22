@@ -25,24 +25,70 @@ export async function GET(request) {
     // Forward the request to the backend API with all query parameters
     const queryParams = new URLSearchParams();
     searchParams.forEach((value, key) => {
+      // Log each parameter being forwarded (helpful for debugging)
+      console.log(`Forwarding parameter: ${key}=${value}`);
       queryParams.append(key, value);
     });
     
     // Logging the API request
     console.log(`Proxying events request to backend: ${BE_URL}/api/events?${queryParams.toString()}`);
     
-    const response = await axios.get(`${BE_URL}/api/events?${queryParams.toString()}`);
-    return NextResponse.json(response.data);
+    try {
+      // Set a reasonable timeout for the backend request
+      const response = await axios.get(`${BE_URL}/api/events?${queryParams.toString()}`, {
+        timeout: 10000 // 10 seconds
+      });
+      
+      // Check if the response is as expected
+      if (response.data) {
+        return NextResponse.json(response.data);
+      } else {
+        throw new Error('Invalid response format from backend API');
+      }
+    } catch (backendError) {
+      console.error('Backend API error:', backendError.message);
+      
+      // Check if this is a timeout error
+      if (backendError.code === 'ECONNABORTED') {
+        return NextResponse.json(
+          { 
+            error: 'Backend API request timed out',
+            details: 'The backend server took too long to respond' 
+          },
+          { status: 504 }
+        );
+      }
+      
+      // Check if this is a connection error
+      if (backendError.code === 'ECONNREFUSED') {
+        return NextResponse.json(
+          { 
+            error: 'Could not connect to backend API',
+            details: 'Please ensure the backend server is running' 
+          },
+          { status: 502 }
+        );
+      }
+      
+      // Forward any other backend error
+      const status = backendError.response?.status || 500;
+      const message = backendError.response?.data?.message || backendError.message || 'Backend API error';
+      
+      return NextResponse.json(
+        { error: message },
+        { status }
+      );
+    }
   } catch (error) {
-    console.error('Error proxying events request:', error.message);
+    console.error('Error processing events request:', error.message);
     
     // Structured error response
-    const status = error.response?.status || 500;
-    const message = error.response?.data?.message || error.message || 'Unknown server error';
-    
     return NextResponse.json(
-      { error: message },
-      { status }
+      { 
+        error: 'Internal server error',
+        details: error.message || 'Unknown server error'
+      },
+      { status: 500 }
     );
   }
 }
