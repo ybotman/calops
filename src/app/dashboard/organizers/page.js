@@ -100,6 +100,8 @@ export default function OrganizersPage() {
           organizersData = await organizersApi.getOrganizers(appId, false);
         }
         
+        console.log(`Successfully fetched ${organizersData.length} organizers`);
+        
         // Process organizers data
         const processedOrganizers = organizersData.map(organizer => ({
           ...organizer,
@@ -112,6 +114,7 @@ export default function OrganizersPage() {
           userConnected: organizer.linkedUserLogin ? 'Yes' : 'No',
         }));
         
+        console.log(`Processed ${processedOrganizers.length} organizers successfully`);
         setOrganizers(processedOrganizers);
         setFilteredOrganizers(processedOrganizers);
         setLoading(false);

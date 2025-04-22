@@ -17,20 +17,76 @@ const apiClient = axios.create({
   },
 });
 
+// Add interceptors for debugging
+apiClient.interceptors.request.use(
+  config => {
+    console.log(`API Request: ${config.method.toUpperCase()} ${config.url}`);
+    return config;
+  },
+  error => {
+    console.error('API Request Error:', error);
+    return Promise.reject(error);
+  }
+);
+
+apiClient.interceptors.response.use(
+  response => {
+    console.log(`API Response: ${response.status} ${response.config.method.toUpperCase()} ${response.config.url}`);
+    // Check if response.data is what we expect (usually an array for list endpoints)
+    if (response.config.url.includes('/all') || 
+        response.config.url.includes('/organizers') || 
+        response.config.url.includes('/users')) {
+      if (!Array.isArray(response.data)) {
+        // Only log debug info, not warnings, since we handle format differences in the API methods
+        console.log('Response format:', 
+          typeof response.data, 
+          response.data ? `(${Object.keys(response.data).join(', ')})` : '');
+      }
+    }
+    return response;
+  },
+  error => {
+    console.error('API Response Error:', error.message);
+    if (error.response) {
+      console.error('Error Status:', error.response.status);
+      console.error('Error Data:', error.response.data);
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Users API
 export const usersApi = {
   getUsers: async (appId = '1', active, timestamp) => {
-    let url = `/api/userlogins/all?appId=${appId}`;
-    if (active !== undefined) {
-      url += `&active=${active}`;
+    try {
+      let url = `/api/userlogins/all?appId=${appId}`;
+      if (active !== undefined) {
+        url += `&active=${active}`;
+      }
+      // Add timestamp for cache busting if needed
+      if (timestamp) {
+        url += `&_=${timestamp}`;
+      }
+      console.log('Getting users with URL:', url);
+      const response = await apiClient.get(url);
+      
+      // The API returns {users: Array, pagination: Object}
+      if (response.data && response.data.users && Array.isArray(response.data.users)) {
+        console.log(`Received ${response.data.users.length} users from API`);
+        return response.data.users;
+      } else if (Array.isArray(response.data)) {
+        // Handle case where API might return array directly
+        console.log(`Received ${response.data.length} users directly as array`);
+        return response.data;
+      } else {
+        console.warn('usersApi.getUsers: API did not return users array', response.data);
+        return [];
+      }
+    } catch (error) {
+      console.error('Error in usersApi.getUsers:', error);
+      // Return empty array to prevent UI errors
+      return [];
     }
-    // Add timestamp for cache busting if needed
-    if (timestamp) {
-      url += `&_=${timestamp}`;
-    }
-    console.log('Getting users with URL:', url);
-    const response = await apiClient.get(url);
-    return response.data;
   },
   
   getUserById: async (firebaseUserId, appId = '1') => {
@@ -170,10 +226,34 @@ export const organizersApi = {
         queryParams.append('isApproved', approved);
       }
       
+      // Log the URL for debugging
+      const url = `/api/organizers?${queryParams.toString()}`;
+      console.log('Getting organizers with URL:', url);
+      
       // Use the regular endpoint with the required filters
-      const response = await apiClient.get(`/api/organizers?${queryParams.toString()}`);
-      console.log('Fetched organizers successfully:', response.data.length);
-      return response.data;
+      const response = await apiClient.get(url);
+      
+      // Check for different response formats
+      // The API may return {organizers: Array, pagination: Object}
+      if (response.data && response.data.organizers && Array.isArray(response.data.organizers)) {
+        console.log(`Received ${response.data.organizers.length} organizers from API (in organizers field)`);
+        return response.data.organizers;
+      }
+      // Or it may return {data: Array, pagination: Object}
+      else if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        console.log(`Received ${response.data.data.length} organizers from API (in data field)`);
+        return response.data.data;
+      } 
+      // Or it might return array directly
+      else if (Array.isArray(response.data)) {
+        console.log(`Received ${response.data.length} organizers directly as array`);
+        return response.data;
+      } 
+      // Last resort: log and return empty array
+      else {
+        console.warn('organizersApi.getOrganizers: API response format unexpected', response.data);
+        return [];
+      }
     } catch (error) {
       console.error('Error in getOrganizers:', error);
       // Return empty array to prevent UI errors

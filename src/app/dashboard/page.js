@@ -53,6 +53,13 @@ export default function Dashboard() {
         // Execute all requests in parallel
         const [allUsers, activeUsers, allOrganizers, activeOrganizers] = await Promise.all(requests);
         
+        console.log('Dashboard data received:', {
+          allUsers: allUsers.length,
+          activeUsers: activeUsers.length,
+          allOrganizers: allOrganizers.length,
+          activeOrganizers: activeOrganizers.length
+        });
+        
         // Calculate statistics
         const inactiveUsers = allUsers.filter(user => !user.active);
         const adminUsers = allUsers.filter(user => 
@@ -79,6 +86,25 @@ export default function Dashboard() {
           divisions: 32,
           cities: 146
         };
+        
+        // Debug information
+        console.log('Dashboard data details:', {
+          users: {
+            allUsers: allUsers.length > 0 ? `${allUsers.length} items` : 'empty array',
+            firstUser: allUsers[0] ? `ID: ${allUsers[0].firebaseUserId || 'N/A'}` : 'none',
+            activeUsers: activeUsers.length > 0 ? `${activeUsers.length} items` : 'empty array',
+            inactiveUsers: inactiveUsers.length,
+            adminUsers: adminUsers.length,
+            organizerUsers: organizerUsers.length
+          },
+          organizers: {
+            allOrganizers: allOrganizers.length > 0 ? `${allOrganizers.length} items` : 'empty array',
+            firstOrganizer: allOrganizers[0] ? `ID: ${allOrganizers[0]._id || 'N/A'}` : 'none',
+            activeOrganizers: activeOrganizers.length > 0 ? `${activeOrganizers.length} items` : 'empty array',
+            inactiveOrganizers: inactiveOrganizers.length,
+            pendingOrganizers: pendingOrganizers.length
+          }
+        });
         
         // Set stats for the dashboard
         setStats({
