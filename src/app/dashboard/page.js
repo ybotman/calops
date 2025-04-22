@@ -6,7 +6,7 @@ import PeopleIcon from '@mui/icons-material/People';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import BusinessIcon from '@mui/icons-material/Business';
 import EventIcon from '@mui/icons-material/Event';
-import { usersApi, organizersApi } from '@/lib/api-client';
+import { usersApi, organizersApi, eventsApi } from '@/lib/api-client';
 import StatusPanel from './components/StatusPanel';
 import { useAppContext } from '@/lib/AppContext';
 
@@ -72,12 +72,8 @@ export default function Dashboard() {
         const inactiveOrganizers = allOrganizers.filter(org => !org.isActive);
         const pendingOrganizers = allOrganizers.filter(org => !org.isApproved);
         
-        // Event data - still using mock as we don't have event API yet
-        const eventStats = {
-          total: 1245,
-          upcoming: 423,
-          thisMonth: 187
-        };
+        // Fetch real event data from backend
+        const eventStats = await eventsApi.getEventCounts(currentApp.id);
         
         // Location data - using mock data as we don't have a specific API for these counts
         const locationStats = {

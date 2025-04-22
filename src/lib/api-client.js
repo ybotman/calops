@@ -475,6 +475,171 @@ export const organizersApi = {
   }
 };
 
+// Events API
+export const eventsApi = {
+  getEvents: async (filters = {}, appId = '1') => {
+    try {
+      // Build query parameters from filters
+      const { 
+        active, 
+        startDate, 
+        endDate, 
+        status, 
+        organizerId, 
+        masteredRegionName, 
+        masteredCityName,
+        page = 1,
+        limit = 100
+      } = filters;
+      
+      // Create URL with required parameters
+      let queryParams = new URLSearchParams({
+        appId: appId,
+        page: page,
+        limit: limit
+      });
+      
+      // Add optional filters
+      if (active !== undefined) queryParams.append('active', active);
+      if (startDate) queryParams.append('startDate', startDate);
+      if (endDate) queryParams.append('endDate', endDate);
+      if (status) queryParams.append('status', status);
+      if (organizerId) queryParams.append('organizerId', organizerId);
+      if (masteredRegionName) queryParams.append('masteredRegionName', masteredRegionName);
+      if (masteredCityName) queryParams.append('masteredCityName', masteredCityName);
+      
+      // Make the request
+      const url = `/api/events?${queryParams.toString()}`;
+      console.log('Getting events with URL:', url);
+      const response = await apiClient.get(url);
+      
+      // Handle multiple response formats
+      if (response.data && response.data.events && Array.isArray(response.data.events)) {
+        console.log(`Received ${response.data.events.length} events from API (in events field)`);
+        return {
+          events: response.data.events,
+          pagination: response.data.pagination || {}
+        };
+      } 
+      else if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        console.log(`Received ${response.data.data.length} events from API (in data field)`);
+        return {
+          events: response.data.data,
+          pagination: response.data.pagination || {}
+        };
+      }
+      else if (Array.isArray(response.data)) {
+        console.log(`Received ${response.data.length} events directly as array`);
+        return {
+          events: response.data,
+          pagination: { total: response.data.length, page: 1, pages: 1 }
+        };
+      }
+      else {
+        console.warn('eventsApi.getEvents: API response format unexpected', response.data);
+        return { events: [], pagination: {} };
+      }
+    } catch (error) {
+      console.error('Error fetching events:', error);
+      return { events: [], pagination: {} };
+    }
+  },
+  
+  getEventById: async (id, appId = '1') => {
+    try {
+      const response = await apiClient.get(`/api/events/id/${id}?appId=${appId}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching event with ID ${id}:`, error);
+      throw error;
+    }
+  },
+  
+  createEvent: async (eventData) => {
+    try {
+      const appId = eventData.appId || '1';
+      const response = await apiClient.post(`/api/events/post?appId=${appId}`, eventData);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating event:', error);
+      throw error;
+    }
+  },
+  
+  updateEvent: async (id, eventData) => {
+    try {
+      const appId = eventData.appId || '1';
+      const response = await apiClient.put(`/api/events/${id}?appId=${appId}`, eventData);
+      return response.data;
+    } catch (error) {
+      console.error(`Error updating event with ID ${id}:`, error);
+      throw error;
+    }
+  },
+  
+  deleteEvent: async (id, appId = '1') => {
+    try {
+      const response = await apiClient.delete(`/api/events/${id}?appId=${appId}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error deleting event with ID ${id}:`, error);
+      throw error;
+    }
+  },
+  
+  // Additional helper methods
+  toggleEventStatus: async (id, isActive, appId = '1') => {
+    try {
+      const response = await apiClient.patch(`/api/events/${id}?appId=${appId}`, {
+        active: isActive
+      });
+      return response.data;
+    } catch (error) {
+      console.error(`Error toggling event status for ID ${id}:`, error);
+      throw error;
+    }
+  },
+  
+  getEventCounts: async (appId = '1') => {
+    try {
+      // Use the events endpoint with minimum data and count only
+      const activeResponse = await apiClient.get(`/api/events?appId=${appId}&active=true&countOnly=true`);
+      const allResponse = await apiClient.get(`/api/events?appId=${appId}&countOnly=true`);
+      
+      // Get upcoming events (today and future)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const startDate = today.toISOString();
+      const upcomingResponse = await apiClient.get(
+        `/api/events?appId=${appId}&startDate=${startDate}&countOnly=true`
+      );
+      
+      // Get this month's events
+      const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      const endDate = endOfMonth.toISOString();
+      const thisMonthResponse = await apiClient.get(
+        `/api/events?appId=${appId}&startDate=${startDate}&endDate=${endDate}&countOnly=true`
+      );
+      
+      return {
+        total: allResponse.data?.count || 0,
+        active: activeResponse.data?.count || 0,
+        upcoming: upcomingResponse.data?.count || 0,
+        thisMonth: thisMonthResponse.data?.count || 0
+      };
+    } catch (error) {
+      console.error('Error fetching event counts:', error);
+      // Return defaults
+      return {
+        total: 0,
+        active: 0,
+        upcoming: 0,
+        thisMonth: 0
+      };
+    }
+  }
+};
+
 // Debug API
 export const debugApi = {
   checkBackend: async () => {
@@ -497,5 +662,6 @@ export default {
   users: usersApi,
   roles: rolesApi,
   organizers: organizersApi,
+  events: eventsApi,
   debug: debugApi
 };
