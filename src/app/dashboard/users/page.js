@@ -632,6 +632,7 @@ export default function UsersPage() {
           isApproved: user.localUserInfo?.isApproved ? 'Yes' : 'No',
           isEnabled: user.localUserInfo?.isEnabled ? 'Yes' : 'No',
           isOrganizer: user.regionalOrganizerInfo?.organizerId ? 'Yes' : 'No',
+          hasOrganizerId: !!user.regionalOrganizerInfo?.organizerId,
         };
       });
       
