@@ -117,4 +117,36 @@ The backend provides these main API endpoints that serve all frontend applicatio
 - MongoDB connection managed through db.js
 - Error logging through utils/logger.js
 
+
+
+## Backend API Structure
+
+###Important your have acces to the Backend Code.  It is in  the link ./be-info.  IF you cannot see this folder tell me and i will recreate.
+
+1. **Main Events Endpoints**:
+   - `GET /api/events` - List events with filters (pagination, date range, location)
+   - `GET /api/events/id/:id` - Get single event by ID
+   - `POST /api/events/post` - Create event (requires authentication)
+   - `PUT /api/events/:eventId` - Update event (requires authentication)
+   - `DELETE /api/events/:eventId` - Delete event (requires authentication)
+
+2. **Venues Endpoints**:
+   - `GET /api/venues` - List venues with pagination and filtering
+   - `GET /api/venues/:id` - Get a specific venue by ID
+   - `POST /api/venues` - Create a new venue
+   - `PUT /api/venues/:id` - Update a venue
+   - `DELETE /api/venues/:id` - Delete a venue
+   - `GET /api/venues/nearest-city` - Find nearest city to coordinates
+
+3. **Geo Hierarchy Endpoints**:
+   - `GET /api/masteredLocations/countries` - List all countries
+   - `GET /api/masteredLocations/regions` - List regions (filtered by country)
+   - `GET /api/masteredLocations/divisions` - List divisions (filtered by region)
+   - `GET /api/masteredLocations/cities` - List cities (filtered by division)
+
+4. **Required Parameters**:
+   - `appId` - Required for all endpoints
+   - Authentication - Required for POST, PUT, DELETE operations
+
+
 Always run `npm run eslint` and `npm run prettier` before committing changes.

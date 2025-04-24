@@ -1,10 +1,12 @@
+/**
+ * Connect user to organizer API - Proxy to backend API
+ * This route proxies requests to connect a user to an organizer via the backend API
+ */
+
 import { NextResponse } from 'next/server';
 import axios from 'axios';
-import { getOrganizersModel } from '@/lib/models';
-import { getUserLoginsModel } from '@/lib/models';
-import connectToDatabase from '@/lib/mongodb';
-import mongoose from 'mongoose';
 
+// Base URL for the API - defaults to localhost:3010
 const BE_URL = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
 
 // PATCH connect organizer to user
@@ -15,167 +17,90 @@ export async function PATCH(request, { params }) {
     
     console.log(`Request to connect organizer ${id} to user ${firebaseUserId} with appId ${appId}`);
     
+    // Validate required parameters
     if (!firebaseUserId) {
       return NextResponse.json({ 
         error: 'Firebase User ID is required'
       }, { status: 400 });
     }
     
-    // First try to use the backend API to link the organizer and user
-    try {
-      console.log('Attempting to connect via backend API...');
-      const response = await axios.patch(`${BE_URL}/api/organizers/${id}/connect-user`, {
-        firebaseUserId,
-        appId
-      });
-      
-      console.log('Backend API connection successful');
-      return NextResponse.json({
-        message: 'User connected to organizer successfully via backend API',
-        data: response.data
-      });
-    } catch (apiError) {
-      console.log('Backend API connection failed, falling back to direct DB update:', apiError.message);
-      // Continue with direct DB connection fallback
-    }
-    
-    // Connect to database for direct operations
-    await connectToDatabase();
-    
-    // Get models
-    const Organizers = await getOrganizersModel();
-    const UserLogins = await getUserLoginsModel();
-    
-    // Find the organizer
-    let organizer;
-    try {
-      organizer = await Organizers.findOne({ _id: id, appId });
-    } catch (findOrgError) {
-      // Try again with string ID conversion if needed
-      try {
-        organizer = await Organizers.findOne({ 
-          _id: new mongoose.Types.ObjectId(id.toString()),
-          appId
-        });
-      } catch (secondFindError) {
-        console.error('Both organizer find attempts failed:', secondFindError);
-        return NextResponse.json({ 
-          error: 'Organizer not found after multiple attempts',
-          details: secondFindError.message
-        }, { status: 404 });
-      }
-    }
-    
-    if (!organizer) {
-      return NextResponse.json({ error: 'Organizer not found' }, { status: 404 });
-    }
-    
-    // Find the user
-    let user;
-    try {
-      user = await UserLogins.findOne({ firebaseUserId, appId });
-    } catch (findUserError) {
-      console.error('Error finding user:', findUserError);
+    if (!id) {
       return NextResponse.json({ 
-        error: 'Error finding user',
-        details: findUserError.message
-      }, { status: 500 });
+        error: 'Organizer ID is required'
+      }, { status: 400 });
     }
     
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-    
-    console.log(`Found organizer ${organizer._id} and user ${user._id}`);
-    
-    // Update the organizer's firebaseUserId and linkedUserLogin
-    if (!organizer.firebaseUserId || organizer.firebaseUserId !== firebaseUserId) {
-      organizer.firebaseUserId = firebaseUserId;
-    }
-    
-    if (!organizer.linkedUserLogin || organizer.linkedUserLogin.toString() !== user._id.toString()) {
-      organizer.linkedUserLogin = user._id;
-    }
-    
-    // Update the user's regionalOrganizerInfo
-    user.regionalOrganizerInfo = {
-      ...user.regionalOrganizerInfo,
-      organizerId: organizer._id,
-      isApproved: true,
-      isEnabled: true,
-      isActive: true,
-      ApprovalDate: new Date()
+    // Prepare the request data
+    const requestData = {
+      firebaseUserId,
+      appId
     };
     
-    // Get roles for adding RegionalOrganizer role
-    let roles = [];
+    // Logging the API request
+    console.log(`Proxying connect-user request to backend: ${BE_URL}/api/organizers/${id}/connect-user`);
+    
     try {
-      const rolesResponse = await axios.get(`${BE_URL}/api/roles?appId=${appId}`);
-      roles = rolesResponse.data;
-    } catch (rolesError) {
-      console.warn('Error fetching roles from API, trying direct DB query:', rolesError.message);
+      // Call the backend API to connect the user to the organizer
+      const response = await axios.patch(`${BE_URL}/api/organizers/${id}/connect-user`, requestData);
       
-      // Try getting roles directly from DB
-      try {
-        const RoleSchema = new mongoose.Schema({
-          roleName: String,
-          appId: String
-        }, { collection: 'roles' });
-        
-        const RoleModel = mongoose.models.Role || mongoose.model('Role', RoleSchema);
-        roles = await RoleModel.find({ appId });
-      } catch (dbRoleError) {
-        console.error('Failed to get roles from DB:', dbRoleError);
-        // Continue without roles if we can't get them
-      }
-    }
-    
-    // Find the RegionalOrganizer role
-    const organizerRole = roles.find(role => role.roleName === 'RegionalOrganizer');
-    
-    // Add RegionalOrganizer role if not already present
-    if (organizerRole && !user.roleIds.some(r => 
-      r.toString() === organizerRole._id.toString()
-    )) {
-      user.roleIds.push(organizerRole._id);
-      console.log('Added RegionalOrganizer role to user');
-    }
-    
-    // Save both the user and organizer updates
-    try {
-      await Promise.all([
-        user.save(),
-        organizer.save()
-      ]);
+      // Return success with the response data
+      return NextResponse.json({
+        message: 'User connected to organizer successfully',
+        data: response.data
+      });
+    } catch (backendError) {
+      console.error('Backend API error:', backendError.message);
       
-      console.log('Successfully saved user and organizer updates');
-    } catch (saveError) {
-      console.error('Error saving updates:', saveError);
-      return NextResponse.json({ 
-        error: 'Failed to save user or organizer updates',
-        details: saveError.message
-      }, { status: 500 });
-    }
-    
-    // Return success
-    return NextResponse.json({
-      message: 'User connected to organizer successfully via direct database update',
-      user: {
-        firebaseUserId: user.firebaseUserId,
-        regionalOrganizerInfo: user.regionalOrganizerInfo,
-        roleIds: user.roleIds
-      },
-      organizer: {
-        _id: organizer._id,
-        firebaseUserId: organizer.firebaseUserId,
-        linkedUserLogin: organizer.linkedUserLogin
+      // Check if this is a connection error
+      if (backendError.code === 'ECONNREFUSED') {
+        return NextResponse.json(
+          { 
+            error: 'Could not connect to backend API',
+            details: 'Please ensure the backend server is running' 
+          },
+          { status: 502 }
+        );
       }
-    });
+      
+      // Check if the organizer or user is not found
+      if (backendError.response?.status === 404) {
+        return NextResponse.json(
+          { 
+            error: backendError.response.data?.message || 'Organizer or user not found'
+          },
+          { status: 404 }
+        );
+      }
+      
+      // Check if the user is already connected to another organizer
+      if (backendError.response?.status === 409) {
+        return NextResponse.json(
+          { 
+            error: backendError.response.data?.message || 'User is already connected to another organizer'
+          },
+          { status: 409 }
+        );
+      }
+      
+      // Forward any other backend error
+      const status = backendError.response?.status || 500;
+      const message = backendError.response?.data?.message || backendError.message || 'Error connecting user to organizer';
+      
+      return NextResponse.json(
+        { error: message },
+        { status }
+      );
+    }
   } catch (error) {
-    console.error(`Error connecting user to organizer ${params.id}:`, error);
-    return NextResponse.json({ 
-      error: 'Failed to connect user to organizer',
-      details: error.response?.data?.message || error.message
-    }, { status: error.response?.status || 500 });
+    console.error(`Error processing connect-user request for organizer ${params.id}:`, error.message);
+    
+    // Structured error response
+    return NextResponse.json(
+      { 
+        error: 'Internal server error',
+        details: error.message || 'Unknown server error'
+      },
+      { status: 500 }
+    );
   }
 }

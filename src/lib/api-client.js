@@ -524,12 +524,9 @@ export const eventsApi = {
       let formattedStartDate;
       let formattedEndDate;
       
-      // Add a flag to indicate we're doing date range filtering on event start date
-      if (startDate && endDate) {
-        queryParams.append('dateRangeField', 'startDate'); // Indicate we're filtering on the startDate field
-      }
+      // Date range filtering is now handled with the standard 'start' and 'end' parameters
       
-      // Properly format dates as ISO strings for startDate and endDate
+      // Format dates to ISO strings for standardized API
       if (startDate) {
         formattedStartDate = startDate;
         if (startDate instanceof Date || typeof startDate === 'object') {
@@ -543,12 +540,8 @@ export const eventsApi = {
           }
         }
         
-        // Use MongoDB-style comparison operator for start date (primary filter)
-        queryParams.append('startDate[$gte]', formattedStartDate);
-        
-        // Add alternative formats for different API implementations
-        queryParams.append('filter[startDate][gte]', formattedStartDate); // REST API style
-        queryParams.append('startDate_gte', formattedStartDate);         // Another common format
+        // Use simple 'start' parameter as per the API contract
+        queryParams.append('start', formattedStartDate);
       }
       
       if (endDate) {
@@ -564,12 +557,8 @@ export const eventsApi = {
           }
         }
         
-        // Use MongoDB-style comparison operator for end date (primary filter)
-        queryParams.append('startDate[$lte]', formattedEndDate);
-        
-        // Add alternative formats for different API implementations
-        queryParams.append('filter[startDate][lte]', formattedEndDate); // REST API style
-        queryParams.append('startDate_lte', formattedEndDate);         // Another common format
+        // Use simple 'end' parameter as per the API contract
+        queryParams.append('end', formattedEndDate);
       }
       // Handle status parameter with multiple possible formats
       if (status) {

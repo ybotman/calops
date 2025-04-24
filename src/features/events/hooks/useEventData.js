@@ -58,11 +58,17 @@ const useEventData = (appId = '1', initialFilters = {}) => {
         filterParams.descriptionSearch = filters.descriptionSearch;
       }
       
-      // Add date filters if provided - use formatISO for proper formatting
+      // Add date filters if provided - use formatISO for proper API format (YYYY-MM-DD)
       if (filters.startDate) {
         try {
-          // Format as ISO and only take the date part (YYYY-MM-DD)
+          // Format as ISO date string following API expectations
           filterParams.startDate = formatISO(new Date(filters.startDate), { representation: 'date' });
+          
+          // The API expects 'start' parameter (not 'startDate')
+          filterParams.start = filterParams.startDate;
+          
+          // Remove the original property to avoid confusion
+          delete filterParams.startDate;
         } catch (err) {
           console.warn('Error formatting startDate:', err);
         }
@@ -70,8 +76,14 @@ const useEventData = (appId = '1', initialFilters = {}) => {
       
       if (filters.endDate) {
         try {
-          // Format as ISO and only take the date part (YYYY-MM-DD)
+          // Format as ISO date string following API expectations
           filterParams.endDate = formatISO(new Date(filters.endDate), { representation: 'date' });
+          
+          // The API expects 'end' parameter (not 'endDate')
+          filterParams.end = filterParams.endDate;
+          
+          // Remove the original property to avoid confusion
+          delete filterParams.endDate;
         } catch (err) {
           console.warn('Error formatting endDate:', err);
         }
@@ -116,8 +128,24 @@ const useEventData = (appId = '1', initialFilters = {}) => {
       filterParams.page = pagination.page;
       filterParams.limit = pagination.limit;
       
+      // Log the exact params being sent to verify our date range parameters
+      console.log('Fetching events with parameters:', {
+        ...filterParams,
+        dateRange: {
+          start: filterParams.start,
+          end: filterParams.end
+        }
+      });
+    
       // Fetch events from API
       const response = await eventsApi.getEvents(filterParams, appId);
+      
+      // Log the response to verify date filtering worked
+      console.log('API response:', {
+        totalEvents: response.events?.length || 0,
+        pagination: response.pagination,
+        queryInfo: response.query
+      });
       
       // Update state if component is still mounted
       if (isMounted.current) {

@@ -11,7 +11,7 @@ CalOps is currently using mixed approaches for data access:
 
 ## Backend API Structure
 
-After examining the backend code, we've identified the following API endpoints:
+Important the Backend Code you gave access to in the link ./be-info.  IF you cannot see this folder tell me and i will recreate.
 
 1. **Main Events Endpoints**:
    - `GET /api/events` - List events with filters (pagination, date range, location)
@@ -74,12 +74,12 @@ npm run build
    - [x] Create interfaces for geo-hierarchy models
    - [x] Verified geo-hierarchy page now correctly displays cities, divisions, and regions
 
-3. **Venues API Proxying**
+3. **Venues API Proxying** - ✅ COMPLETED
    - [x] Convert `/api/venues/route.js` to proxy pattern
    - [x] Convert `/api/venues/[id]/route.js` to proxy pattern
    - [x] Convert `/api/venues/nearest-city/route.js` to proxy pattern
    - [x] Create interface for Venue model
-   - [x] Verified venues page now correctly displays venue data
+   - [ ] Verify venues page correctly displays venue data with API
 
 4. **Comprehensive Testing**
    - [x] Test event CRUD operations
@@ -97,14 +97,70 @@ npm run build
 
 2. **Model Refinement**
    - [ ] Ensure all interfaces match backend models
+     - Current interfaces (e.g., `Event.js`) need to be aligned with backend models
+     - Add interfaces for Venue, Organizer, User, and other core entities
    - [ ] Update all direct database references to use APIs
+     - Multiple API routes still use direct MongoDB connections
+     - Many debug endpoints use direct database access
+     - Organizer connection has MongoDB fallback logic
    - [ ] Implement consistent error handling across all APIs
+     - Current implementation has inconsistent error handling
+     - Some routes have detailed error handling, others minimal
+     - Need standardized approach for API failures and fallbacks
 
 ### 📝 Next Steps
 
-1. **Final Cleanup**
-   - [ ] Test API fallbacks with backend unavailable
-   - [ ] Fix remaining browser console errors
+1. **Eliminate Direct Database Access in API Routes**
+   - [x] Convert venue API routes to backend proxies:
+     - [x] `/api/venues/route.js` to proxy to backend API
+     - [x] `/api/venues/[id]/route.js` to proxy to backend API
+     - [x] `/api/venues/nearest-city/route.js` to proxy to backend API
+   - [x] Convert organizer API routes to backend proxies:
+     - [x] `/api/organizers/route.js` to proxy to backend API
+     - [x] `/api/organizers/[id]/route.js` already used API approach
+     - [x] `/api/organizers/[id]/connect-user/route.js` to proxy to backend API
+   - [x] Convert geo-hierarchy API routes to backend proxies:
+     - [x] `/api/geo-hierarchy/route.js` to proxy to backend API
+     - [x] `/api/geo-hierarchy/[type]/[id]/route.js` to proxy to backend API
+   - [ ] Convert or consolidate debug endpoints
+
+2. **Create Simple API Utility Functions (No Large Abstraction)**
+   - [ ] Create simple helper functions for common API operations
+     - [ ] Shared error handling for Axios requests
+     - [ ] Standard response formatting
+   - [ ] Allow components to continue using direct Axios
+   - [ ] Document standard patterns for API calls
+
+3. **Interface Standardization**
+   - [ ] Create consistent interfaces for all models:
+     - [ ] `Venue.js` interface matching backend model (venues.js)
+     - [ ] `Organizer.js` interface matching backend model (organizers.js)
+     - [ ] `UserLogin.js` interface matching backend model (userLogins.js)
+     - [ ] `Role.js` interface matching backend model (roles.js)
+   - [ ] Document interfaces with JSDoc comments
+   - [ ] Update API routes to return consistently formatted data
+
+4. **Error Handling Improvements**
+   - [ ] Add consistent error handling in API route proxies:
+     - [ ] Properly forward error codes from backend
+     - [ ] Add meaningful error messages
+     - [ ] Log API failures appropriately
+   - [ ] Create simple error handling components for UI
+
+5. **Remove API Abstraction and Direct Database Dependencies**
+   - [ ] Replace complex API client pattern with simpler direct Axios approach
+     - [ ] Identify components using the API client abstraction
+     - [ ] Gradually migrate to direct Axios calls with shared patterns
+     - [ ] Remove or simplify overly complex parts of api-client.js
+   - [ ] Clean up or remove `/lib/mongodb.js` after all routes are converted
+   - [ ] Remove MongoDB imports from all files
+   - [ ] Delete any direct database model definitions
+   - [ ] Remove other unused database dependencies
+
+6. **Testing and Verification**
+   - [ ] Test all API routes with backend running
+   - [ ] Test API routes with backend unavailable (verify error handling)
+   - [ ] Test components with actual API data
    - [ ] Final build and deployment verification
 
 ## API Implementation Details
