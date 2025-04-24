@@ -71,70 +71,115 @@ export default function UsersPage() {
   });
 
   // Function to refresh users
-  const refreshUsers = async () => {
+  const refreshUsers = async (currentRoles = []) => {
     try {
       setLoading(true);
       
       // Use timestamp to force fresh data
       const timestamp = new Date().getTime();
       
-      let usersData = [];
+      // Fetch users directly from the backend with cache busting
+      const usersData = await usersApi.getUsers(appId, undefined, timestamp);
+      console.log(`Successfully fetched ${usersData.length} users`);
       
-      try {
-        // Fetch users directly from the backend with cache busting
-        usersData = await usersApi.getUsers(appId, undefined, timestamp);
-        console.log(`Successfully fetched ${usersData.length} users`);
-      } catch (fetchError) {
-        console.error('Error fetching users from backend:', fetchError);
-        
-        // If we're in development mode, provide fallback demo data
-        if (process.env.NODE_ENV === 'development') {
-          console.log('Using demo data since backend is unavailable');
-          usersData = [
-            {
-              _id: "1",
-              firebaseUserId: "demouser1",
-              localUserInfo: { firstName: "John", lastName: "Demo" },
-              active: true,
-              roleIds: [{_id: "66cb85ac74dca51e34e268ef", roleName: "User"}],
-              regionalOrganizerInfo: {}
-            },
-            {
-              _id: "2",
-              firebaseUserId: "demouser2",
-              localUserInfo: { firstName: "Admin", lastName: "User" },
-              active: true,
-              roleIds: [{_id: "66cb85ac74dca51e34e268ec", roleName: "SystemAdmin"}],
-              regionalOrganizerInfo: {}
-            },
-            {
-              _id: "3",
-              firebaseUserId: "demoorganizer",
-              localUserInfo: { firstName: "Organizer", lastName: "Demo" },
-              active: true,
-              roleIds: [{_id: "66cb85ac74dca51e34e268ed", roleName: "RegionalOrganizer"}],
-              regionalOrganizerInfo: { organizerId: "123", isActive: true, isApproved: true, isEnabled: true }
-            }
-          ];
-        } else {
-          // In production, rethrow to show proper error
-          throw fetchError;
-        }
+      // Use currentRoles parameter instead of the roles state to avoid closure issues
+      const rolesToUse = currentRoles.length > 0 ? currentRoles : roles;
+      
+      // Add debug logging for roles
+      console.log('Available roles for mapping:', rolesToUse.map(r => ({ 
+        _id: r._id, 
+        roleName: r.roleName, 
+        roleNameCode: r.roleNameCode 
+      })));
+      
+      // Check if roleNameCode is missing from any roles
+      const missingRoleNameCodes = rolesToUse.filter(r => !r.roleNameCode);
+      if (missingRoleNameCodes.length > 0) {
+        console.warn('FOUND ROLES WITHOUT roleNameCode:', missingRoleNameCodes);
       }
       
       // Process users data to add display name and computed fields
-      const processedUsers = usersData.map(user => ({
-        ...user,
-        id: user._id, // For DataGrid key
-        displayName: `${user.localUserInfo?.firstName || ''} ${user.localUserInfo?.lastName || ''}`.trim() || 'Unnamed User',
-        email: user.firebaseUserInfo?.email || 'No email',
-        roleNames: (user.roleIds || [])
-          .map(role => typeof role === 'object' ? role.roleName : 'Unknown')
-          .join(', '),
-        isActive: user.active ? 'Active' : 'Inactive',
-        isOrganizer: user.regionalOrganizerInfo?.organizerId ? 'Yes' : 'No',
-        tempFirebaseId: user.firebaseUserId || '',
-      }));
+      const processedUsers = usersData.map(user => {
+        // Log roleIds for this user to help with debugging
+        console.log(`Processing user ${user._id}, roleIds:`, user.roleIds);
+        
+        // Debug: Show exact format of roleIds to understand the structure better
+        if (Array.isArray(user.roleIds)) {
+          console.log('ROLE ID FORMATS:', user.roleIds.map(role => ({
+            type: typeof role,
+            isObjectId: role instanceof Object && role._id !== undefined,
+            stringValue: typeof role === 'string' ? role : typeof role === 'object' ? JSON.stringify(role) : String(role),
+            hasRoleNameCode: typeof role === 'object' && role.roleNameCode !== undefined
+          })));
+        }
+        
+        // Map role IDs to the actual role objects using the rolesToUse array
+        const userRoleCodes = [];
+        
+        // Handle the case where user.roleIds might be undefined or null
+        if (Array.isArray(user.roleIds)) {
+          // Process each role ID to get the corresponding roleNameCode
+          for (const roleId of user.roleIds) {
+            // Case 1: roleId is already an object with roleNameCode property
+            if (typeof roleId === 'object' && roleId.roleNameCode) {
+              userRoleCodes.push(roleId.roleNameCode);
+              continue;
+            }
+            
+            // Case 2: roleId is an object with _id property - convert to string
+            // or roleId is already a string - use as is
+            const roleIdStr = typeof roleId === 'object' && roleId._id 
+              ? String(roleId._id).trim() 
+              : String(roleId).trim();
+            
+            // DEBUG: Log all role IDs before searching to verify what we're working with
+            console.log(`AVAILABLE ROLE IDS FOR MATCHING:`, rolesToUse.map(r => ({
+              _id: r._id,
+              idAsString: String(r._id).trim(),
+              roleName: r.roleName,
+              roleNameCode: r.roleNameCode
+            })));
+            
+            // Find the matching role in the rolesToUse array
+            // Debug log all roles before searching
+            console.log(`Searching among ${rolesToUse.length} available roles for ID: ${roleIdStr}`);
+
+            // Try exact match first
+            let foundRole = rolesToUse.find(r => {
+              const roleDbIdStr = String(r._id).trim();
+              const isMatch = roleDbIdStr === roleIdStr;
+              console.log(`Comparing ID: '${roleIdStr}' with role ID: '${roleDbIdStr}', exact match: ${isMatch}`);
+              return isMatch;
+            });
+
+            // If no exact match, try to check if the roleId has MongoDB ObjectID format '507f1f77bcf86cd799439011'
+            if (!foundRole && roleIdStr.length === 24 && /^[0-9a-f]{24}$/i.test(roleIdStr)) {
+              console.log(`No exact match found, trying MongoDB ObjectID format for ${roleIdStr}`);
+            }
+            
+            // Add the roleNameCode if found, otherwise '?'
+            if (foundRole && foundRole.roleNameCode) {
+              userRoleCodes.push(foundRole.roleNameCode);
+            } else {
+              userRoleCodes.push('?');
+            }
+          }
+        }
+        
+        // Join the role codes with commas - this creates the concatenated roleNameCode display
+        const roleNamesStr = userRoleCodes.join(', ');
+        
+        return {
+          ...user,
+          id: user._id, // For DataGrid key
+          displayName: `${user.localUserInfo?.firstName || ''} ${user.localUserInfo?.lastName || ''}`.trim() || 'Unnamed User',
+          email: user.firebaseUserInfo?.email || 'No email',
+          roleNames: roleNamesStr || '',
+          isApproved: user.localUserInfo?.isApproved ? 'Yes' : 'No',
+          isEnabled: user.localUserInfo?.isEnabled ? 'Yes' : 'No',
+          isOrganizer: user.regionalOrganizerInfo?.organizerId ? 'Yes' : 'No',
+        };
+      });
       
       setUsers(processedUsers);
       setFilteredUsers(processedUsers);
@@ -168,32 +213,80 @@ export default function UsersPage() {
       try {
         setLoading(true);
         
-        // Fetch roles first - with hardcoded fallback if backend is unreachable
-        const rolesData = await rolesApi.getRoles(appId);
-        setRoles(rolesData || []);
-        
-        // Then refresh users
+        // First fetch all roles to have them available in memory
         try {
-          await refreshUsers();
+          console.log(`Fetching roles for appId: ${appId}`);
+          const rolesData = await rolesApi.getRoles(appId);
+          
+          // Log detailed information about the roles
+          console.log('Roles data from API:', rolesData);
+          
+          // Enhanced debug logging to check each role's structure
+          if (Array.isArray(rolesData)) {
+            console.log('DETAILED ROLES DATA:', rolesData.map(role => ({
+              _id: role._id,
+              idType: typeof role._id,
+              idString: String(role._id),
+              roleName: role.roleName,
+              roleNameCode: role.roleNameCode
+            })));
+          }
+          
+          // Log if any roles are missing roleNameCode
+          if (Array.isArray(rolesData)) {
+            const missingCodes = rolesData.filter(r => !r.roleNameCode);
+            if (missingCodes.length > 0) {
+              console.error('CRITICAL: Roles missing roleNameCode:', missingCodes);
+            }
+          }
+          
+          // Ensure roles have roleNameCode - fallback to first two letters of roleName if missing
+          const processedRoles = Array.isArray(rolesData) ? rolesData.map(r => {
+            if (!r.roleNameCode && r.roleName) {
+              // Create a roleNameCode from the first two letters of roleName
+              console.warn(`Role ${r.roleName} missing roleNameCode, generating fallback`);
+              return { 
+                ...r, 
+                roleNameCode: r.roleName.substring(0, 2).toUpperCase() 
+              };
+            }
+            return r;
+          }) : [];
+          
+          setRoles(processedRoles);
+          
+          // Then fetch users with the processed roles
+          try {
+            // Pass the processed roles directly to refreshUsers to ensure they're used immediately
+            await refreshUsers(processedRoles);
+            return; // Skip the additional fetch users below since we've already done it
+          } catch (userError) {
+            console.error('Error fetching users with processed roles:', userError);
+            throw userError; // Re-throw to be caught by outer catch
+          }
+        } catch (roleError) {
+          console.error('Error fetching roles:', roleError);
+          // Set empty roles array
+          setRoles([]);
+          alert(`Failed to fetch roles: ${roleError.message}`);
+        }
+        
+        // This is a fallback - only runs if the roles failed to load
+        try {
+          await refreshUsers([]);
         } catch (userError) {
           console.error('Error fetching users:', userError);
-          setLoading(false);
-          
-          // Set empty users array instead of showing an error
-          // This prevents the UI from crashing
+          // Set empty users array
           setUsers([]);
           setFilteredUsers([]);
-          
-          // Show a warning but don't block the UI
-          console.warn('Using demo data because backend is unavailable');
+          alert(`Failed to fetch users: ${userError.message}`);
         }
       } catch (error) {
         console.error('Error initializing data:', error);
-        setLoading(false);
         
-        // Show a more helpful message
+        // Show a helpful error message
         if (error.code === 'ERR_NETWORK') {
-          alert(`Backend server appears to be offline. Some functionality will be limited.`);
+          alert(`Backend server appears to be offline. Please ensure the backend is running at ${BE_URL || 'http://localhost:3010'}.`);
         } else {
           alert(`Failed to fetch data: ${error.message}`);
         }
@@ -275,7 +368,7 @@ export default function UsersPage() {
       (user.displayName.toLowerCase().includes(lowerTerm)) ||
       (user.email.toLowerCase().includes(lowerTerm)) ||
       (user.roleNames.toLowerCase().includes(lowerTerm)) ||
-      (user.firebaseUserId.toLowerCase().includes(lowerTerm))
+      (user.firebaseUserId?.toLowerCase().includes(lowerTerm))
     );
     
     setFilteredUsers(filtered);
@@ -413,18 +506,55 @@ export default function UsersPage() {
       const refreshedUsers = await usersApi.getUsers(appId, undefined, timestamp);
       
       // Process users data
-      const processedUsers = refreshedUsers.map(user => ({
-        ...user,
-        id: user._id,
-        displayName: `${user.localUserInfo?.firstName || ''} ${user.localUserInfo?.lastName || ''}`.trim() || 'Unnamed User',
-        email: user.firebaseUserInfo?.email || 'No email',
-        roleNames: (user.roleIds || [])
-          .map(role => typeof role === 'object' ? role.roleName : 'Unknown')
-          .join(', '),
-        isActive: user.active ? 'Active' : 'Inactive',
-        isOrganizer: user.regionalOrganizerInfo?.organizerId ? 'Yes' : 'No',
-        tempFirebaseId: user.firebaseUserId || '',
-      }));
+      const processedUsers = refreshedUsers.map(user => {
+        // Map role IDs to the actual role objects using the roles array
+        const userRoleCodes = [];
+        
+        // Handle the case where user.roleIds might be undefined or null
+        if (Array.isArray(user.roleIds)) {
+          // Process each role ID to get the corresponding roleNameCode
+          for (const roleId of user.roleIds) {
+            // Case 1: roleId is already an object with roleNameCode property
+            if (typeof roleId === 'object' && roleId.roleNameCode) {
+              userRoleCodes.push(roleId.roleNameCode);
+              continue;
+            }
+            
+            // Case 2: roleId is an object with _id property - convert to string
+            // or roleId is already a string - use as is
+            const roleIdStr = typeof roleId === 'object' && roleId._id 
+              ? String(roleId._id).trim() 
+              : String(roleId).trim();
+            
+            // Find the matching role in the roles array
+            const foundRole = roles.find(r => {
+              const roleDbIdStr = String(r._id).trim();
+              return roleDbIdStr === roleIdStr;
+            });
+            
+            // Add the roleNameCode if found, otherwise '?'
+            if (foundRole && foundRole.roleNameCode) {
+              userRoleCodes.push(foundRole.roleNameCode);
+            } else {
+              userRoleCodes.push('?');
+            }
+          }
+        }
+        
+        // Join the role codes with commas - this creates the concatenated roleNameCode display
+        const roleNamesStr = userRoleCodes.join(', ');
+        
+        return {
+          ...user,
+          id: user._id,
+          displayName: `${user.localUserInfo?.firstName || ''} ${user.localUserInfo?.lastName || ''}`.trim() || 'Unnamed User',
+          email: user.firebaseUserInfo?.email || 'No email',
+          roleNames: roleNamesStr || '',
+          isApproved: user.localUserInfo?.isApproved ? 'Yes' : 'No',
+          isEnabled: user.localUserInfo?.isEnabled ? 'Yes' : 'No',
+          isOrganizer: user.regionalOrganizerInfo?.organizerId ? 'Yes' : 'No',
+        };
+      });
       
       setUsers(processedUsers);
       filterUsers(searchTerm);
@@ -789,17 +919,17 @@ export default function UsersPage() {
   const columns = [
     { field: 'displayName', headerName: 'Name', flex: 1 },
     { field: 'email', headerName: 'Email', flex: 1 },
-    { field: 'roleNames', headerName: 'Roles', flex: 1 },
-    { field: 'isActive', headerName: 'Status', width: 100 },
+    { field: 'roleNames', headerName: 'Roles', width: 120 },
+    { field: 'isApproved', headerName: 'Approved', width: 100 },
+    { field: 'isEnabled', headerName: 'Enabled', width: 100 },
     { field: 'isOrganizer', headerName: 'Organizer', width: 100 },
     { 
       field: 'actions', 
       headerName: 'Actions', 
-      width: 280,
+      width: 150,
       renderCell: (params) => {
         const user = params.row;
         const isDeleting = loading && selectedUser?._id === user._id;
-        const isTemp = user.firebaseUserId?.startsWith('temp_');
         
         return (
           <Box sx={{ display: 'flex', gap: 1 }}>
@@ -813,22 +943,7 @@ export default function UsersPage() {
               Edit
             </Button>
             
-            {user.isOrganizer === 'No' && (
-              <Tooltip title="Create an organizer for this user">
-                <Button
-                  variant="text"
-                  color="secondary"
-                  onClick={() => handleQuickCreateOrganizer(user)}
-                  startIcon={<LinkIcon />}
-                  disabled={creatingOrganizer}
-                  size="small"
-                >
-                  {creatingOrganizer && selectedUser?._id === user._id ? 'Creating...' : 'Create Org'}
-                </Button>
-              </Tooltip>
-            )}
-            
-            <Tooltip title={isTemp ? "Delete temporary user" : "Delete user permanently"}>
+            <Tooltip title="Delete user permanently">
               <Button
                 variant="text"
                 color="error"
@@ -836,11 +951,7 @@ export default function UsersPage() {
                 startIcon={<DeleteIcon />}
                 disabled={isDeleting}
                 size="small"
-                sx={{ 
-                  marginLeft: 'auto',
-                  // Make delete button more prominent for temp users
-                  ...(isTemp && { fontWeight: 'bold' })
-                }}
+                sx={{ marginLeft: 'auto' }}
               >
                 {isDeleting ? 'Deleting...' : 'Delete'}
               </Button>

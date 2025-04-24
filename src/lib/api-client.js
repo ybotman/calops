@@ -175,37 +175,21 @@ export const rolesApi = {
   getRoles: async (appId = '1') => {
     try {
       const response = await apiClient.get(`/api/roles?appId=${appId}`);
-      return response.data;
+      // Handle nested response format with pagination
+      if (response.data && response.data.roles && Array.isArray(response.data.roles)) {
+        console.log(`Received ${response.data.roles.length} roles from API`);
+        return response.data.roles;
+      } else if (Array.isArray(response.data)) {
+        console.log(`Received ${response.data.length} roles directly as array`);
+        return response.data;
+      } else {
+        console.warn('API returned unexpected format for roles:', response.data);
+        return [];
+      }
     } catch (error) {
-      console.warn('Error fetching roles from backend:', error.message);
-      
-      // Fallback - return hardcoded default roles
-      return [
-        {
-          _id: "66cb85ac74dca51e34e268ed",
-          roleName: "RegionalOrganizer",
-          description: "Can create and manage events for their region",
-          appId: appId
-        },
-        {
-          _id: "66cb85ac74dca51e34e268ec",
-          roleName: "SystemAdmin",
-          description: "Has full access to all system features",
-          appId: appId
-        },
-        {
-          _id: "66cb85ac74dca51e34e268ee",
-          roleName: "RegionalAdmin",
-          description: "Can administer settings for their region",
-          appId: appId
-        },
-        {
-          _id: "66cb85ac74dca51e34e268ef",
-          roleName: "User",
-          description: "Standard user account",
-          appId: appId
-        }
-      ];
+      console.error('Error fetching roles from backend:', error.message);
+      // Don't return fallback data - let the caller handle the error
+      throw error;
     }
   }
 };

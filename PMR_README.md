@@ -103,12 +103,15 @@ Step-by-step instructions for undoing this phase’s changes.
 Any clarifying context or decisions specific to this phase.
 
 Use clear status indicators:
-	•	✅ Complete
-	•	🚧 In Progress
-	•	⏳ Pending
-	•	❌ Blocked
-	•	🔁 Rolled Back
-	•	⏸️  Deferred
+✅ Complete
+🚧 In Progress
+⏳ Pending
+❌ Blocked
+🔁 Rolled Back
+⏸️ Deferred
+🔨 Still Broken
+
+The user will inform you if a task is STILL BROKEN. If a user says its BROKEN - immedialy go into PMR mode and udpate the status.
 
 Each update to task status must be dated under the “Last Updated” column.
 
