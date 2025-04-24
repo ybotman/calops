@@ -381,10 +381,6 @@ export default function UsersPage() {
            (role.roleName === 'SystemAdmin' || role.roleName === 'RegionalAdmin'))
         )
       );
-    } else if (tabValue === 3) { // Temp Users
-      filtered = filtered.filter(user => 
-        user.firebaseUserId?.startsWith('temp_')
-      );
     }
     
     // Apply search term filtering
@@ -515,8 +511,8 @@ export default function UsersPage() {
       setSelectedUser(user);
       setCreatingOrganizer(true);
       
-      // Check if this user has a valid firebase ID (check if it's not a temp ID)
-      const isFirebaseUser = !user.firebaseUserId.startsWith('temp_');
+      // All users now have a valid Firebase ID
+      const isFirebaseUser = true;
       
       // Use the existing user's Firebase ID if available
       const fullName = `${user.localUserInfo?.firstName || ''} ${user.localUserInfo?.lastName || ''}`.trim() || 'Unnamed Organizer';
@@ -724,14 +720,8 @@ export default function UsersPage() {
   const handleDeleteUser = async (user) => {
     try {
       // Get confirmation with clear warning
-      const isTemp = user.firebaseUserId?.startsWith('temp_');
       let confirmMessage = `Are you sure you want to delete user "${user.displayName}"?`;
-      
-      if (isTemp) {
-        confirmMessage += "\nThis is a temporary user created during import.";
-      } else {
-        confirmMessage += "\n\nWARNING: This will permanently remove this user and they will no longer be able to log in.";
-      }
+      confirmMessage += "\n\nWARNING: This will permanently remove this user and they will no longer be able to log in.";
       
       // Check if user is linked to an organizer
       const hasOrganizer = user.regionalOrganizerInfo?.organizerId;
@@ -798,47 +788,6 @@ export default function UsersPage() {
     }
   };
   
-  // Handle delete all temporary users
-  const handleDeleteAllTempUsers = async () => {
-    try {
-      // Find all temporary users
-      const tempUsers = users.filter(user => 
-        user.firebaseUserId?.startsWith('temp_')
-      );
-      
-      if (tempUsers.length === 0) {
-        alert('No temporary users found to delete.');
-        return;
-      }
-      
-      // Get confirmation
-      const confirmMessage = `Are you sure you want to delete ALL ${tempUsers.length} temporary users?\n\nThis action cannot be undone.`;
-      if (!window.confirm(confirmMessage)) {
-        return;
-      }
-      
-      setLoading(true);
-      
-      // Use our direct bulk deletion endpoint
-      const result = await usersApi.deleteAllTempUsers(appId);
-      
-      // Refresh the user list
-      await refreshUsers();
-      filterUsers(searchTerm);
-      
-      // Show results
-      if (result.success) {
-        alert(`Successfully deleted ${result.message}`);
-      } else {
-        alert(`Error deleting temporary users: ${result.error || 'Unknown error'}`);
-      }
-    } catch (error) {
-      console.error("Error in bulk delete process:", error);
-      alert(`Error in bulk delete process: ${error.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
   
   // Handle create new user
   const handleCreateUser = async () => {
@@ -861,13 +810,11 @@ export default function UsersPage() {
       // Log what we're attempting to do
       console.log(`Creating new user: ${newUser.email} (${newUser.firstName} ${newUser.lastName})`);
       
-      // Confirm that the user understands temp users
+      // Password is required for new users
       if (!newUser.password || newUser.password.length === 0) {
-        const confirm = window.confirm("You are creating a temporary user without Firebase authentication. This user won't be able to log in. Continue?");
-        if (!confirm) {
-          setLoading(false);
-          return;
-        }
+        alert('Password is required to create a new user.');
+        setLoading(false);
+        return;
       }
       
       // 1. Create user - direct backend call
@@ -875,7 +822,7 @@ export default function UsersPage() {
         // Create user data
         const userData = {
           email: newUser.email,
-          password: newUser.password || '', // Password is optional, will create temp user if missing
+          password: newUser.password, // Password is required
           firstName: newUser.firstName,
           lastName: newUser.lastName,
           appId: appId,
@@ -1142,7 +1089,6 @@ export default function UsersPage() {
           <Tab label="All Users" />
           <Tab label="Organizers" />
           <Tab label="Admins" />
-          <Tab label="Temp Users" />
         </Tabs>
         
         <TextField
@@ -1257,48 +1203,6 @@ export default function UsersPage() {
         </Paper>
       </TabPanel>
       
-      <TabPanel value={tabValue} index={3}>
-        <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
-          <Button
-            variant="contained"
-            color="error"
-            startIcon={<DeleteIcon />}
-            onClick={handleDeleteAllTempUsers}
-            disabled={loading || filteredUsers.length === 0}
-          >
-            Delete All Temporary Users ({filteredUsers.length})
-          </Button>
-        </Box>
-        <Paper sx={{ height: 600, width: '100%' }}>
-          {loading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-              <CircularProgress />
-            </Box>
-          ) : (
-            <DataGrid
-              rows={filteredUsers}
-              columns={columns}
-              pagination
-              page={pagination.page}
-              pageSize={pagination.pageSize}
-              rowCount={pagination.totalCount}
-              rowsPerPageOptions={[10, 25, 50, 100]}
-              onPageChange={(newPage) => setPagination(prev => ({ ...prev, page: newPage }))}
-              onPageSizeChange={(newPageSize) => setPagination(prev => ({ ...prev, pageSize: newPageSize, page: 0 }))}
-              disableSelectionOnClick
-              density="standard"
-              paginationMode="client"
-              components={{
-                NoRowsOverlay: () => (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-                    {loading ? 'Loading...' : 'No users found matching the criteria'}
-                  </Box>
-                )
-              }}
-            />
-          )}
-        </Paper>
-      </TabPanel>
       
       {/* User Edit Dialog */}
       <Dialog 
@@ -1370,7 +1274,7 @@ export default function UsersPage() {
                   type="password"
                   value={newUser.password}
                   onChange={(e) => setNewUser({...newUser, password: e.target.value})}
-                  helperText="Optional. If provided, minimum 6 characters. Empty = create temporary user."
+                  helperText="Required. Minimum 6 characters."
                 />
               </Grid>
               <Grid item xs={12}>

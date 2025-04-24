@@ -151,23 +151,7 @@ export const usersApi = {
     }
   },
   
-  deleteAllTempUsers: async (appId = '1') => {
-    try {
-      console.log(`Attempting to delete all temporary users for appId ${appId}...`);
-      
-      // Use the direct MongoDB access through our debug endpoint
-      const response = await apiClient.post('/api/debug', {
-        action: 'deleteAllTempUsers',
-        appId
-      });
-      
-      console.log('Delete all temp users response:', response.data);
-      return response.data;
-    } catch (error) {
-      console.error('Failed to delete all temporary users:', error);
-      throw error;
-    }
-  }
+  // deleteAllTempUsers method has been removed as part of the temporary users removal
 };
 
 // Roles API

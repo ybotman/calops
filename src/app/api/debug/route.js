@@ -66,7 +66,7 @@ export async function POST(request) {
     const body = await request.json();
     
     // Check action type
-    const validActions = ['deleteUsers', 'deleteAllTempUsers', 'connectOrganizerToUser'];
+    const validActions = ['deleteUsers', 'connectOrganizerToUser'];
     if (!validActions.includes(body.action)) {
       return NextResponse.json({
         success: false,
@@ -235,37 +235,7 @@ export async function POST(request) {
       }
     }
     
-    // Handle deleteAllTempUsers action separately
-    if (body.action === 'deleteAllTempUsers') {
-      const appId = body.appId || '1';
-      
-      try {
-        // Connect to the database
-        await connectToDatabase();
-        
-        // Get the user model
-        const UserLogin = await getUserLoginModel();
-        
-        // Delete all users with temp_ prefix in firebaseUserId
-        const result = await UserLogin.deleteMany({
-          firebaseUserId: { $regex: '^temp_' },
-          appId: appId
-        });
-        
-        return NextResponse.json({
-          success: true,
-          message: `${result.deletedCount} temporary users deleted successfully`,
-          details: result
-        });
-      } catch (dbError) {
-        console.error('Database error during temp user deletion:', dbError);
-        return NextResponse.json({
-          success: false,
-          error: dbError.message,
-          stack: process.env.NODE_ENV === 'development' ? dbError.stack : undefined
-        }, { status: 500 });
-      }
-    }
+    // Note: deleteAllTempUsers action was removed as part of temporary users removal
     
     // Validate userIds
     if (!body.userIds || !Array.isArray(body.userIds) || body.userIds.length === 0) {
@@ -278,7 +248,6 @@ export async function POST(request) {
     // Extract parameters
     const userIds = body.userIds;
     const appId = body.appId || '1';
-    const isTempOnly = body.tempOnly === true; // Only delete temp users
     
     try {
       // Connect to the database
@@ -301,11 +270,6 @@ export async function POST(request) {
         _id: { $in: [...objectIds, ...userIds] }, // Try both formats
         appId: appId
       };
-      
-      // If tempOnly is true, add condition to only delete temp users
-      if (isTempOnly) {
-        query.firebaseUserId = { $regex: '^temp_' };
-      }
       
       // Delete matching users
       const result = await UserLogin.deleteMany(query);
