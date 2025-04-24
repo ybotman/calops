@@ -25,8 +25,8 @@ const useEventData = (appId = '1', initialFilters = {}) => {
   // State for filters
   const [filters, setFilters] = useState({
     search: '',
-    startDate: null,
-    endDate: null,
+    afterEqualDate: null,
+    beforeEqualDate: null,
     status: 'all',
     masteredRegionName: '',
     masteredCityName: '',
@@ -59,33 +59,44 @@ const useEventData = (appId = '1', initialFilters = {}) => {
       }
       
       // Add date filters if provided - use formatISO for proper API format (YYYY-MM-DD)
-      if (filters.startDate) {
+      if (filters.afterEqualDate) {
         try {
           // Format as ISO date string following API expectations
-          filterParams.startDate = formatISO(new Date(filters.startDate), { representation: 'date' });
+          filterParams.afterEqualDate = formatISO(new Date(filters.afterEqualDate), { representation: 'date' });
           
-          // The API expects 'start' parameter (not 'startDate')
-          filterParams.start = filterParams.startDate;
-          
-          // Remove the original property to avoid confusion
-          delete filterParams.startDate;
+          // The API expects 'start' parameter for filtering events starting on or after this date
+          filterParams.start = filterParams.afterEqualDate;
         } catch (err) {
-          console.warn('Error formatting startDate:', err);
+          console.warn('Error formatting afterEqualDate:', err);
         }
       }
       
-      if (filters.endDate) {
+      if (filters.beforeEqualDate) {
         try {
           // Format as ISO date string following API expectations
-          filterParams.endDate = formatISO(new Date(filters.endDate), { representation: 'date' });
+          filterParams.beforeEqualDate = formatISO(new Date(filters.beforeEqualDate), { representation: 'date' });
           
-          // The API expects 'end' parameter (not 'endDate')
-          filterParams.end = filterParams.endDate;
-          
-          // Remove the original property to avoid confusion
-          delete filterParams.endDate;
+          // The API expects 'end' parameter for filtering events starting on or before this date
+          filterParams.end = filterParams.beforeEqualDate;
         } catch (err) {
-          console.warn('Error formatting endDate:', err);
+          console.warn('Error formatting beforeEqualDate:', err);
+        }
+      }
+      
+      // For backward compatibility, also handle the legacy date parameters if present
+      if (filters.startDate && !filters.afterEqualDate) {
+        try {
+          filterParams.start = formatISO(new Date(filters.startDate), { representation: 'date' });
+        } catch (err) {
+          console.warn('Error formatting legacy startDate:', err);
+        }
+      }
+      
+      if (filters.endDate && !filters.beforeEqualDate) {
+        try {
+          filterParams.end = formatISO(new Date(filters.endDate), { representation: 'date' });
+        } catch (err) {
+          console.warn('Error formatting legacy endDate:', err);
         }
       }
       
@@ -132,6 +143,8 @@ const useEventData = (appId = '1', initialFilters = {}) => {
       console.log('Fetching events with parameters:', {
         ...filterParams,
         dateRange: {
+          afterEqualDate: filterParams.afterEqualDate || null,
+          beforeEqualDate: filterParams.beforeEqualDate || null,
           start: filterParams.start,
           end: filterParams.end
         }
@@ -278,8 +291,8 @@ const useEventData = (appId = '1', initialFilters = {}) => {
   const clearFilters = useCallback(() => {
     setFilters({
       search: '',
-      startDate: null,
-      endDate: null,
+      afterEqualDate: null,
+      beforeEqualDate: null,
       status: 'all',
       masteredRegionName: '',
       masteredCityName: '',

@@ -394,8 +394,8 @@ const EventPage = () => {
             division: searchFilters.masteredDivisionName,
             city: searchFilters.masteredCityName,
             dates: {
-              start: searchFilters.startDate,
-              end: searchFilters.endDate
+              afterEqualDate: searchFilters.afterEqualDate,
+              beforeEqualDate: searchFilters.beforeEqualDate
             }
           });
           
