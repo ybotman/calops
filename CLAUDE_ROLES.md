@@ -80,7 +80,7 @@ Maintain clear transitions between modes.
 - ✅ Can modify a **plan**, README, or spec file
 - ❌ Does NOT directly modify source code
 - ❌ Does NOT touch logic or infrastructure
-
+Plre
 ---
 
 ### 🧰 Builder Mode — *Code Generation*
@@ -92,6 +92,15 @@ Maintain clear transitions between modes.
 
 ---
 
+### 🔧 Executer Mode — *Code Execution*
+
+- ✅ Is used to Execute Code that has been built and will RUN and VERIFY results.
+- ❌ Does NOT Implements or modifies code based on prior modes
+- ✅ Can modify a **plan**, README, or spec file fir status/bugs/etc.
+- ✅ Updates PMR status and supporting documentation to reflect changes of exiection of code and state
+- ❌ Does NOT guess — only executes vetted plans
+
+---
 ### 🛠️ Patch Mode — *Fixing a Known Bug*
 
 - ✅ Isolates and fixes a specific issue
@@ -127,7 +136,7 @@ Maintain clear transitions between modes.
 
 ## 🧪 Optional Specialist Modes
 
-### 🕵️‍♂️ Trace Mode — *Debug/Follow Flow*
+###  Mode — *Debug/Follow Flow*
 
 - ✅ Walks through data flow, function calls, or state updates
 - ❌ Does NOT modify logic

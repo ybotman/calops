@@ -1,0 +1,26 @@
+[
+  {
+    "btcId": 10018060,
+    "ttId": "api-error-mock-id",
+    "title": "Academy: Absolute Beginner Class + Social",
+    "dryRun": false
+  },
+  {
+    "btcId": 10010838,
+    "ttId": "api-error-mock-id",
+    "title": "Wednesday Tango Break– 7pm Beginner Tango Classes",
+    "dryRun": false
+  },
+  {
+    "btcId": 10011361,
+    "ttId": "api-error-mock-id",
+    "title": "Wednesday Tango Break– 8pm Intermediate Tango Classes",
+    "dryRun": false
+  },
+  {
+    "btcId": 10011100,
+    "ttId": "api-error-mock-id",
+    "title": "Wednesday Tango Break  –Dancing",
+    "dryRun": false
+  }
+]

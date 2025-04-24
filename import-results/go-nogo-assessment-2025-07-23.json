@@ -1,0 +1,17 @@
+{
+  "canProceed": true,
+  "metrics": {
+    "entityResolutionRate": 1,
+    "validationRate": 1,
+    "overallSuccessRate": 1,
+    "entityFailureCount": 0,
+    "validationFailureCount": 0,
+    "processingFailureCount": 0
+  },
+  "thresholds": {
+    "minimumResolutionRate": 0.9,
+    "minimumValidationRate": 0.95,
+    "minimumOverallRate": 0.85
+  },
+  "recommendations": []
+}

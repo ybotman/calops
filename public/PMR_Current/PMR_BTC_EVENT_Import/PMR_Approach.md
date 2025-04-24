@@ -112,6 +112,40 @@ Each phase includes verification steps:
    - Search and filter functionality
    - Organizer and venue associations
 
+## API Integration Documentation
+
+### API Access Patterns
+
+During the implementation of the BTC EVENT Import solution, we encountered several API behaviors and access patterns worth documenting for future reference:
+
+#### BTC WordPress API
+
+- **Base URL**: https://bostontangocalendar.com/wp-json/tribe/events/v1
+- **Authentication**: None required for read operations
+- **Rate Limiting**: No explicit rate limits documented, but implemented backoff to be safe
+- **Format**: JSON responses with standard WordPress REST structure
+- **Event Data**: Accessible via `/events` endpoint with date filtering
+- **Pagination**: Supports `per_page` parameter (max 50)
+
+#### TangoTiempo API
+
+- **Base URL**: http://localhost:3010/api (development) or production URL
+- **Required Parameters**: `appId` parameter required for all endpoints
+- **Authentication**: Bearer token for write operations (optional for read)
+- **Endpoints Tested**:
+  - ✅ `/api/venues?appId=1&name=<encoded-name>` - Venue lookup by name (working)
+  - ✅ `/api/organizers?appId=1&name=<encoded-name>` - Organizer lookup by name (working)
+  - ✅ `/api/categories?appId=1&categoryName=<encoded-name>` - Category lookup (working)
+  - ❌ `/api/event-categories?appId=1&categoryName=<encoded-name>` - INCORRECT endpoint (returns 404)
+
+### API Endpoint Resolution
+
+During testing, we encountered an important API mapping issue:
+
+1. **Issue**: The initial implementation was using `/api/event-categories` which resulted in 404 errors
+2. **Resolution**: The correct endpoint is `/api/categories` as verified by testing
+3. **Impact**: This affected category resolution and caused entity resolution failures
+
 ## Risk Management
 
 The approach incorporates several risk management features:
