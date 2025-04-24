@@ -712,7 +712,10 @@ export default function VenuesPage() {
       
       setImportStatus('importing');
       setImportProgress(0);
-      setImportResults({ success: 0, error: 0, skipped: 0 });
+      // Reset the import results counters
+      const initialResults = { success: 0, error: 0, skipped: 0 };
+      setImportResults(initialResults);
+      console.log('Starting import with counters reset:', initialResults);
       
       // Process venues one by one
       for (let i = 0; i < venuesToImport.length; i++) {
@@ -724,25 +727,41 @@ export default function VenuesPage() {
           let isDuplicate = venue.isDuplicate;
           
           // Try to find the nearest city if we have coordinates
-          if (venue.latitude && venue.longitude) {
-            const cityResponse = await axios.get('/api/venues/nearest-city', {
-              params: {
-                longitude: venue.longitude,
-                latitude: venue.latitude,
-                appId: currentApp.id,
-                limit: 1
+          try {
+            if (venue.latitude && venue.longitude) {
+              const cityResponse = await axios.get('/api/venues/nearest-city', {
+                params: {
+                  longitude: venue.longitude,
+                  latitude: venue.latitude,
+                  appId: currentApp.id,
+                  limit: 1
+                }
+              });
+              
+              if (cityResponse.data && cityResponse.data.length > 0) {
+                const nearestCity = cityResponse.data[0];
+                venue.masteredCityId = nearestCity._id;
+                venue.masteredDivisionId = nearestCity.masteredDivisionId?._id || '';
+                venue.masteredRegionId = nearestCity.masteredDivisionId?.masteredRegionId?._id || '';
+                venue.masteredCountryId = nearestCity.masteredDivisionId?.masteredRegionId?.masteredCountryId?._id || '';
+                venue.nearestCityName = nearestCity.cityName;
+                venue.distanceInKm = nearestCity.distanceInKm;
+              } else {
+                console.log(`No nearest city found for venue ${venue.name} at coordinates [${venue.latitude}, ${venue.longitude}]`);
+                // Handle case when no city is found - initialize with empty values
+                venue.masteredCityId = '';
+                venue.masteredDivisionId = '';
+                venue.masteredRegionId = '';
+                venue.masteredCountryId = '';
               }
-            });
-            
-            if (cityResponse.data && cityResponse.data.length > 0) {
-              const nearestCity = cityResponse.data[0];
-              venue.masteredCityId = nearestCity._id;
-              venue.masteredDivisionId = nearestCity.masteredDivisionId?._id || '';
-              venue.masteredRegionId = nearestCity.masteredDivisionId?.masteredRegionId?._id || '';
-              venue.masteredCountryId = nearestCity.masteredDivisionId?.masteredRegionId?.masteredCountryId?._id || '';
-              venue.nearestCityName = nearestCity.cityName;
-              venue.distanceInKm = nearestCity.distanceInKm;
             }
+          } catch (cityLookupError) {
+            console.error(`Error finding nearest city for venue ${venue.name}:`, cityLookupError.message);
+            // Handle API error case - initialize with empty values
+            venue.masteredCityId = '';
+            venue.masteredDivisionId = '';
+            venue.masteredRegionId = '';
+            venue.masteredCountryId = '';
           }
           
           // Add the application ID
@@ -756,14 +775,46 @@ export default function VenuesPage() {
               skipped: prev.skipped + 1
             }));
           } else {
-            // Save to the database
-            const response = await axios.post('/api/venues', venue);
-            console.log(`Successfully imported venue: ${venue.name}`, response.data);
+            // Add proper GeoJSON coordinates if needed
+            if (venue.latitude && venue.longitude) {
+              // Ensure venue has proper geolocation coordinates in GeoJSON format
+              venue.geolocation = {
+                type: "Point",
+                coordinates: [parseFloat(venue.longitude), parseFloat(venue.latitude)]
+              };
+            }
             
-            setImportResults(prev => ({
-              ...prev,
-              success: prev.success + 1
-            }));
+            try {
+              // Log the venue data being sent for debugging
+              console.log(`Sending venue data for ${venue.name}:`, JSON.stringify({
+                name: venue.name,
+                address1: venue.address1,
+                city: venue.city,
+                appId: venue.appId,
+                geolocation: venue.geolocation,
+                masteredCityId: venue.masteredCityId || null
+              }));
+              
+              // Save to the database
+              const response = await axios.post('/api/venues', venue);
+              console.log(`Successfully imported venue: ${venue.name}`, response.data);
+              
+              setImportResults(prev => ({
+                ...prev,
+                success: prev.success + 1
+              }));
+            } catch (saveError) {
+              console.error(`Error saving venue ${venue.name}:`, saveError);
+              // Get detailed error info if available
+              if (saveError.response?.data) {
+                console.error(`Server error details:`, JSON.stringify(saveError.response.data));
+              }
+              
+              setImportResults(prev => ({
+                ...prev,
+                error: prev.error + 1
+              }));
+            }
           }
         } catch (error) {
           console.error(`Error importing venue ${venue.name}:`, error);
@@ -787,9 +838,9 @@ export default function VenuesPage() {
       console.log('Import summary:', {
         totalSelected: venuesToImport.length,
         duplicatesSelected: selectedDuplicates,
-        imported: setImportResults.success,
-        failed: setImportResults.error,
-        skipped: setImportResults.skipped
+        imported: importResults.success,
+        failed: importResults.error,
+        skipped: importResults.skipped
       });
       
     } catch (error) {

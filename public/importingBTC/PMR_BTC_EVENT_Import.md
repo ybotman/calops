@@ -73,12 +73,19 @@ Based on successful execution of the actual import on 2025-04-24, we have achiev
 
 ### Phase 3: Historical Data Cleanup 🚧
 - 🚧 Develop cleanup script for historical events:
-  - 🚧 Created historical-data-cleanup.js script (2025-04-24)
+  - ✅ Created historical-data-cleanup.js script (2025-04-24)
   - ✅ Implemented single-day targeting for incremental cleanup
   - ✅ Added automatic backup before deletion
   - ✅ Created dry-run mode for safe testing
   - ✅ Implemented restore functionality from backup
   - ⏳ Test script with dry-run mode
+- 🚧 Create user interface for BTC import:
+  - ✅ Added BTC Import tab to Events management page (2025-04-24)
+  - ✅ Implemented date range selection (afterEqualDate, beforeEqualDate)
+  - ✅ Added authentication token input
+  - ✅ Created dry-run toggle option
+  - ✅ Implemented results display with metrics
+  - ⏳ Test UI with import functionality
 - ⏳ Define strategy for handling legacy events
 - ⏳ Test cleanup process in development environment
 - ⏳ Document cleanup results and impact

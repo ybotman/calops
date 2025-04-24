@@ -412,10 +412,30 @@ export async function getVenueGeography(venueId) {
       
       // Create full GeoJSON Point object for city geolocation with explicit coordinates
       // IMPORTANT: This is needed to satisfy MongoDB validation
-      const cityGeolocation = {
-        type: "Point",
-        coordinates: [-71.0589, 42.3601] // Explicit coordinates for Boston
-      };
+      let cityGeolocation;
+      
+      // Try to get coordinates from the venue's city if available
+      if (venue.masteredCityId?.geolocation?.coordinates && 
+          Array.isArray(venue.masteredCityId.geolocation.coordinates) &&
+          venue.masteredCityId.geolocation.coordinates.length === 2) {
+        // Use the actual city coordinates if available
+        cityGeolocation = {
+          type: "Point",
+          coordinates: venue.masteredCityId.geolocation.coordinates
+        };
+      } else if (venue.latitude && venue.longitude) {
+        // Fallback to venue coordinates if city coordinates not available
+        cityGeolocation = {
+          type: "Point",
+          coordinates: [parseFloat(venue.longitude), parseFloat(venue.latitude)]
+        };
+      } else {
+        // Default to Boston coordinates as last resort
+        cityGeolocation = {
+          type: "Point",
+          coordinates: [-71.0589, 42.3601] // Explicit coordinates for Boston
+        };
+      }
       
       return {
         venueGeolocation: venueGeolocation,
