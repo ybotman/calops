@@ -201,9 +201,14 @@ export default function UsersPage() {
           displayName: `${user.localUserInfo?.firstName || ''} ${user.localUserInfo?.lastName || ''}`.trim() || 'Unnamed User',
           email: user.firebaseUserInfo?.email || 'No email',
           roleNames: roleNamesStr || '',
+          // Keep the original fields for potential backward compatibility
           isApproved: user.localUserInfo?.isApproved ? 'Yes' : 'No',
           isEnabled: user.localUserInfo?.isEnabled ? 'Yes' : 'No',
           isOrganizer: user.regionalOrganizerInfo?.organizerId ? 'Yes' : 'No',
+          // Ensure the nested objects are preserved for status cards
+          localUserInfo: user.localUserInfo || {},
+          regionalOrganizerInfo: user.regionalOrganizerInfo || {},
+          localAdminInfo: user.localAdminInfo || {},
         };
       });
       
@@ -435,6 +440,31 @@ export default function UsersPage() {
   const handleDialogClose = () => {
     setDialogOpen(false);
     setEditingUser(null);
+  };
+
+  // Handle field changes in the user edit form
+  const handleUserFieldChange = (fieldPath, value) => {
+    if (!editingUser) return;
+    
+    // Create a deep copy of the editing user
+    setEditingUser(prevUser => {
+      const newUser = JSON.parse(JSON.stringify(prevUser));
+      
+      // Handle nested paths like 'localUserInfo.isApproved'
+      if (fieldPath.includes('.')) {
+        const [parent, child] = fieldPath.split('.');
+        if (!newUser[parent]) {
+          newUser[parent] = {};
+        }
+        newUser[parent][child] = value;
+      } else {
+        // Handle top-level properties
+        newUser[fieldPath] = value;
+      }
+      
+      console.log(`Field ${fieldPath} updated to ${value}`);
+      return newUser;
+    });
   };
 
   // Handle user update
@@ -971,9 +1001,89 @@ export default function UsersPage() {
     { field: 'displayName', headerName: 'Name', flex: 1 },
     { field: 'email', headerName: 'Email', flex: 1 },
     { field: 'roleNames', headerName: 'Roles', width: 120 },
-    { field: 'isApproved', headerName: 'Approved', width: 100 },
-    { field: 'isEnabled', headerName: 'Enabled', width: 100 },
-    { field: 'isOrganizer', headerName: 'Organizer', width: 100 },
+    { 
+      field: 'status', 
+      headerName: 'Status', 
+      width: 200,
+      renderCell: (params) => {
+        const user = params.row;
+        
+        // Get status values with safe access
+        const userApproved = user.localUserInfo?.isApproved || false;
+        const userEnabled = user.localUserInfo?.isEnabled || false;
+        const orgApproved = user.regionalOrganizerInfo?.isApproved || false;
+        const orgEnabled = user.regionalOrganizerInfo?.isEnabled || false;
+        const adminApproved = user.localAdminInfo?.isApproved || false;
+        const adminEnabled = user.localAdminInfo?.isEnabled || false;
+        
+        // Define card style
+        const cardStyle = {
+          display: 'flex',
+          gap: '4px',
+          alignItems: 'center',
+          justifyContent: 'center',
+        };
+        
+        // Define status chip style
+        const chipStyle = (isActive) => ({
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderRadius: '4px',
+          padding: '2px 4px',
+          fontSize: '11px',
+          fontWeight: 'bold',
+          backgroundColor: isActive ? '#e3f2fd' : '#f5f5f5',
+          color: isActive ? '#1976d2' : '#757575',
+          border: `1px solid ${isActive ? '#bbdefb' : '#e0e0e0'}`,
+          width: '28px',
+          height: '20px',
+        });
+        
+        return (
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            {/* User Status */}
+            <Tooltip title="User Status (Approved/Enabled)">
+              <Box sx={{ ...cardStyle, border: '1px solid #e0e0e0', borderRadius: '4px', padding: '2px 4px', backgroundColor: '#f8f9fa' }}>
+                <Typography variant="caption" sx={{ fontSize: '10px', width: '16px', color: '#616161' }}>U:</Typography>
+                <Box sx={chipStyle(userApproved)}>
+                  {userApproved ? 'Y' : 'N'}
+                </Box>
+                <Box sx={chipStyle(userEnabled)}>
+                  {userEnabled ? 'Y' : 'N'}
+                </Box>
+              </Box>
+            </Tooltip>
+            
+            {/* Organizer Status */}
+            <Tooltip title="Organizer Status (Approved/Enabled)">
+              <Box sx={{ ...cardStyle, border: '1px solid #e0e0e0', borderRadius: '4px', padding: '2px 4px', backgroundColor: '#f8f9fa' }}>
+                <Typography variant="caption" sx={{ fontSize: '10px', width: '16px', color: '#616161' }}>O:</Typography>
+                <Box sx={chipStyle(orgApproved)}>
+                  {orgApproved ? 'Y' : 'N'}
+                </Box>
+                <Box sx={chipStyle(orgEnabled)}>
+                  {orgEnabled ? 'Y' : 'N'}
+                </Box>
+              </Box>
+            </Tooltip>
+            
+            {/* Admin Status */}
+            <Tooltip title="Admin Status (Approved/Enabled)">
+              <Box sx={{ ...cardStyle, border: '1px solid #e0e0e0', borderRadius: '4px', padding: '2px 4px', backgroundColor: '#f8f9fa' }}>
+                <Typography variant="caption" sx={{ fontSize: '10px', width: '16px', color: '#616161' }}>A:</Typography>
+                <Box sx={chipStyle(adminApproved)}>
+                  {adminApproved ? 'Y' : 'N'}
+                </Box>
+                <Box sx={chipStyle(adminEnabled)}>
+                  {adminEnabled ? 'Y' : 'N'}
+                </Box>
+              </Box>
+            </Tooltip>
+          </Box>
+        );
+      }
+    },
     { 
       field: 'actions', 
       headerName: 'Actions', 
@@ -1204,6 +1314,8 @@ export default function UsersPage() {
               user={editingUser}
               roles={roles}
               onSubmit={handleUpdateUser}
+              onChange={handleUserFieldChange}
+              loading={loading}
             />
           )}
         </DialogContent>
