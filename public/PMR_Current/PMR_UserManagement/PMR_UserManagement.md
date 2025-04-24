@@ -29,7 +29,7 @@ This PMR addresses usability issues in the user management interface. The curren
 | Risk | Mitigation |
 |------|------------|
 | Data loading inconsistency between tabs | Implement proper caching and consistent data fetching |
-| Missing role information in display | Ensure roleNameCode is concatenated properly from roleIds |
+| Missing role information in display | ✓ Fixed: Ensure roleNameCode is concatenated properly from roleIds |
 | Loss of user data during tab switching | Fix pagination and data refresh approach |
 
 ## Rollback Strategy
@@ -64,6 +64,7 @@ CalOps development team
 After analyzing the existing code and the previous commit (dc22569959e70165daad3744b8151f1bb106d03f), we have identified several key aspects to address in this PMR:
 
 [View the detailed Role Display issue analysis and resolution](./PMR_RoleDisplay_Issue.md)
+[View recommended next steps and current status](./PMR_Next_Steps.md)
 
 1. **Role Display Enhancement** - The current UI shows full role names, but we should use the more compact roleNameCode (2-character codes) concatenated together as specified. The Role model already has this field available.
 
@@ -117,7 +118,7 @@ Fix the role and status display, remove the "Create Org" column, and implement p
 |  ✅ Complete | Update role display to show concatenated roleNameCode | 2025-04-24 |
 |  ✅ Complete | Remove "Create Org" column option | 2025-04-24 |
 |  ✅ Complete | Update status fields to show isApproved and isEnabled from localUserInfo | 2025-04-24 |
-|  ⏳ Pending | Restore UI elements from lost commit | - |
+|  🚧 In Progress | Restore UI elements from lost commit | 2025-04-24 |
 
 ### Rollback (if needed)
 Revert code changes to the DataGrid columns definition in the user management component.
