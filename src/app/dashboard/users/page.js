@@ -53,6 +53,7 @@ export default function UsersPage() {
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchDebounceTimeout, setSearchDebounceTimeout] = useState(null);
   const [tabValue, setTabValue] = useState(0);
   const [appId, setAppId] = useState('1'); // Default to TangoTiempo
   const [editingUser, setEditingUser] = useState(null);
@@ -61,6 +62,12 @@ export default function UsersPage() {
   const [roles, setRoles] = useState([]);
   const [creatingOrganizer, setCreatingOrganizer] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  // Add pagination state
+  const [pagination, setPagination] = useState({
+    page: 0,
+    pageSize: 10,
+    totalCount: 0
+  });
   const [newUser, setNewUser] = useState({
     email: '',
     password: '',
@@ -70,8 +77,8 @@ export default function UsersPage() {
     isOrganizer: false,
   });
 
-  // Function to refresh users
-  const refreshUsers = async (currentRoles = []) => {
+  // Function to refresh users with enhanced error handling and retry logic
+  const refreshUsers = async (currentRoles = [], retryCount = 0) => {
     try {
       setLoading(true);
       
@@ -79,8 +86,21 @@ export default function UsersPage() {
       const timestamp = new Date().getTime();
       
       // Fetch users directly from the backend with cache busting
-      const usersData = await usersApi.getUsers(appId, undefined, timestamp);
-      console.log(`Successfully fetched ${usersData.length} users`);
+      let usersData;
+      try {
+        usersData = await usersApi.getUsers(appId, undefined, timestamp);
+        console.log(`Successfully fetched ${usersData.length} users`);
+      } catch (fetchError) {
+        // Implement retry logic for transient network issues
+        if (retryCount < 2) { // Allow up to 2 retries (3 attempts total)
+          console.warn(`Error fetching users, retrying (attempt ${retryCount + 1}/3)...`, fetchError);
+          // Exponential backoff: 1s, then 2s
+          const delay = 1000 * Math.pow(2, retryCount);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          return refreshUsers(currentRoles, retryCount + 1);
+        }
+        throw fetchError; // Re-throw if we've exhausted retries
+      }
       
       // Use currentRoles parameter instead of the roles state to avoid closure issues
       const rolesToUse = currentRoles.length > 0 ? currentRoles : roles;
@@ -97,6 +117,12 @@ export default function UsersPage() {
       if (missingRoleNameCodes.length > 0) {
         console.warn('FOUND ROLES WITHOUT roleNameCode:', missingRoleNameCodes);
       }
+      
+      // Update pagination total count
+      setPagination(prev => ({
+        ...prev,
+        totalCount: usersData.length
+      }));
       
       // Process users data to add display name and computed fields
       const processedUsers = usersData.map(user => {
@@ -299,29 +325,22 @@ export default function UsersPage() {
     fetchData();
   }, [appId]);
 
-  // Handle tab change
+  // Handle tab change - centralized filtering approach to fix data inconsistency
   const handleTabChange = (event, newValue) => {
+    // Set the tab value first
     setTabValue(newValue);
     
-    // Filter users based on tab
-    if (newValue === 0) { // All Users
-      filterUsers(searchTerm);
-    } else if (newValue === 1) { // Organizers
-      const organizerUsers = users.filter(user => user.regionalOrganizerInfo?.organizerId);
-      applySearch(organizerUsers, searchTerm);
-    } else if (newValue === 2) { // Admins
-      const adminUsers = users.filter(user => 
-        user.roleIds?.some(role => 
-          (typeof role === 'object' && 
-           (role.roleName === 'SystemAdmin' || role.roleName === 'RegionalAdmin'))
-        )
+    // Use a single filtering approach via the filterUsers function
+    // This ensures consistency and centralizes the filtering logic
+    filterUsers(searchTerm);
+    
+    // Consider refreshing data when changing tabs for extra freshness
+    // This is optional but can be helpful if data changes frequently
+    if (roles.length > 0) {
+      // Only refresh if we already have roles data to avoid loading issues
+      refreshUsers(roles).catch(error => 
+        console.error(`Error refreshing data when changing tabs: ${error.message}`)
       );
-      applySearch(adminUsers, searchTerm);
-    } else if (newValue === 3) { // Temp Users
-      const tempUsers = users.filter(user => 
-        user.firebaseUserId?.startsWith('temp_')
-      );
-      applySearch(tempUsers, searchTerm);
     }
   };
 
@@ -329,7 +348,18 @@ export default function UsersPage() {
   const handleSearchChange = (event) => {
     const term = event.target.value;
     setSearchTerm(term);
-    filterUsers(term);
+    
+    // Small delay for better performance during typing
+    if (searchDebounceTimeout) {
+      clearTimeout(searchDebounceTimeout);
+    }
+    
+    // Debounce search to prevent excessive filtering during typing
+    const debounce = setTimeout(() => {
+      filterUsers(term);
+    }, 300); // 300ms debounce
+    
+    setSearchDebounceTimeout(debounce);
   };
 
   // Filter users based on search term and current tab
@@ -356,22 +386,43 @@ export default function UsersPage() {
     applySearch(filtered, term);
   };
 
-  // Apply search filter to the provided list
+  // Apply search filter to the provided list with improved error handling
   const applySearch = (userList, term) => {
-    if (!term) {
+    try {
+      // Update pagination information
+      setPagination(prev => ({
+        ...prev,
+        totalCount: userList.length,
+        page: 0 // Reset to first page on new search
+      }));
+      
+      if (!term) {
+        setFilteredUsers(userList);
+        return;
+      }
+      
+      const lowerTerm = term.toLowerCase();
+      const filtered = userList.filter(user => {
+        try {
+          // Add optional chaining for all properties to prevent null/undefined errors
+          return (
+            (user.displayName?.toLowerCase()?.includes(lowerTerm) || false) ||
+            (user.email?.toLowerCase()?.includes(lowerTerm) || false) ||
+            (user.roleNames?.toLowerCase()?.includes(lowerTerm) || false) ||
+            (user.firebaseUserId?.toLowerCase()?.includes(lowerTerm) || false)
+          );
+        } catch (error) {
+          console.error(`Error filtering user ${user.id || 'unknown'}:`, error);
+          return false; // Skip this user on error
+        }
+      });
+      
+      setFilteredUsers(filtered);
+    } catch (error) {
+      console.error('Error in search filtering:', error);
+      // Provide fallback behavior
       setFilteredUsers(userList);
-      return;
     }
-    
-    const lowerTerm = term.toLowerCase();
-    const filtered = userList.filter(user =>
-      (user.displayName.toLowerCase().includes(lowerTerm)) ||
-      (user.email.toLowerCase().includes(lowerTerm)) ||
-      (user.roleNames.toLowerCase().includes(lowerTerm)) ||
-      (user.firebaseUserId?.toLowerCase().includes(lowerTerm))
-    );
-    
-    setFilteredUsers(filtered);
   };
 
   // Handle edit user button click
@@ -1010,10 +1061,23 @@ export default function UsersPage() {
             <DataGrid
               rows={filteredUsers}
               columns={columns}
-              pageSize={10}
-              rowsPerPageOptions={[10, 25, 50]}
+              pagination
+              page={pagination.page}
+              pageSize={pagination.pageSize}
+              rowCount={pagination.totalCount}
+              rowsPerPageOptions={[10, 25, 50, 100]}
+              onPageChange={(newPage) => setPagination(prev => ({ ...prev, page: newPage }))}
+              onPageSizeChange={(newPageSize) => setPagination(prev => ({ ...prev, pageSize: newPageSize, page: 0 }))}
               disableSelectionOnClick
               density="standard"
+              paginationMode="client"
+              components={{
+                NoRowsOverlay: () => (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                    {loading ? 'Loading...' : 'No users found matching the criteria'}
+                  </Box>
+                )
+              }}
             />
           )}
         </Paper>
@@ -1029,10 +1093,23 @@ export default function UsersPage() {
             <DataGrid
               rows={filteredUsers}
               columns={columns}
-              pageSize={10}
-              rowsPerPageOptions={[10, 25, 50]}
+              pagination
+              page={pagination.page}
+              pageSize={pagination.pageSize}
+              rowCount={pagination.totalCount}
+              rowsPerPageOptions={[10, 25, 50, 100]}
+              onPageChange={(newPage) => setPagination(prev => ({ ...prev, page: newPage }))}
+              onPageSizeChange={(newPageSize) => setPagination(prev => ({ ...prev, pageSize: newPageSize, page: 0 }))}
               disableSelectionOnClick
               density="standard"
+              paginationMode="client"
+              components={{
+                NoRowsOverlay: () => (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                    {loading ? 'Loading...' : 'No users found matching the criteria'}
+                  </Box>
+                )
+              }}
             />
           )}
         </Paper>
@@ -1048,10 +1125,23 @@ export default function UsersPage() {
             <DataGrid
               rows={filteredUsers}
               columns={columns}
-              pageSize={10}
-              rowsPerPageOptions={[10, 25, 50]}
+              pagination
+              page={pagination.page}
+              pageSize={pagination.pageSize}
+              rowCount={pagination.totalCount}
+              rowsPerPageOptions={[10, 25, 50, 100]}
+              onPageChange={(newPage) => setPagination(prev => ({ ...prev, page: newPage }))}
+              onPageSizeChange={(newPageSize) => setPagination(prev => ({ ...prev, pageSize: newPageSize, page: 0 }))}
               disableSelectionOnClick
               density="standard"
+              paginationMode="client"
+              components={{
+                NoRowsOverlay: () => (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                    {loading ? 'Loading...' : 'No users found matching the criteria'}
+                  </Box>
+                )
+              }}
             />
           )}
         </Paper>
@@ -1078,10 +1168,23 @@ export default function UsersPage() {
             <DataGrid
               rows={filteredUsers}
               columns={columns}
-              pageSize={10}
-              rowsPerPageOptions={[10, 25, 50]}
+              pagination
+              page={pagination.page}
+              pageSize={pagination.pageSize}
+              rowCount={pagination.totalCount}
+              rowsPerPageOptions={[10, 25, 50, 100]}
+              onPageChange={(newPage) => setPagination(prev => ({ ...prev, page: newPage }))}
+              onPageSizeChange={(newPageSize) => setPagination(prev => ({ ...prev, pageSize: newPageSize, page: 0 }))}
               disableSelectionOnClick
               density="standard"
+              paginationMode="client"
+              components={{
+                NoRowsOverlay: () => (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                    {loading ? 'Loading...' : 'No users found matching the criteria'}
+                  </Box>
+                )
+              }}
             />
           )}
         </Paper>
