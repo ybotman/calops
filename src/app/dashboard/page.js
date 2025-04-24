@@ -6,7 +6,9 @@ import PeopleIcon from '@mui/icons-material/People';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import BusinessIcon from '@mui/icons-material/Business';
 import EventIcon from '@mui/icons-material/Event';
-import { usersApi, organizersApi } from '@/lib/api-client';
+import SchoolIcon from '@mui/icons-material/School';
+import PlaceIcon from '@mui/icons-material/Place';
+import { usersApi, organizersApi, eventsApi } from '@/lib/api-client';
 import StatusPanel from './components/StatusPanel';
 import { useAppContext } from '@/lib/AppContext';
 
@@ -53,6 +55,13 @@ export default function Dashboard() {
         // Execute all requests in parallel
         const [allUsers, activeUsers, allOrganizers, activeOrganizers] = await Promise.all(requests);
         
+        console.log('Dashboard data received:', {
+          allUsers: allUsers.length,
+          activeUsers: activeUsers.length,
+          allOrganizers: allOrganizers.length,
+          activeOrganizers: activeOrganizers.length
+        });
+        
         // Calculate statistics
         const inactiveUsers = allUsers.filter(user => !user.active);
         const adminUsers = allUsers.filter(user => 
@@ -65,12 +74,8 @@ export default function Dashboard() {
         const inactiveOrganizers = allOrganizers.filter(org => !org.isActive);
         const pendingOrganizers = allOrganizers.filter(org => !org.isApproved);
         
-        // Event data - still using mock as we don't have event API yet
-        const eventStats = {
-          total: 1245,
-          upcoming: 423,
-          thisMonth: 187
-        };
+        // Fetch real event data from backend
+        const eventStats = await eventsApi.getEventCounts(currentApp.id);
         
         // Location data - using mock data as we don't have a specific API for these counts
         const locationStats = {
@@ -79,6 +84,25 @@ export default function Dashboard() {
           divisions: 32,
           cities: 146
         };
+        
+        // Debug information
+        console.log('Dashboard data details:', {
+          users: {
+            allUsers: allUsers.length > 0 ? `${allUsers.length} items` : 'empty array',
+            firstUser: allUsers[0] ? `ID: ${allUsers[0].firebaseUserId || 'N/A'}` : 'none',
+            activeUsers: activeUsers.length > 0 ? `${activeUsers.length} items` : 'empty array',
+            inactiveUsers: inactiveUsers.length,
+            adminUsers: adminUsers.length,
+            organizerUsers: organizerUsers.length
+          },
+          organizers: {
+            allOrganizers: allOrganizers.length > 0 ? `${allOrganizers.length} items` : 'empty array',
+            firstOrganizer: allOrganizers[0] ? `ID: ${allOrganizers[0]._id || 'N/A'}` : 'none',
+            activeOrganizers: activeOrganizers.length > 0 ? `${activeOrganizers.length} items` : 'empty array',
+            inactiveOrganizers: inactiveOrganizers.length,
+            pendingOrganizers: pendingOrganizers.length
+          }
+        });
         
         // Set stats for the dashboard
         setStats({
@@ -202,32 +226,6 @@ export default function Dashboard() {
           </Paper>
         </Grid>
         
-        {/* Locations Stats */}
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper 
-            sx={{ 
-              p: 3, 
-              display: 'flex',
-              flexDirection: 'column',
-              height: 180,
-              borderTop: '4px solid #9c27b0'
-            }}
-          >
-            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-              <Typography variant="h6" color="text.secondary">Locations</Typography>
-              <LocationOnIcon sx={{ color: '#9c27b0' }} />
-            </Box>
-            <Typography variant="h3" sx={{ mt: 2 }}>{stats.locations.cities}</Typography>
-            <Divider sx={{ my: 1 }} />
-            <Typography variant="body2" color="text.secondary">
-              {stats.locations.cities} cities across {stats.locations.regions} regions
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {stats.locations.divisions} divisions total
-            </Typography>
-          </Paper>
-        </Grid>
-        
         {/* Organizers Stats */}
         <Grid item xs={12} sm={6} md={3}>
           <Paper 
@@ -241,7 +239,7 @@ export default function Dashboard() {
           >
             <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
               <Typography variant="h6" color="text.secondary">Organizers</Typography>
-              <BusinessIcon sx={{ color: '#ed6c02' }} />
+              <SchoolIcon sx={{ color: '#ed6c02' }} />
             </Box>
             <Typography variant="h3" sx={{ mt: 1 }}>{getOrganizerCount()}</Typography>
             <Box sx={{ mt: 1 }}>
@@ -259,6 +257,32 @@ export default function Dashboard() {
             <Divider sx={{ my: 1 }} />
             <Typography variant="body2" color="text.secondary">
               {stats.organizers.pending} pending approval
+            </Typography>
+          </Paper>
+        </Grid>
+        
+        {/* Venues Stats */}
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper 
+            sx={{ 
+              p: 3, 
+              display: 'flex',
+              flexDirection: 'column',
+              height: 180,
+              borderTop: '4px solid #9c27b0'
+            }}
+          >
+            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+              <Typography variant="h6" color="text.secondary">Venues</Typography>
+              <BusinessIcon sx={{ color: '#9c27b0' }} />
+            </Box>
+            <Typography variant="h3" sx={{ mt: 2 }}>{stats.locations.cities}</Typography>
+            <Divider sx={{ my: 1 }} />
+            <Typography variant="body2" color="text.secondary">
+              {stats.locations.cities} venues in {stats.locations.regions} regions
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Across {stats.locations.divisions} divisions
             </Typography>
           </Paper>
         </Grid>

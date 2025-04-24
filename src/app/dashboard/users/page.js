@@ -83,6 +83,7 @@ export default function UsersPage() {
       try {
         // Fetch users directly from the backend with cache busting
         usersData = await usersApi.getUsers(appId, undefined, timestamp);
+        console.log(`Successfully fetched ${usersData.length} users`);
       } catch (fetchError) {
         console.error('Error fetching users from backend:', fetchError);
         

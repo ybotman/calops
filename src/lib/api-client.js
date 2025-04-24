@@ -17,20 +17,76 @@ const apiClient = axios.create({
   },
 });
 
+// Add interceptors for debugging
+apiClient.interceptors.request.use(
+  config => {
+    console.log(`API Request: ${config.method.toUpperCase()} ${config.url}`);
+    return config;
+  },
+  error => {
+    console.error('API Request Error:', error);
+    return Promise.reject(error);
+  }
+);
+
+apiClient.interceptors.response.use(
+  response => {
+    console.log(`API Response: ${response.status} ${response.config.method.toUpperCase()} ${response.config.url}`);
+    // Check if response.data is what we expect (usually an array for list endpoints)
+    if (response.config.url.includes('/all') || 
+        response.config.url.includes('/organizers') || 
+        response.config.url.includes('/users')) {
+      if (!Array.isArray(response.data)) {
+        // Only log debug info, not warnings, since we handle format differences in the API methods
+        console.log('Response format:', 
+          typeof response.data, 
+          response.data ? `(${Object.keys(response.data).join(', ')})` : '');
+      }
+    }
+    return response;
+  },
+  error => {
+    console.error('API Response Error:', error.message);
+    if (error.response) {
+      console.error('Error Status:', error.response.status);
+      console.error('Error Data:', error.response.data);
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Users API
 export const usersApi = {
   getUsers: async (appId = '1', active, timestamp) => {
-    let url = `/api/userlogins/all?appId=${appId}`;
-    if (active !== undefined) {
-      url += `&active=${active}`;
+    try {
+      let url = `/api/userlogins/all?appId=${appId}`;
+      if (active !== undefined) {
+        url += `&active=${active}`;
+      }
+      // Add timestamp for cache busting if needed
+      if (timestamp) {
+        url += `&_=${timestamp}`;
+      }
+      console.log('Getting users with URL:', url);
+      const response = await apiClient.get(url);
+      
+      // The API returns {users: Array, pagination: Object}
+      if (response.data && response.data.users && Array.isArray(response.data.users)) {
+        console.log(`Received ${response.data.users.length} users from API`);
+        return response.data.users;
+      } else if (Array.isArray(response.data)) {
+        // Handle case where API might return array directly
+        console.log(`Received ${response.data.length} users directly as array`);
+        return response.data;
+      } else {
+        console.warn('usersApi.getUsers: API did not return users array', response.data);
+        return [];
+      }
+    } catch (error) {
+      console.error('Error in usersApi.getUsers:', error);
+      // Return empty array to prevent UI errors
+      return [];
     }
-    // Add timestamp for cache busting if needed
-    if (timestamp) {
-      url += `&_=${timestamp}`;
-    }
-    console.log('Getting users with URL:', url);
-    const response = await apiClient.get(url);
-    return response.data;
   },
   
   getUserById: async (firebaseUserId, appId = '1') => {
@@ -170,10 +226,34 @@ export const organizersApi = {
         queryParams.append('isApproved', approved);
       }
       
+      // Log the URL for debugging
+      const url = `/api/organizers?${queryParams.toString()}`;
+      console.log('Getting organizers with URL:', url);
+      
       // Use the regular endpoint with the required filters
-      const response = await apiClient.get(`/api/organizers?${queryParams.toString()}`);
-      console.log('Fetched organizers successfully:', response.data.length);
-      return response.data;
+      const response = await apiClient.get(url);
+      
+      // Check for different response formats
+      // The API may return {organizers: Array, pagination: Object}
+      if (response.data && response.data.organizers && Array.isArray(response.data.organizers)) {
+        console.log(`Received ${response.data.organizers.length} organizers from API (in organizers field)`);
+        return response.data.organizers;
+      }
+      // Or it may return {data: Array, pagination: Object}
+      else if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        console.log(`Received ${response.data.data.length} organizers from API (in data field)`);
+        return response.data.data;
+      } 
+      // Or it might return array directly
+      else if (Array.isArray(response.data)) {
+        console.log(`Received ${response.data.length} organizers directly as array`);
+        return response.data;
+      } 
+      // Last resort: log and return empty array
+      else {
+        console.warn('organizersApi.getOrganizers: API response format unexpected', response.data);
+        return [];
+      }
     } catch (error) {
       console.error('Error in getOrganizers:', error);
       // Return empty array to prevent UI errors
@@ -395,6 +475,299 @@ export const organizersApi = {
   }
 };
 
+// Events API
+export const eventsApi = {
+  getEvents: async (filters = {}, appId = '1') => {
+    try {
+      // Build query parameters from filters
+      const { 
+        active, 
+        startDate, 
+        endDate, 
+        status, 
+        organizerId, 
+        venueId,
+        masteredRegionName, 
+        masteredDivisionName,
+        masteredCityName,
+        titleSearch,
+        descriptionSearch,
+        categories,
+        page = 1,
+        limit = 100
+      } = filters;
+      
+      // Create URL with required parameters
+      let queryParams = new URLSearchParams({
+        appId: appId
+      });
+      
+      // Only add pagination if not retrieving all
+      if (filters.allRecords !== true) {
+        queryParams.append('page', page);
+        queryParams.append('limit', limit);
+      }
+      
+      // Simplified approach - just a single flag to signal this is an explicit search
+      if (filters.explicit_search) {
+        queryParams.append('explicit_search', 'true');
+      }
+      
+      // Handle active status with explicit parameter
+      if (active !== undefined) {
+        queryParams.append('active', active);
+        // Also add as specific parameter for backend API
+        queryParams.append('is_active', active);
+      }
+      
+      // Variables to store formatted dates
+      let formattedStartDate;
+      let formattedEndDate;
+      
+      // Date range filtering is now handled with the standard 'start' and 'end' parameters
+      
+      // Format dates to ISO strings for standardized API
+      if (startDate) {
+        formattedStartDate = startDate;
+        if (startDate instanceof Date || typeof startDate === 'object') {
+          try {
+            // Format as YYYY-MM-DD
+            const date = new Date(startDate);
+            formattedStartDate = date.toISOString().split('T')[0];
+            console.log('Formatted startDate:', formattedStartDate);
+          } catch (err) {
+            console.warn('Error formatting startDate:', err);
+          }
+        }
+        
+        // Use simple 'start' parameter as per the API contract
+        queryParams.append('start', formattedStartDate);
+      }
+      
+      if (endDate) {
+        formattedEndDate = endDate;
+        if (endDate instanceof Date || typeof endDate === 'object') {
+          try {
+            // Format as YYYY-MM-DD
+            const date = new Date(endDate);
+            formattedEndDate = date.toISOString().split('T')[0];
+            console.log('Formatted endDate:', formattedEndDate);
+          } catch (err) {
+            console.warn('Error formatting endDate:', err);
+          }
+        }
+        
+        // Use simple 'end' parameter as per the API contract
+        queryParams.append('end', formattedEndDate);
+      }
+      // Handle status parameter with multiple possible formats
+      if (status) {
+        queryParams.append('status', status);
+        
+        // Convert 'all'/'active'/'inactive' to boolean for 'active' parameter if needed
+        if (status === 'active' && active === undefined) {
+          queryParams.append('active', 'true');
+          queryParams.append('is_active', 'true');
+        } else if (status === 'inactive' && active === undefined) {
+          queryParams.append('active', 'false');
+          queryParams.append('is_active', 'false');
+        }
+      }
+      if (organizerId) queryParams.append('organizerId', organizerId);
+      // Simplified venue ID parameter
+      if (venueId) {
+        console.log(`Adding venue filter, ID: ${venueId}`);
+        queryParams.append('venueId', venueId);
+      }
+      
+      // Simplified geo hierarchy filters
+      if (masteredRegionName) {
+        queryParams.append('masteredRegionName', masteredRegionName);
+      }
+      
+      if (masteredDivisionName) {
+        queryParams.append('masteredDivisionName', masteredDivisionName);
+      }
+      
+      if (masteredCityName) {
+        queryParams.append('masteredCityName', masteredCityName);
+      }
+      
+      if (titleSearch) queryParams.append('titleSearch', titleSearch);
+      if (descriptionSearch) queryParams.append('descriptionSearch', descriptionSearch);
+      
+      // Handle categories properly - can be string, array, or comma-separated list
+      if (categories) {
+        // Determine what type of categories we're dealing with
+        if (Array.isArray(categories)) {
+          // For arrays, extract each category and add individually
+          const categoryList = categories
+            .map(cat => {
+              if (typeof cat === 'string') return cat;
+              return cat.id || cat._id || cat.name || cat.categoryName || '';
+            })
+            .filter(id => id); // Remove empty values
+            
+          // Add individual category parameters for each selected category
+          categoryList.forEach((category, index) => {
+            queryParams.append(`category${index+1}`, category);
+          });
+          
+          // Also add the comma-separated list
+          queryParams.append('categories', categoryList.join(','));
+          console.log(`Adding ${categoryList.length} categories:`, categoryList);
+        } else if (typeof categories === 'string') {
+          // If it's already a string, just add it
+          queryParams.append('categories', categories);
+        }
+      }
+      
+      // Log a simple summary of active filters - being careful with the date variables
+      const activeFilters = {
+        ...(startDate && { 'startDate >=': formattedStartDate || startDate }),
+        ...(endDate && { 'startDate <=': formattedEndDate || endDate }),
+        ...(status && { status }),
+        ...(venueId && { venueId }),
+        ...(masteredRegionName && { region: masteredRegionName }),
+        ...(masteredDivisionName && { division: masteredDivisionName }),
+        ...(masteredCityName && { city: masteredCityName }),
+        ...(titleSearch && { titleSearch }),
+        ...(descriptionSearch && { descriptionSearch }),
+        ...(active !== undefined && { active })
+      };
+      
+      if (Object.keys(activeFilters).length > 0) {
+        console.log('Using filters:', activeFilters);
+      }
+      
+      // Make the request
+      const url = `/api/events?${queryParams.toString()}`;
+      // Only log a summarized version of the URL to reduce noise
+      console.log(`API request: GET ${url.substring(0, 60)}${url.length > 60 ? '...' : ''}`);
+      const response = await apiClient.get(url);
+      
+      // Handle multiple response formats without excessive logging
+      let events = [];
+      let pagination = {};
+      
+      if (response.data && response.data.events && Array.isArray(response.data.events)) {
+        events = response.data.events;
+        pagination = response.data.pagination || {};
+      } 
+      else if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        events = response.data.data;
+        pagination = response.data.pagination || {};
+      }
+      else if (Array.isArray(response.data)) {
+        events = response.data;
+        pagination = { total: response.data.length, page: 1, pages: 1 };
+      }
+      
+      // Just log a count of events received
+      console.log(`API response: ${events.length} events received`);
+      
+      return { events, pagination };
+    } catch (error) {
+      console.error('Error fetching events:', error);
+      return { events: [], pagination: {} };
+    }
+  },
+  
+  getEventById: async (id, appId = '1') => {
+    try {
+      const response = await apiClient.get(`/api/events/id/${id}?appId=${appId}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching event with ID ${id}:`, error);
+      throw error;
+    }
+  },
+  
+  createEvent: async (eventData) => {
+    try {
+      const appId = eventData.appId || '1';
+      const response = await apiClient.post(`/api/events/post?appId=${appId}`, eventData);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating event:', error);
+      throw error;
+    }
+  },
+  
+  updateEvent: async (id, eventData) => {
+    try {
+      const appId = eventData.appId || '1';
+      const response = await apiClient.put(`/api/events/${id}?appId=${appId}`, eventData);
+      return response.data;
+    } catch (error) {
+      console.error(`Error updating event with ID ${id}:`, error);
+      throw error;
+    }
+  },
+  
+  deleteEvent: async (id, appId = '1') => {
+    try {
+      const response = await apiClient.delete(`/api/events/${id}?appId=${appId}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error deleting event with ID ${id}:`, error);
+      throw error;
+    }
+  },
+  
+  // Additional helper methods
+  toggleEventStatus: async (id, isActive, appId = '1') => {
+    try {
+      const response = await apiClient.patch(`/api/events/${id}?appId=${appId}`, {
+        active: isActive
+      });
+      return response.data;
+    } catch (error) {
+      console.error(`Error toggling event status for ID ${id}:`, error);
+      throw error;
+    }
+  },
+  
+  getEventCounts: async (appId = '1') => {
+    try {
+      // Use the events endpoint with minimum data and count only
+      const activeResponse = await apiClient.get(`/api/events?appId=${appId}&active=true&countOnly=true`);
+      const allResponse = await apiClient.get(`/api/events?appId=${appId}&countOnly=true`);
+      
+      // Get upcoming events (today and future)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const startDate = today.toISOString();
+      const upcomingResponse = await apiClient.get(
+        `/api/events?appId=${appId}&startDate=${startDate}&countOnly=true`
+      );
+      
+      // Get this month's events
+      const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      const endDate = endOfMonth.toISOString();
+      const thisMonthResponse = await apiClient.get(
+        `/api/events?appId=${appId}&startDate=${startDate}&endDate=${endDate}&countOnly=true`
+      );
+      
+      return {
+        total: allResponse.data?.count || 0,
+        active: activeResponse.data?.count || 0,
+        upcoming: upcomingResponse.data?.count || 0,
+        thisMonth: thisMonthResponse.data?.count || 0
+      };
+    } catch (error) {
+      console.error('Error fetching event counts:', error);
+      // Return defaults
+      return {
+        total: 0,
+        active: 0,
+        upcoming: 0,
+        thisMonth: 0
+      };
+    }
+  }
+};
+
 // Debug API
 export const debugApi = {
   checkBackend: async () => {
@@ -417,5 +790,6 @@ export default {
   users: usersApi,
   roles: rolesApi,
   organizers: organizersApi,
+  events: eventsApi,
   debug: debugApi
 };

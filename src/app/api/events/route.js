@@ -1,6 +1,6 @@
 /**
- * Venues API - Proxy to backend API
- * This route proxies requests to the backend venues API
+ * Events API - Proxy to backend API
+ * This route proxies requests to the backend events API
  */
 
 import { NextResponse } from 'next/server';
@@ -31,11 +31,11 @@ export async function GET(request) {
     });
     
     // Logging the API request
-    console.log(`Proxying venues request to backend: ${BE_URL}/api/venues?${queryParams.toString()}`);
+    console.log(`Proxying events request to backend: ${BE_URL}/api/events?${queryParams.toString()}`);
     
     try {
       // Set a reasonable timeout for the backend request
-      const response = await axios.get(`${BE_URL}/api/venues?${queryParams.toString()}`, {
+      const response = await axios.get(`${BE_URL}/api/events?${queryParams.toString()}`, {
         timeout: 10000 // 10 seconds
       });
       
@@ -80,7 +80,7 @@ export async function GET(request) {
       );
     }
   } catch (error) {
-    console.error('Error processing venues request:', error.message);
+    console.error('Error processing events request:', error.message);
     
     // Structured error response
     return NextResponse.json(
@@ -108,15 +108,15 @@ export async function POST(request) {
     }
     
     // Ensure appId is set in both URL and body
-    const url = `${BE_URL}/api/venues?appId=${appId}`;
+    const url = `${BE_URL}/api/events/post?appId=${appId}`;
     const requestBody = { ...body, appId };
     
-    console.log(`Proxying POST venues request to backend: ${url}`);
+    console.log(`Proxying POST events request to backend: ${url}`);
     const response = await axios.post(url, requestBody);
     
     return NextResponse.json(response.data);
   } catch (error) {
-    console.error('Error proxying POST venues request:', error.message);
+    console.error('Error proxying POST events request:', error.message);
     
     const status = error.response?.status || 500;
     const message = error.response?.data?.message || error.message || 'Unknown server error';

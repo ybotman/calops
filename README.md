@@ -73,7 +73,8 @@ Authentication is temporarily bypassed for development purposes. The authenticat
 The application provides the following API routes:
 
 - `/api/users` - User management
-- `/api/locations` - Location hierarchy management
+- `/api/venues` - Physical venue management
+- `/api/geo-hierarchy` - Geographic hierarchy management
 - `/api/organizers` - Organizer management
 - `/api/applications` - Application settings management
 

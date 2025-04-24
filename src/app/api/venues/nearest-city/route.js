@@ -1,140 +1,106 @@
+/**
+ * Nearest City API - Proxy to backend API
+ * This route proxies requests to the backend API for finding the nearest city to coordinates
+ */
+
 import { NextResponse } from 'next/server';
-import connectToDatabase from '@/lib/mongodb';
-import mongoose from 'mongoose';
+import axios from 'axios';
 
-// Direct model definitions to avoid importing from calendar-be
-let modelsCache = {};
-
-// MasteredCity model needed for geospatial queries
-async function getMasteredCityModel() {
-  if (modelsCache.MasteredCity) {
-    return modelsCache.MasteredCity;
-  }
-  
-  const Schema = mongoose.Schema;
-  const masteredCitySchema = new Schema({
-    appId: { type: String, required: true, default: "1" },
-    cityName: { type: String, required: true },
-    cityCode: { type: String, required: true },
-    latitude: { type: Number, required: true },
-    longitude: { type: Number, required: true },
-    location: {
-      type: { type: String, enum: ["Point"], required: true, default: "Point" },
-      coordinates: {
-        type: [Number],
-        required: true,
-        validate: {
-          validator: function (value) {
-            return value.length === 2;
-          },
-          message: "Coordinates must be [longitude, latitude]",
-        },
-      },
-    },
-    isActive: { type: Boolean, default: true },
-    masteredDivisionId: {
-      type: Schema.Types.ObjectId,
-      ref: "masteredDivision",
-      required: true,
-    },
-  });
-  
-  masteredCitySchema.index({ location: "2dsphere" });
-  
-  const model = mongoose.models.masteredCity || mongoose.model("masteredCity", masteredCitySchema);
-  modelsCache.MasteredCity = model;
-  return model;
-}
+// Base URL for the API - defaults to localhost:3010
+const BE_URL = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
 
 export async function GET(request) {
   try {
-    console.log('Starting nearest-city API request...');
-    await connectToDatabase();
-    console.log('Database connection established');
-    
-    // Parse query parameters
     const { searchParams } = new URL(request.url);
-    const longitude = parseFloat(searchParams.get('longitude'));
-    const latitude = parseFloat(searchParams.get('latitude'));
-    const appId = searchParams.get('appId') || "1";
-    const limit = parseInt(searchParams.get('limit') || '5', 10);
+    const appId = searchParams.get('appId') || '1';
     
-    // Validate parameters
-    if (isNaN(longitude) || isNaN(latitude)) {
-      return NextResponse.json({ 
-        error: 'Invalid coordinates. Both longitude and latitude must be provided as numbers.' 
-      }, { status: 400 });
+    // Get required parameters
+    const longitude = searchParams.get('longitude');
+    const latitude = searchParams.get('latitude');
+    
+    // Validate required parameters
+    if (!longitude || !latitude) {
+      return NextResponse.json(
+        { error: 'Both longitude and latitude parameters are required' },
+        { status: 400 }
+      );
     }
     
-    console.log(`Finding nearest cities to coordinates: [${longitude}, ${latitude}], appId: ${appId}`);
-    
-    // Get MasteredCity model
-    const MasteredCity = await getMasteredCityModel();
-    
-    // Find nearest cities
-    const nearestCities = await MasteredCity.find({
-      appId,
-      isActive: true,
-      location: {
-        $near: {
-          $geometry: {
-            type: "Point",
-            coordinates: [longitude, latitude],
-          },
-        },
-      },
-    })
-    .limit(limit)
-    .populate({
-      path: 'masteredDivisionId',
-      populate: {
-        path: 'masteredRegionId',
-        populate: { path: 'masteredCountryId' }
-      }
-    });
-    
-    console.log(`Found ${nearestCities.length} nearest cities`);
-    
-    // Calculate distances for each city
-    const citiesWithDistance = nearestCities.map(city => {
-      // Basic distance calculation for sorting purposes
-      const cityCoords = city.location.coordinates;
-      const distance = calculateDistance(
-        latitude, 
-        longitude, 
-        cityCoords[1], 
-        cityCoords[0]
+    // Check if parameters are valid numbers
+    if (isNaN(parseFloat(longitude)) || isNaN(parseFloat(latitude))) {
+      return NextResponse.json(
+        { error: 'Longitude and latitude must be valid numbers' },
+        { status: 400 }
       );
-      
-      return {
-        ...city.toObject(),
-        distance: distance,
-        distanceInKm: distance.toFixed(1),
-        distanceInMiles: (distance * 0.621371).toFixed(1)
-      };
+    }
+    
+    // Forward the request to the backend API with all query parameters
+    const queryParams = new URLSearchParams();
+    searchParams.forEach((value, key) => {
+      // Log each parameter being forwarded (helpful for debugging)
+      console.log(`Forwarding parameter: ${key}=${value}`);
+      queryParams.append(key, value);
     });
     
-    return NextResponse.json(citiesWithDistance);
+    // Logging the API request
+    console.log(`Proxying nearest-city request to backend: ${BE_URL}/api/venues/nearest-city?${queryParams.toString()}`);
+    
+    try {
+      // Set a reasonable timeout for the backend request
+      const response = await axios.get(`${BE_URL}/api/venues/nearest-city?${queryParams.toString()}`, {
+        timeout: 10000 // 10 seconds
+      });
+      
+      // Check if the response is as expected
+      if (response.data) {
+        return NextResponse.json(response.data);
+      } else {
+        throw new Error('Invalid response format from backend API');
+      }
+    } catch (backendError) {
+      console.error('Backend API error:', backendError.message);
+      
+      // Check if this is a timeout error
+      if (backendError.code === 'ECONNABORTED') {
+        return NextResponse.json(
+          { 
+            error: 'Backend API request timed out',
+            details: 'The backend server took too long to respond' 
+          },
+          { status: 504 }
+        );
+      }
+      
+      // Check if this is a connection error
+      if (backendError.code === 'ECONNREFUSED') {
+        return NextResponse.json(
+          { 
+            error: 'Could not connect to backend API',
+            details: 'Please ensure the backend server is running' 
+          },
+          { status: 502 }
+        );
+      }
+      
+      // Forward any other backend error
+      const status = backendError.response?.status || 500;
+      const message = backendError.response?.data?.message || backendError.message || 'Backend API error';
+      
+      return NextResponse.json(
+        { error: message },
+        { status }
+      );
+    }
   } catch (error) {
-    console.error('Error finding nearest cities:', error);
-    return NextResponse.json({ 
-      error: 'Failed to find nearest cities', 
-      details: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    }, { status: 500 });
+    console.error('Error processing nearest-city request:', error.message);
+    
+    // Structured error response
+    return NextResponse.json(
+      { 
+        error: 'Internal server error',
+        details: error.message || 'Unknown server error'
+      },
+      { status: 500 }
+    );
   }
-}
-
-// Haversine formula to calculate distance between two points on Earth
-function calculateDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371; // Radius of the Earth in km
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = 
-    Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-    Math.sin(dLon/2) * Math.sin(dLon/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  const distance = R * c; // Distance in km
-  return distance;
 }
