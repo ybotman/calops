@@ -398,6 +398,7 @@ function mapBtcEventToTt(btcEvent, resolvedEntities) {
       venueGeolocation: resolvedEntities.geography?.venueGeolocation,
       masteredCityId: resolvedEntities.geography?.masteredCityId,
       masteredCityName: resolvedEntities.geography?.masteredCityName,
+      masteredCityGeolocation: resolvedEntities.geography?.masteredCityGeolocation, // Add city geolocation
       masteredDivisionId: resolvedEntities.geography?.masteredDivisionId,
       masteredDivisionName: resolvedEntities.geography?.masteredDivisionName,
       masteredRegionId: resolvedEntities.geography?.masteredRegionId,

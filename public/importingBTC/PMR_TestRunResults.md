@@ -102,11 +102,12 @@ This document summarizes the test runs performed for the BTC event import proces
   - Fallback organizer used: "DEFAULT" for unmatched organizers
 
 ## Next Steps
-Based on the successful entity resolution testing with 100% success rate:
-1. Proceed with actual (non-dry-run) import execution
-2. Execute for a single test date
-3. Verify results in TangoTiempo database and UI
-4. Update PMR documentation with actual import results
+Based on the successful entity resolution testing with 100% success rate and successful actual import:
+1. ✅ Proceed with actual (non-dry-run) import execution (COMPLETED 2025-04-24)
+2. ✅ Execute for a single test date (COMPLETED 2025-04-24 with 100% success)
+3. ⏳ Verify results in TangoTiempo database and UI
+4. 🚧 Update PMR documentation with actual import results (IN PROGRESS)
+5. ⏳ Begin Phase 3 planning: Historical Data Cleanup
 
 ## Code Changes Summary
 1. **Categories Resolution**:

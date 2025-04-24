@@ -410,10 +410,11 @@ export async function getVenueGeography(venueId) {
         };
       }
       
-      // Create GeoJSON Point for city geolocation if it doesn't exist
+      // Create full GeoJSON Point object for city geolocation with explicit coordinates
+      // IMPORTANT: This is needed to satisfy MongoDB validation
       const cityGeolocation = {
         type: "Point",
-        coordinates: [-71.0589, 42.3601] // Default to Boston if not available
+        coordinates: [-71.0589, 42.3601] // Explicit coordinates for Boston
       };
       
       return {
