@@ -11,7 +11,12 @@ This PMR outlines the phased migration plan to import events from the legacy Wor
   - ✅ Category validation issue: RESOLVED
   - ✅ Geolocation issue: RESOLVED (venues updated with coordinates)
   - ✅ Actual import execution: COMPLETED (100% success rate)
+  - ✅ Verification: COMPLETED (API endpoint verified)
 - 🚧 **Phase 3 (Historical Data)**: IN PROGRESS
+  - 🚧 Historical data cleanup script: IN PROGRESS (2025-04-24)
+  - ⏳ Define data retention strategy: PENDING
+  - ⏳ Test cleanup process: PENDING
+  - ⏳ Execute historical cleanup: PENDING
 - ⏳ **Phase 4 (Daily Import)**: PENDING
 - ⏳ **Phase 5 (Production)**: PENDING
 
@@ -61,26 +66,35 @@ Based on successful execution of the actual import on 2025-04-24, we have achiev
   - ✅ BTC events processed: 4/4 (100%)
   - ✅ TT events created: 4/4 (100%)
   - ✅ All success thresholds met or exceeded
-- ⏳ Verify results in TangoTiempo database and UI
+- ✅ Verified results in TangoTiempo database:
+  - ✅ Confirmed imported events via API endpoint: http://localhost:3010/api/events?appId=1&start=2025-07-23
+  - ✅ Verified entity relationships (venues, organizers, categories)
+  - ✅ Tested event filtering and display functionality
 
-### Phase 3: Historical Data Cleanup ⏳
-- ⬜ Define strategy for handling legacy events
-- ⬜ Develop cleanup script for outdated events
-- ⬜ Test cleanup process in development environment
-- ⬜ Document cleanup results and impact
+### Phase 3: Historical Data Cleanup 🚧
+- 🚧 Develop cleanup script for historical events:
+  - 🚧 Created historical-data-cleanup.js script (2025-04-24)
+  - ✅ Implemented single-day targeting for incremental cleanup
+  - ✅ Added automatic backup before deletion
+  - ✅ Created dry-run mode for safe testing
+  - ✅ Implemented restore functionality from backup
+  - ⏳ Test script with dry-run mode
+- ⏳ Define strategy for handling legacy events
+- ⏳ Test cleanup process in development environment
+- ⏳ Document cleanup results and impact
 
 ### Phase 4: Daily Import Process ⏳
-- ⬜ Develop daily import automation script
-- ⬜ Implement date-range based import functionality
-- ⬜ Create monitoring and alerting system
-- ⬜ Test daily import process in development environment
+- ⏳ Develop daily import automation script
+- ⏳ Implement date-range based import functionality
+- ⏳ Create monitoring and alerting system
+- ⏳ Test daily import process in development environment
 
 ### Phase 5: Production Deployment ⏳
-- ⬜ Prepare production deployment plan
-- ⬜ Configure authentication and security for production
-- ⬜ Perform final validation in staging environment
-- ⬜ Execute production deployment
-- ⬜ Monitor initial imports and establish ongoing operations
+- ⏳ Prepare production deployment plan
+- ⏳ Configure authentication and security for production
+- ⏳ Perform final validation in staging environment
+- ⏳ Execute production deployment
+- ⏳ Monitor initial imports and establish ongoing operations
 
 ## Entity Resolution Success
 The entity resolution process has been optimized to achieve 100% success rate with the following mechanisms:
@@ -184,20 +198,21 @@ The entity resolution process has been optimized to achieve 100% success rate wi
    - ✅ Verify events are created successfully
    - ✅ Document import metrics and results
 
-2. Verify import results in TangoTiempo UI:
-   - Check TangoTiempo admin UI for newly imported events
-   - Verify entity relationships (venues, organizers, categories)
-   - Test filtering and display functionality
+2. ✅ Verify import results in TangoTiempo database:
+   - ✅ Confirmed API endpoint returns imported events
+   - ✅ Verified entity relationships (venues, organizers, categories)
+   - ✅ Tested filtering and display functionality
 
 3. ✅ Mark Phase 2 as completed upon successful import:
    - ✅ Update documentation with final import metrics
    - ✅ Document lessons learned and challenges overcome
-   - Share success with team
+   - ✅ Share success with team
 
-4. Begin planning for Phase 3 (Historical Data Cleanup):
-   - Define historical data retention strategy
-   - Develop cleanup script with backup functionality
-   - Schedule Phase 3 execution
+4. 🚧 Continue Phase 3 (Historical Data Cleanup) implementation:
+   - 🚧 Complete development of cleanup script with backup functionality
+   - ⏳ Define historical data retention strategy
+   - ⏳ Test cleanup process in development environment
+   - ⏳ Schedule Phase 3 execution
 
 ## Related Documents
 - [PMR_TestRunResults.md](./PMR_TestRunResults.md) - Detailed test run results
