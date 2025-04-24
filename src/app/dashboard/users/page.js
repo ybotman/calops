@@ -205,6 +205,8 @@ export default function UsersPage() {
           isApproved: user.localUserInfo?.isApproved ? 'Yes' : 'No',
           isEnabled: user.localUserInfo?.isEnabled ? 'Yes' : 'No',
           isOrganizer: user.regionalOrganizerInfo?.organizerId ? 'Yes' : 'No',
+          // Add field for Org ID column
+          hasOrganizerId: !!user.regionalOrganizerInfo?.organizerId,
           // Ensure the nested objects are preserved for status cards
           localUserInfo: user.localUserInfo || {},
           regionalOrganizerInfo: user.regionalOrganizerInfo || {},
@@ -945,9 +947,37 @@ export default function UsersPage() {
 
   // Define columns for DataGrid
   const columns = [
-    { field: 'displayName', headerName: 'Name', flex: 1 },
-    { field: 'email', headerName: 'Email', flex: 1 },
+    { field: 'displayName', headerName: 'Name', width: 180 },
+    { field: 'email', headerName: 'Email', width: 220 },
     { field: 'roleNames', headerName: 'Roles', width: 120 },
+    { 
+      field: 'hasOrganizerId', 
+      headerName: 'Org ID', 
+      width: 80,
+      renderCell: (params) => {
+        const user = params.row;
+        const hasOrganizerId = user.regionalOrganizerInfo?.organizerId;
+        return (
+          <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+            {hasOrganizerId ? (
+              <Typography 
+                color="success.main" 
+                sx={{ fontWeight: 'bold', fontSize: '1.2rem' }}
+              >
+                ✓
+              </Typography>
+            ) : (
+              <Typography 
+                color="text.disabled" 
+                sx={{ fontWeight: 'bold', fontSize: '0.9rem' }}
+              >
+                -
+              </Typography>
+            )}
+          </Box>
+        );
+      }
+    },
     { 
       field: 'status', 
       headerName: 'Status', 
