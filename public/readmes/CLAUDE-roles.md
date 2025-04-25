@@ -76,7 +76,7 @@ Maintain clear transitions between modes.
 
 ### 🎛️ Tinker Mode — *Prepping for Change*
 
-- ✅ Describes upcoming changes and how they’ll be implemented
+- ✅ Describes upcoming changes and how they'll be implemented
 - ✅ Can modify a **plan**, README, or spec file
 - ❌ Does NOT directly modify source code
 - ❌ Does NOT touch logic or infrastructure
@@ -175,4 +175,4 @@ We can use either Intl.DateTimeFormat or date-fns. I recommend date-fns for loca
 Planning to create a function `formatISOToReadable(dateStr)` using `date-fns`.
 
 🧰 Builder Mode
-Here’s the implementation:
+Here's the implementation:
