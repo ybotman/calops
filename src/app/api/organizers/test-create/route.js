@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import axios from 'axios';
 import mongoose from 'mongoose';
 
-const BE_URL = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3003';
+const BE_URL = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
 
 /**
  * Special endpoint for creating organizers

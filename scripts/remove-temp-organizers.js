@@ -13,7 +13,7 @@
  *  node scripts/remove-temp-organizers.js
  * 
  * Environment variables:
- *  NEXT_PUBLIC_BE_URL - Backend URL (default: http://localhost:3003)
+ *  NEXT_PUBLIC_BE_URL - Backend URL (default: http://localhost:3010)
  *  APP_ID - Application ID (default: 1)
  *  DRY_RUN - Set to 'false' to actually delete organizers (default: true)
  *  REMOVE_BTC_ORGANIZERS - Set to 'true' to remove all BTC imported organizers (default: false)
@@ -27,7 +27,7 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 // Configuration
-const BE_URL = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3003';
+const BE_URL = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
 const APP_ID = process.env.APP_ID || '1';
 // DRY_RUN defaults to true unless explicitly set to the string 'false'
 const DRY_RUN = process.env.DRY_RUN !== 'false';

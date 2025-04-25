@@ -46,6 +46,17 @@ const config = {
   testDate: process.env.TEST_DATE || null
 };
 
+// Log configuration for debugging
+console.log('=== BTC Import Configuration ===');
+console.log('- BTC API Base:', config.btcApiBase);
+console.log('- TT API Base:', config.ttApiBase);
+console.log('- App ID:', config.appId);
+console.log('- Auth Token:', config.authToken ? 'Configured' : 'Not configured');
+console.log('- Output Directory:', config.outputDir);
+console.log('- Dry Run:', config.dryRun ? 'Yes (No writes to database)' : 'No (Will write to database)');
+console.log('- Test Date:', config.testDate || 'Not specified (will use date + 90 days)');
+console.log('================================');
+
 // Create output directory if it doesn't exist
 if (!fs.existsSync(config.outputDir)) {
   fs.mkdirSync(config.outputDir, { recursive: true });
