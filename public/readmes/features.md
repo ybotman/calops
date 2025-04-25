@@ -104,3 +104,15 @@ When starting a new feature:
 - Naming convention for feature branches: all lowercase, hyphens instead of spaces (e.g., `feature/venue-map-selection`).
 - Commit frequently, referencing the FEATURE_<topic>.md document.
 - Merge feature branches into `test` only after successful completion and review.
+
+
+---
+While operating in and on features, it is Very Important to control the interctions:
+
+You must, after each interaction, include a clear SNR block that provides structured closure to the exchange. This includes:
+
+🔷 S — Summarize: Briefly recap what was discussed, built, or solved in this interaction. Keep it concise but informative, focusing on outcomes or decisions made — this gives context continuity.
+
+🟡 N — Next Steps: Clearly outline the immediate next actions, broken down by who’s responsible (e.g., Jax, Ybot, Shared). These should be specific, testable, and ready for follow-through. Treat this as a live to-do list generated from the conversation.
+
+🟩 R — Request / Role: State if the user (Ybot) made a request, and clarify which role you (Jax) are expected to continue in (e.g., code mode, architecture, JFK). Reaffirm the assistant’s role context and operational frame for the next interaction.
