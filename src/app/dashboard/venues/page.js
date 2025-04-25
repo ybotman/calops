@@ -102,6 +102,12 @@ export default function VenuesPage() {
   const [importProgress, setImportProgress] = useState(0);
   const [importResults, setImportResults] = useState({ success: 0, error: 0, skipped: 0 });
   const [fetchingBTCVenues, setFetchingBTCVenues] = useState(false);
+  
+  // Validation dialog state
+  const [validationDialogOpen, setValidationDialogOpen] = useState(false);
+  const [validating, setValidating] = useState(false);
+  const [validationProgress, setValidationProgress] = useState(0);
+  const [validationResults, setValidationResults] = useState(null);
 
   // Fetch venues on component mount and when app changes
   useEffect(() => {
@@ -697,6 +703,92 @@ export default function VenuesPage() {
     }));
   };
   
+  // Function to handle batch validation of venue geolocations
+  const handleBatchValidate = async () => {
+    try {
+      setValidating(true);
+      setValidationProgress(0);
+      setValidationResults(null);
+      
+      // Get all venue IDs for the current filter
+      let allVenueIds = [];
+      
+      // If there's a search term, use the currently displayed venues
+      if (searchTerm) {
+        allVenueIds = venues.map(venue => venue._id || venue.id);
+      } else {
+        // Otherwise, fetch all venue IDs (optional limit)
+        const response = await axios.get('/api/venues', {
+          params: {
+            appId: currentApp.id,
+            limit: 1000, // Adjust based on expected venue count
+            fields: '_id,name' // Only get required fields
+          }
+        });
+        
+        if (response.data && response.data.data) {
+          allVenueIds = response.data.data.map(venue => venue._id || venue.id);
+        }
+      }
+      
+      // Check if we have venues to validate
+      if (allVenueIds.length === 0) {
+        alert('No venues found to validate.');
+        setValidating(false);
+        return;
+      }
+      
+      console.log(`Starting validation for ${allVenueIds.length} venues`);
+      
+      // Process venues in batches of 10
+      const BATCH_SIZE = 10;
+      let processedCount = 0;
+      let results = {
+        validated: 0,
+        invalid: 0,
+        failed: 0,
+        details: []
+      };
+      
+      // Process in smaller chunks to show progress
+      for (let i = 0; i < allVenueIds.length; i += BATCH_SIZE) {
+        const batchIds = allVenueIds.slice(i, i + BATCH_SIZE);
+        
+        console.log(`Processing batch ${i/BATCH_SIZE + 1} of ${Math.ceil(allVenueIds.length/BATCH_SIZE)}`);
+        
+        const batchResponse = await axios.post('/api/venues/validate-geo', {
+          venueIds: batchIds,
+          appId: currentApp.id,
+          batchSize: BATCH_SIZE
+        });
+        
+        // Update progress
+        processedCount += batchIds.length;
+        setValidationProgress(Math.round((processedCount / allVenueIds.length) * 100));
+        
+        // Merge results
+        if (batchResponse.data) {
+          results.validated += batchResponse.data.validated;
+          results.invalid += batchResponse.data.invalid;
+          results.failed += batchResponse.data.failed;
+          results.details = [...results.details, ...batchResponse.data.details];
+        }
+      }
+      
+      // Set final results
+      setValidationResults(results);
+      console.log('Validation complete:', results);
+      
+      // Refresh venue list to show updated validation status
+      fetchVenues();
+    } catch (error) {
+      console.error('Error during batch validation:', error);
+      alert(`Validation process error: ${error.message}`);
+    } finally {
+      setValidating(false);
+    }
+  };
+  
   const processImport = async () => {
     try {
       // Get only the selected venues
@@ -785,6 +877,14 @@ export default function VenuesPage() {
               // Ensure numeric latitude/longitude fields are also set
               venue.latitude = parseFloat(venue.latitude);
               venue.longitude = parseFloat(venue.longitude);
+              
+              // Set validation flag based on proximity to city (if found during lookup)
+              if (venue.masteredCityId && venue.distanceInKm !== undefined) {
+                venue.isValidVenueGeolocation = venue.distanceInKm <= 5;
+                console.log(`Setting venue ${venue.name} validation: ${venue.isValidVenueGeolocation} (${venue.distanceInKm.toFixed(2)}km)`);
+              } else {
+                venue.isValidVenueGeolocation = false;
+              }
             } else {
               // Provide default coordinates for Boston if none exist
               console.log(`Adding default coordinates for ${venue.name}`);
@@ -794,6 +894,8 @@ export default function VenuesPage() {
                 type: "Point",
                 coordinates: [-71.0589, 42.3601] // Boston coordinates
               };
+              // Default coordinates are not validated
+              venue.isValidVenueGeolocation = false;
             }
             
             // Ensure required fields have values
@@ -976,6 +1078,23 @@ export default function VenuesPage() {
       }
     },
     { 
+      field: 'isValidVenueGeolocation', 
+      headerName: 'Geo Valid', 
+      width: 120,
+      renderCell: (params) => {
+        if (!params || params.row === undefined) return <Chip label="Unknown" size="small" />;
+        
+        const isValid = Boolean(params.row?.isValidVenueGeolocation);
+        return (
+          <Chip 
+            label={isValid ? 'Valid' : 'Invalid'} 
+            color={isValid ? 'success' : 'error'}
+            size="small"
+          />
+        );
+      }
+    },
+    { 
       field: 'isActive', 
       headerName: 'Status', 
       width: 120,
@@ -1045,6 +1164,14 @@ export default function VenuesPage() {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4">Venue Management</Typography>
         <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button 
+            variant="outlined" 
+            color="secondary" 
+            onClick={() => setValidationDialogOpen(true)}
+            startIcon={<LocationSearchingIcon />}
+          >
+            Validate Geolocations
+          </Button>
           <Button 
             variant="outlined" 
             color="secondary" 
@@ -1801,6 +1928,142 @@ export default function VenuesPage() {
             <Button disabled>
               Importing...
             </Button>
+          )}
+        </DialogActions>
+      </Dialog>
+      
+      {/* Validation Dialog */}
+      <Dialog
+        open={validationDialogOpen}
+        onClose={() => {
+          if (!validating) {
+            setValidationDialogOpen(false);
+          }
+        }}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Validate Venue Geolocations</DialogTitle>
+        <DialogContent>
+          {validating ? (
+            <Box sx={{ my: 2 }}>
+              <Typography variant="body1" gutterBottom>
+                Validating venue geolocations...
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+                <Box sx={{ width: '100%', mr: 1 }}>
+                  <LinearProgress variant="determinate" value={validationProgress} />
+                </Box>
+                <Box sx={{ minWidth: 35 }}>
+                  <Typography variant="body2" color="text.secondary">{`${validationProgress}%`}</Typography>
+                </Box>
+              </Box>
+            </Box>
+          ) : validationResults ? (
+            <Box sx={{ my: 2 }}>
+              <Alert severity="info" sx={{ mb: 2 }}>
+                Validation completed!
+              </Alert>
+              <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+                <Box sx={{ bgcolor: 'success.light', px: 2, py: 1, borderRadius: 1 }}>
+                  <Typography variant="body2" fontWeight="bold">
+                    Valid: {validationResults.validated}
+                  </Typography>
+                </Box>
+                <Box sx={{ bgcolor: 'error.light', px: 2, py: 1, borderRadius: 1 }}>
+                  <Typography variant="body2" fontWeight="bold">
+                    Invalid: {validationResults.invalid}
+                  </Typography>
+                </Box>
+                {validationResults.failed > 0 && (
+                  <Box sx={{ bgcolor: 'warning.light', px: 2, py: 1, borderRadius: 1 }}>
+                    <Typography variant="body2" fontWeight="bold">
+                      Failed: {validationResults.failed}
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+              
+              {validationResults.details && validationResults.details.length > 0 && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="subtitle1" gutterBottom>
+                    Results Details
+                  </Typography>
+                  <TableContainer component={Paper} sx={{ maxHeight: 300 }}>
+                    <Table stickyHeader size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Venue</TableCell>
+                          <TableCell>Status</TableCell>
+                          <TableCell>Details</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {validationResults.details.map((detail, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell>{detail.venueName || detail.venueId}</TableCell>
+                            <TableCell>
+                              {detail.status === 'valid' ? (
+                                <Chip label="Valid" size="small" color="success" />
+                              ) : detail.status === 'invalid' ? (
+                                <Chip label="Invalid" size="small" color="error" />
+                              ) : (
+                                <Chip label="Failed" size="small" color="warning" />
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {detail.status === 'valid' 
+                                ? `Near ${detail.cityName} (${detail.distanceKm.toFixed(2)}km)`
+                                : detail.reason
+                              }
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </Box>
+              )}
+            </Box>
+          ) : (
+            <Box sx={{ my: 2 }}>
+              <Typography variant="body1" gutterBottom>
+                This process will validate the geolocation data for all venues matching your current search criteria.
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                The system will:
+              </Typography>
+              <ul>
+                <li>Check if venues have valid latitude and longitude coordinates</li>
+                <li>Verify if coordinates match to a known city within 5km</li>
+                <li>Update each venue's validation status</li>
+              </ul>
+              <Alert severity="info" sx={{ mt: 2 }}>
+                This process may take time depending on the number of venues. You can close this dialog after validation starts, and the process will continue in the background.
+              </Alert>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          {validating ? (
+            <Button disabled>
+              Validating...
+            </Button>
+          ) : (
+            <>
+              <Button onClick={() => setValidationDialogOpen(false)}>
+                Close
+              </Button>
+              {!validationResults && (
+                <Button 
+                  onClick={handleBatchValidate} 
+                  variant="contained" 
+                  color="primary"
+                >
+                  Start Validation
+                </Button>
+              )}
+            </>
           )}
         </DialogActions>
       </Dialog>

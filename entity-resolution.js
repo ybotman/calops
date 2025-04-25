@@ -370,7 +370,8 @@ export async function getVenueGeography(venueId) {
       masteredCityGeolocation: {
         type: "Point",
         coordinates: [-71.0589, 42.3601]
-      }
+      },
+      isValidVenueGeolocation: true // Mock venues are always valid
     };
   }
   
@@ -437,6 +438,50 @@ export async function getVenueGeography(venueId) {
         };
       }
       
+      // Determine if the venue's geolocation is valid
+      let isValidVenueGeolocation = false;
+      
+      // First check if venue already has a validation status
+      if (venue.hasOwnProperty('isValidVenueGeolocation')) {
+        isValidVenueGeolocation = Boolean(venue.isValidVenueGeolocation);
+      } 
+      // Otherwise validate it if we have coordinates
+      else if (venue.latitude && venue.longitude) {
+        try {
+          // Try to find the nearest city for validation
+          const cityResponse = await axios.get(`${API_BASE_URL}/venues/nearest-city`, {
+            params: {
+              appId: APP_ID,
+              longitude: venue.longitude,
+              latitude: venue.latitude,
+              limit: 1
+            }
+          });
+          
+          // Consider valid if within 5km of a city
+          const MAX_DISTANCE_KM = 5;
+          if (cityResponse.data && 
+              cityResponse.data.length > 0 && 
+              cityResponse.data[0].distanceInKm <= MAX_DISTANCE_KM) {
+            isValidVenueGeolocation = true;
+            
+            // If we're here, we've confirmed valid geolocation - update the venue
+            try {
+              await axios.put(`${API_BASE_URL}/venues/${venueId}?appId=${APP_ID}`, {
+                ...venue,
+                isValidVenueGeolocation: true,
+                appId: APP_ID
+              });
+              console.log(`Updated venue ${venueId} with valid geolocation flag`);
+            } catch (updateError) {
+              console.error(`Failed to update venue ${venueId} validation status:`, updateError.message);
+            }
+          }
+        } catch (cityError) {
+          console.error(`Error validating venue ${venueId} location:`, cityError.message);
+        }
+      }
+      
       return {
         venueGeolocation: venueGeolocation,
         masteredCityId: venue.masteredCityId?._id || venue.masteredCityId,
@@ -445,7 +490,8 @@ export async function getVenueGeography(venueId) {
         masteredDivisionName: venue.masteredDivisionId?.divisionName || venue.state,
         masteredRegionId: venue.masteredRegionId?._id || venue.masteredRegionId,
         masteredRegionName: venue.masteredRegionId?.regionName || "Unknown Region",
-        masteredCityGeolocation: cityGeolocation
+        masteredCityGeolocation: cityGeolocation,
+        isValidVenueGeolocation: isValidVenueGeolocation
       };
     }
     return null;
