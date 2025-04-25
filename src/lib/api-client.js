@@ -151,23 +151,7 @@ export const usersApi = {
     }
   },
   
-  deleteAllTempUsers: async (appId = '1') => {
-    try {
-      console.log(`Attempting to delete all temporary users for appId ${appId}...`);
-      
-      // Use the direct MongoDB access through our debug endpoint
-      const response = await apiClient.post('/api/debug', {
-        action: 'deleteAllTempUsers',
-        appId
-      });
-      
-      console.log('Delete all temp users response:', response.data);
-      return response.data;
-    } catch (error) {
-      console.error('Failed to delete all temporary users:', error);
-      throw error;
-    }
-  }
+  // deleteAllTempUsers method has been removed as part of the temporary users removal
 };
 
 // Roles API
@@ -175,37 +159,21 @@ export const rolesApi = {
   getRoles: async (appId = '1') => {
     try {
       const response = await apiClient.get(`/api/roles?appId=${appId}`);
-      return response.data;
+      // Handle nested response format with pagination
+      if (response.data && response.data.roles && Array.isArray(response.data.roles)) {
+        console.log(`Received ${response.data.roles.length} roles from API`);
+        return response.data.roles;
+      } else if (Array.isArray(response.data)) {
+        console.log(`Received ${response.data.length} roles directly as array`);
+        return response.data;
+      } else {
+        console.warn('API returned unexpected format for roles:', response.data);
+        return [];
+      }
     } catch (error) {
-      console.warn('Error fetching roles from backend:', error.message);
-      
-      // Fallback - return hardcoded default roles
-      return [
-        {
-          _id: "66cb85ac74dca51e34e268ed",
-          roleName: "RegionalOrganizer",
-          description: "Can create and manage events for their region",
-          appId: appId
-        },
-        {
-          _id: "66cb85ac74dca51e34e268ec",
-          roleName: "SystemAdmin",
-          description: "Has full access to all system features",
-          appId: appId
-        },
-        {
-          _id: "66cb85ac74dca51e34e268ee",
-          roleName: "RegionalAdmin",
-          description: "Can administer settings for their region",
-          appId: appId
-        },
-        {
-          _id: "66cb85ac74dca51e34e268ef",
-          roleName: "User",
-          description: "Standard user account",
-          appId: appId
-        }
-      ];
+      console.error('Error fetching roles from backend:', error.message);
+      // Don't return fallback data - let the caller handle the error
+      throw error;
     }
   }
 };
@@ -483,7 +451,9 @@ export const eventsApi = {
       const { 
         active, 
         startDate, 
-        endDate, 
+        endDate,
+        afterEqualDate,
+        beforeEqualDate,
         status, 
         organizerId, 
         venueId,
@@ -521,43 +491,75 @@ export const eventsApi = {
       }
       
       // Variables to store formatted dates
-      let formattedStartDate;
-      let formattedEndDate;
+      let formattedAfterEqualDate;
+      let formattedBeforeEqualDate;
       
-      // Date range filtering is now handled with the standard 'start' and 'end' parameters
+      // Handle the new date filter parameters for inclusive filtering on event start date
       
-      // Format dates to ISO strings for standardized API
-      if (startDate) {
-        formattedStartDate = startDate;
-        if (startDate instanceof Date || typeof startDate === 'object') {
+      // Process afterEqualDate (inclusive start date filter)
+      if (afterEqualDate) {
+        formattedAfterEqualDate = afterEqualDate;
+        if (afterEqualDate instanceof Date || typeof afterEqualDate === 'object') {
           try {
             // Format as YYYY-MM-DD
-            const date = new Date(startDate);
-            formattedStartDate = date.toISOString().split('T')[0];
-            console.log('Formatted startDate:', formattedStartDate);
+            const date = new Date(afterEqualDate);
+            formattedAfterEqualDate = date.toISOString().split('T')[0];
+            console.log('Formatted afterEqualDate:', formattedAfterEqualDate);
           } catch (err) {
-            console.warn('Error formatting startDate:', err);
+            console.warn('Error formatting afterEqualDate:', err);
           }
         }
         
-        // Use simple 'start' parameter as per the API contract
+        // Use 'start' parameter for filtering events that start on or after this date
+        queryParams.append('start', formattedAfterEqualDate);
+        // Add an additional parameter for clarity in API logs
+        queryParams.append('afterEqualDate', formattedAfterEqualDate);
+      }
+      
+      // Process beforeEqualDate (inclusive end date filter for start date)
+      if (beforeEqualDate) {
+        formattedBeforeEqualDate = beforeEqualDate;
+        if (beforeEqualDate instanceof Date || typeof beforeEqualDate === 'object') {
+          try {
+            // Format as YYYY-MM-DD
+            const date = new Date(beforeEqualDate);
+            formattedBeforeEqualDate = date.toISOString().split('T')[0];
+            console.log('Formatted beforeEqualDate:', formattedBeforeEqualDate);
+          } catch (err) {
+            console.warn('Error formatting beforeEqualDate:', err);
+          }
+        }
+        
+        // Use 'end' parameter for filtering events that start on or before this date
+        queryParams.append('end', formattedBeforeEqualDate);
+        // Add an additional parameter for clarity in API logs
+        queryParams.append('beforeEqualDate', formattedBeforeEqualDate);
+      }
+      
+      // For backward compatibility, also handle the old date parameters if they're present
+      if (startDate && !afterEqualDate) {
+        let formattedStartDate = startDate;
+        if (startDate instanceof Date || typeof startDate === 'object') {
+          try {
+            const date = new Date(startDate);
+            formattedStartDate = date.toISOString().split('T')[0];
+          } catch (err) {
+            console.warn('Error formatting legacy startDate:', err);
+          }
+        }
         queryParams.append('start', formattedStartDate);
       }
       
-      if (endDate) {
-        formattedEndDate = endDate;
+      if (endDate && !beforeEqualDate) {
+        let formattedEndDate = endDate;
         if (endDate instanceof Date || typeof endDate === 'object') {
           try {
-            // Format as YYYY-MM-DD
             const date = new Date(endDate);
             formattedEndDate = date.toISOString().split('T')[0];
-            console.log('Formatted endDate:', formattedEndDate);
           } catch (err) {
-            console.warn('Error formatting endDate:', err);
+            console.warn('Error formatting legacy endDate:', err);
           }
         }
-        
-        // Use simple 'end' parameter as per the API contract
         queryParams.append('end', formattedEndDate);
       }
       // Handle status parameter with multiple possible formats
@@ -624,8 +626,8 @@ export const eventsApi = {
       
       // Log a simple summary of active filters - being careful with the date variables
       const activeFilters = {
-        ...(startDate && { 'startDate >=': formattedStartDate || startDate }),
-        ...(endDate && { 'startDate <=': formattedEndDate || endDate }),
+        ...(afterEqualDate && { 'startDate >=': formattedAfterEqualDate || afterEqualDate }),
+        ...(beforeEqualDate && { 'startDate <=': formattedBeforeEqualDate || beforeEqualDate }),
         ...(status && { status }),
         ...(venueId && { venueId }),
         ...(masteredRegionName && { region: masteredRegionName }),

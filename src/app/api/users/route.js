@@ -45,11 +45,19 @@ export async function POST(request) {
       );
     }
 
-    // Generate a unique Firebase-like ID for the user (if we don't have Firebase)
+    // Create user in Firebase - required for all users
     let firebaseUserId;
     
-    // Try to create user in Firebase if available
-    if (firebaseAdmin.isAvailable() && password) {
+    // Validate password is required
+    if (!password) {
+      return NextResponse.json(
+        { success: false, message: 'Password is required to create a user' }, 
+        { status: 400 }
+      );
+    }
+    
+    // Try to create user in Firebase
+    if (firebaseAdmin.isAvailable()) {
       const auth = firebaseAdmin.getAuth();
       
       try {
@@ -61,14 +69,19 @@ export async function POST(request) {
         firebaseUserId = firebaseUser.uid;
         console.log(`Firebase user created: ${firebaseUserId}`);
       } catch (firebaseError) {
-        console.warn('Firebase user creation failed, proceeding with temporary ID:', firebaseError);
-        // Continue with a temp ID instead of returning an error
-        firebaseUserId = `temp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+        console.error('Firebase user creation failed:', firebaseError);
+        return NextResponse.json(
+          { success: false, message: `Firebase user creation failed: ${firebaseError.message}` },
+          { status: 400 }
+        );
       }
     } else {
-      // Firebase not available, use a temporary ID
-      console.log('Firebase not available, using temporary ID');
-      firebaseUserId = `temp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      // Firebase not available, return error
+      console.error('Firebase is not available but is required for user creation');
+      return NextResponse.json(
+        { success: false, message: 'Firebase authentication is not available but is required for user creation' },
+        { status: 500 }
+      );
     }
     
     console.log(`Creating user with ID: ${firebaseUserId}`);

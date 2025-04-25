@@ -54,17 +54,17 @@ const EventFilterPanel = ({
     const updatedFilters = { ...filters };
     let changed = false;
     
-    // Default start date to today if not set
-    if (!updatedFilters.startDate) {
-      updatedFilters.startDate = new Date();
+    // Default afterEqualDate to today if not set
+    if (!updatedFilters.afterEqualDate) {
+      updatedFilters.afterEqualDate = new Date();
       changed = true;
     }
     
-    // Default end date to +3 weeks if not set
-    if (!updatedFilters.endDate) {
-      const endDate = new Date();
-      endDate.setDate(endDate.getDate() + 21); // 3 weeks
-      updatedFilters.endDate = endDate;
+    // Default beforeEqualDate to +3 weeks if not set
+    if (!updatedFilters.beforeEqualDate) {
+      const beforeDate = new Date();
+      beforeDate.setDate(beforeDate.getDate() + 21); // 3 weeks
+      updatedFilters.beforeEqualDate = beforeDate;
       changed = true;
     }
     
@@ -137,8 +137,8 @@ const EventFilterPanel = ({
     const clearedFilters = {
       titleSearch: '',
       descriptionSearch: '',
-      startDate: today,
-      endDate: threeWeeksLater,
+      afterEqualDate: today,
+      beforeEqualDate: threeWeeksLater,
       status: 'all',
       masteredRegionName: '',
       masteredDivisionName: '',
@@ -174,27 +174,29 @@ const EventFilterPanel = ({
             <Paper sx={{ p: 2, height: '100%' }}>
               <Typography variant="h6" gutterBottom>Dates</Typography>
               <Box sx={{ mt: 2 }}>
-                <Typography variant="subtitle2" gutterBottom>Start Date</Typography>
+                <Typography variant="subtitle2" gutterBottom>After Date (inclusive)</Typography>
                 <DatePicker
-                  value={localFilters.startDate ? new Date(localFilters.startDate) : null}
-                  onChange={(date) => handleChange('startDate', date)}
+                  value={localFilters.afterEqualDate ? new Date(localFilters.afterEqualDate) : null}
+                  onChange={(date) => handleChange('afterEqualDate', date)}
                   slotProps={{
                     textField: { 
                       fullWidth: true,
-                      size: "small"
+                      size: "small",
+                      helperText: "Events starting on or after this date"
                     }
                   }}
                 />
               </Box>
               <Box sx={{ mt: 2 }}>
-                <Typography variant="subtitle2" gutterBottom>End Date</Typography>
+                <Typography variant="subtitle2" gutterBottom>Before Date (inclusive)</Typography>
                 <DatePicker
-                  value={localFilters.endDate ? new Date(localFilters.endDate) : null}
-                  onChange={(date) => handleChange('endDate', date)}
+                  value={localFilters.beforeEqualDate ? new Date(localFilters.beforeEqualDate) : null}
+                  onChange={(date) => handleChange('beforeEqualDate', date)}
                   slotProps={{
                     textField: { 
                       fullWidth: true,
-                      size: "small"
+                      size: "small",
+                      helperText: "Events starting on or before this date"
                     }
                   }}
                 />
@@ -564,17 +566,17 @@ const EventFilterPanel = ({
       activeFilters.push({ key: 'descSearch', label: `Desc: "${localFilters.descriptionSearch}"` });
     }
     
-    if (localFilters.startDate) {
+    if (localFilters.afterEqualDate) {
       activeFilters.push({ 
-        key: 'startDate', 
-        label: `From: ${new Date(localFilters.startDate).toLocaleDateString()}` 
+        key: 'afterEqualDate', 
+        label: `From: ${new Date(localFilters.afterEqualDate).toLocaleDateString()}` 
       });
     }
     
-    if (localFilters.endDate) {
+    if (localFilters.beforeEqualDate) {
       activeFilters.push({ 
-        key: 'endDate', 
-        label: `To: ${new Date(localFilters.endDate).toLocaleDateString()}` 
+        key: 'beforeEqualDate', 
+        label: `To: ${new Date(localFilters.beforeEqualDate).toLocaleDateString()}` 
       });
     }
     
@@ -620,13 +622,13 @@ const EventFilterPanel = ({
             onDelete={() => {
               if (filter.key === 'categories') {
                 handleChange('categories', []);
-              } else if (filter.key === 'startDate' || filter.key === 'endDate') {
+              } else if (filter.key === 'afterEqualDate' || filter.key === 'beforeEqualDate') {
                 // Don't clear dates completely, reset to defaults
                 const today = new Date();
                 const threeWeeksLater = new Date();
                 threeWeeksLater.setDate(threeWeeksLater.getDate() + 21);
                 
-                handleChange(filter.key, filter.key === 'startDate' ? today : threeWeeksLater);
+                handleChange(filter.key, filter.key === 'afterEqualDate' ? today : threeWeeksLater);
               } else {
                 handleChange(filter.key, '');
               }

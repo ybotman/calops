@@ -53,6 +53,7 @@ export default function UsersPage() {
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchDebounceTimeout, setSearchDebounceTimeout] = useState(null);
   const [tabValue, setTabValue] = useState(0);
   const [appId, setAppId] = useState('1'); // Default to TangoTiempo
   const [editingUser, setEditingUser] = useState(null);
@@ -61,6 +62,12 @@ export default function UsersPage() {
   const [roles, setRoles] = useState([]);
   const [creatingOrganizer, setCreatingOrganizer] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  // Add pagination state
+  const [pagination, setPagination] = useState({
+    page: 0,
+    pageSize: 10,
+    totalCount: 0
+  });
   const [newUser, setNewUser] = useState({
     email: '',
     password: '',
@@ -70,71 +77,142 @@ export default function UsersPage() {
     isOrganizer: false,
   });
 
-  // Function to refresh users
-  const refreshUsers = async () => {
+  // Function to refresh users with enhanced error handling and retry logic
+  const refreshUsers = async (currentRoles = [], retryCount = 0) => {
     try {
       setLoading(true);
       
       // Use timestamp to force fresh data
       const timestamp = new Date().getTime();
       
-      let usersData = [];
-      
+      // Fetch users directly from the backend with cache busting
+      let usersData;
       try {
-        // Fetch users directly from the backend with cache busting
         usersData = await usersApi.getUsers(appId, undefined, timestamp);
         console.log(`Successfully fetched ${usersData.length} users`);
       } catch (fetchError) {
-        console.error('Error fetching users from backend:', fetchError);
-        
-        // If we're in development mode, provide fallback demo data
-        if (process.env.NODE_ENV === 'development') {
-          console.log('Using demo data since backend is unavailable');
-          usersData = [
-            {
-              _id: "1",
-              firebaseUserId: "demouser1",
-              localUserInfo: { firstName: "John", lastName: "Demo" },
-              active: true,
-              roleIds: [{_id: "66cb85ac74dca51e34e268ef", roleName: "User"}],
-              regionalOrganizerInfo: {}
-            },
-            {
-              _id: "2",
-              firebaseUserId: "demouser2",
-              localUserInfo: { firstName: "Admin", lastName: "User" },
-              active: true,
-              roleIds: [{_id: "66cb85ac74dca51e34e268ec", roleName: "SystemAdmin"}],
-              regionalOrganizerInfo: {}
-            },
-            {
-              _id: "3",
-              firebaseUserId: "demoorganizer",
-              localUserInfo: { firstName: "Organizer", lastName: "Demo" },
-              active: true,
-              roleIds: [{_id: "66cb85ac74dca51e34e268ed", roleName: "RegionalOrganizer"}],
-              regionalOrganizerInfo: { organizerId: "123", isActive: true, isApproved: true, isEnabled: true }
-            }
-          ];
-        } else {
-          // In production, rethrow to show proper error
-          throw fetchError;
+        // Implement retry logic for transient network issues
+        if (retryCount < 2) { // Allow up to 2 retries (3 attempts total)
+          console.warn(`Error fetching users, retrying (attempt ${retryCount + 1}/3)...`, fetchError);
+          // Exponential backoff: 1s, then 2s
+          const delay = 1000 * Math.pow(2, retryCount);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          return refreshUsers(currentRoles, retryCount + 1);
         }
+        throw fetchError; // Re-throw if we've exhausted retries
       }
       
-      // Process users data to add display name and computed fields
-      const processedUsers = usersData.map(user => ({
-        ...user,
-        id: user._id, // For DataGrid key
-        displayName: `${user.localUserInfo?.firstName || ''} ${user.localUserInfo?.lastName || ''}`.trim() || 'Unnamed User',
-        email: user.firebaseUserInfo?.email || 'No email',
-        roleNames: (user.roleIds || [])
-          .map(role => typeof role === 'object' ? role.roleName : 'Unknown')
-          .join(', '),
-        isActive: user.active ? 'Active' : 'Inactive',
-        isOrganizer: user.regionalOrganizerInfo?.organizerId ? 'Yes' : 'No',
-        tempFirebaseId: user.firebaseUserId || '',
+      // Use currentRoles parameter instead of the roles state to avoid closure issues
+      const rolesToUse = currentRoles.length > 0 ? currentRoles : roles;
+      
+      // Add debug logging for roles
+      console.log('Available roles for mapping:', rolesToUse.map(r => ({ 
+        _id: r._id, 
+        roleName: r.roleName, 
+        roleNameCode: r.roleNameCode 
+      })));
+      
+      // Check if roleNameCode is missing from any roles
+      const missingRoleNameCodes = rolesToUse.filter(r => !r.roleNameCode);
+      if (missingRoleNameCodes.length > 0) {
+        console.warn('FOUND ROLES WITHOUT roleNameCode:', missingRoleNameCodes);
+      }
+      
+      // Update pagination total count
+      setPagination(prev => ({
+        ...prev,
+        totalCount: usersData.length
       }));
+      
+      // Process users data to add display name and computed fields
+      const processedUsers = usersData.map(user => {
+        // Log roleIds for this user to help with debugging
+        console.log(`Processing user ${user._id}, roleIds:`, user.roleIds);
+        
+        // Debug: Show exact format of roleIds to understand the structure better
+        if (Array.isArray(user.roleIds)) {
+          console.log('ROLE ID FORMATS:', user.roleIds.map(role => ({
+            type: typeof role,
+            isObjectId: role instanceof Object && role._id !== undefined,
+            stringValue: typeof role === 'string' ? role : typeof role === 'object' ? JSON.stringify(role) : String(role),
+            hasRoleNameCode: typeof role === 'object' && role.roleNameCode !== undefined
+          })));
+        }
+        
+        // Map role IDs to the actual role objects using the rolesToUse array
+        const userRoleCodes = [];
+        
+        // Handle the case where user.roleIds might be undefined or null
+        if (Array.isArray(user.roleIds)) {
+          // Process each role ID to get the corresponding roleNameCode
+          for (const roleId of user.roleIds) {
+            // Case 1: roleId is already an object with roleNameCode property
+            if (typeof roleId === 'object' && roleId.roleNameCode) {
+              userRoleCodes.push(roleId.roleNameCode);
+              continue;
+            }
+            
+            // Case 2: roleId is an object with _id property - convert to string
+            // or roleId is already a string - use as is
+            const roleIdStr = typeof roleId === 'object' && roleId._id 
+              ? String(roleId._id).trim() 
+              : String(roleId).trim();
+            
+            // DEBUG: Log all role IDs before searching to verify what we're working with
+            console.log(`AVAILABLE ROLE IDS FOR MATCHING:`, rolesToUse.map(r => ({
+              _id: r._id,
+              idAsString: String(r._id).trim(),
+              roleName: r.roleName,
+              roleNameCode: r.roleNameCode
+            })));
+            
+            // Find the matching role in the rolesToUse array
+            // Debug log all roles before searching
+            console.log(`Searching among ${rolesToUse.length} available roles for ID: ${roleIdStr}`);
+
+            // Try exact match first
+            let foundRole = rolesToUse.find(r => {
+              const roleDbIdStr = String(r._id).trim();
+              const isMatch = roleDbIdStr === roleIdStr;
+              console.log(`Comparing ID: '${roleIdStr}' with role ID: '${roleDbIdStr}', exact match: ${isMatch}`);
+              return isMatch;
+            });
+
+            // If no exact match, try to check if the roleId has MongoDB ObjectID format '507f1f77bcf86cd799439011'
+            if (!foundRole && roleIdStr.length === 24 && /^[0-9a-f]{24}$/i.test(roleIdStr)) {
+              console.log(`No exact match found, trying MongoDB ObjectID format for ${roleIdStr}`);
+            }
+            
+            // Add the roleNameCode if found, otherwise '?'
+            if (foundRole && foundRole.roleNameCode) {
+              userRoleCodes.push(foundRole.roleNameCode);
+            } else {
+              userRoleCodes.push('?');
+            }
+          }
+        }
+        
+        // Join the role codes with commas - this creates the concatenated roleNameCode display
+        const roleNamesStr = userRoleCodes.join(', ');
+        
+        return {
+          ...user,
+          id: user._id, // For DataGrid key
+          displayName: `${user.localUserInfo?.firstName || ''} ${user.localUserInfo?.lastName || ''}`.trim() || 'Unnamed User',
+          email: user.firebaseUserInfo?.email || 'No email',
+          roleNames: roleNamesStr || '',
+          // Keep the original fields for potential backward compatibility
+          isApproved: user.localUserInfo?.isApproved ? 'Yes' : 'No',
+          isEnabled: user.localUserInfo?.isEnabled ? 'Yes' : 'No',
+          isOrganizer: user.regionalOrganizerInfo?.organizerId ? 'Yes' : 'No',
+          // Add field for Org ID column
+          hasOrganizerId: !!user.regionalOrganizerInfo?.organizerId,
+          // Ensure the nested objects are preserved for status cards
+          localUserInfo: user.localUserInfo || {},
+          regionalOrganizerInfo: user.regionalOrganizerInfo || {},
+          localAdminInfo: user.localAdminInfo || {},
+        };
+      });
       
       setUsers(processedUsers);
       setFilteredUsers(processedUsers);
@@ -168,32 +246,80 @@ export default function UsersPage() {
       try {
         setLoading(true);
         
-        // Fetch roles first - with hardcoded fallback if backend is unreachable
-        const rolesData = await rolesApi.getRoles(appId);
-        setRoles(rolesData || []);
-        
-        // Then refresh users
+        // First fetch all roles to have them available in memory
         try {
-          await refreshUsers();
+          console.log(`Fetching roles for appId: ${appId}`);
+          const rolesData = await rolesApi.getRoles(appId);
+          
+          // Log detailed information about the roles
+          console.log('Roles data from API:', rolesData);
+          
+          // Enhanced debug logging to check each role's structure
+          if (Array.isArray(rolesData)) {
+            console.log('DETAILED ROLES DATA:', rolesData.map(role => ({
+              _id: role._id,
+              idType: typeof role._id,
+              idString: String(role._id),
+              roleName: role.roleName,
+              roleNameCode: role.roleNameCode
+            })));
+          }
+          
+          // Log if any roles are missing roleNameCode
+          if (Array.isArray(rolesData)) {
+            const missingCodes = rolesData.filter(r => !r.roleNameCode);
+            if (missingCodes.length > 0) {
+              console.error('CRITICAL: Roles missing roleNameCode:', missingCodes);
+            }
+          }
+          
+          // Ensure roles have roleNameCode - fallback to first two letters of roleName if missing
+          const processedRoles = Array.isArray(rolesData) ? rolesData.map(r => {
+            if (!r.roleNameCode && r.roleName) {
+              // Create a roleNameCode from the first two letters of roleName
+              console.warn(`Role ${r.roleName} missing roleNameCode, generating fallback`);
+              return { 
+                ...r, 
+                roleNameCode: r.roleName.substring(0, 2).toUpperCase() 
+              };
+            }
+            return r;
+          }) : [];
+          
+          setRoles(processedRoles);
+          
+          // Then fetch users with the processed roles
+          try {
+            // Pass the processed roles directly to refreshUsers to ensure they're used immediately
+            await refreshUsers(processedRoles);
+            return; // Skip the additional fetch users below since we've already done it
+          } catch (userError) {
+            console.error('Error fetching users with processed roles:', userError);
+            throw userError; // Re-throw to be caught by outer catch
+          }
+        } catch (roleError) {
+          console.error('Error fetching roles:', roleError);
+          // Set empty roles array
+          setRoles([]);
+          alert(`Failed to fetch roles: ${roleError.message}`);
+        }
+        
+        // This is a fallback - only runs if the roles failed to load
+        try {
+          await refreshUsers([]);
         } catch (userError) {
           console.error('Error fetching users:', userError);
-          setLoading(false);
-          
-          // Set empty users array instead of showing an error
-          // This prevents the UI from crashing
+          // Set empty users array
           setUsers([]);
           setFilteredUsers([]);
-          
-          // Show a warning but don't block the UI
-          console.warn('Using demo data because backend is unavailable');
+          alert(`Failed to fetch users: ${userError.message}`);
         }
       } catch (error) {
         console.error('Error initializing data:', error);
-        setLoading(false);
         
-        // Show a more helpful message
+        // Show a helpful error message
         if (error.code === 'ERR_NETWORK') {
-          alert(`Backend server appears to be offline. Some functionality will be limited.`);
+          alert(`Backend server appears to be offline. Please ensure the backend is running at ${BE_URL || 'http://localhost:3010'}.`);
         } else {
           alert(`Failed to fetch data: ${error.message}`);
         }
@@ -206,29 +332,22 @@ export default function UsersPage() {
     fetchData();
   }, [appId]);
 
-  // Handle tab change
+  // Handle tab change - centralized filtering approach to fix data inconsistency
   const handleTabChange = (event, newValue) => {
+    // Set the tab value first
     setTabValue(newValue);
     
-    // Filter users based on tab
-    if (newValue === 0) { // All Users
-      filterUsers(searchTerm);
-    } else if (newValue === 1) { // Organizers
-      const organizerUsers = users.filter(user => user.regionalOrganizerInfo?.organizerId);
-      applySearch(organizerUsers, searchTerm);
-    } else if (newValue === 2) { // Admins
-      const adminUsers = users.filter(user => 
-        user.roleIds?.some(role => 
-          (typeof role === 'object' && 
-           (role.roleName === 'SystemAdmin' || role.roleName === 'RegionalAdmin'))
-        )
+    // Use a single filtering approach via the filterUsers function
+    // This ensures consistency and centralizes the filtering logic
+    filterUsers(searchTerm);
+    
+    // Consider refreshing data when changing tabs for extra freshness
+    // This is optional but can be helpful if data changes frequently
+    if (roles.length > 0) {
+      // Only refresh if we already have roles data to avoid loading issues
+      refreshUsers(roles).catch(error => 
+        console.error(`Error refreshing data when changing tabs: ${error.message}`)
       );
-      applySearch(adminUsers, searchTerm);
-    } else if (newValue === 3) { // Temp Users
-      const tempUsers = users.filter(user => 
-        user.firebaseUserId?.startsWith('temp_')
-      );
-      applySearch(tempUsers, searchTerm);
     }
   };
 
@@ -236,7 +355,18 @@ export default function UsersPage() {
   const handleSearchChange = (event) => {
     const term = event.target.value;
     setSearchTerm(term);
-    filterUsers(term);
+    
+    // Small delay for better performance during typing
+    if (searchDebounceTimeout) {
+      clearTimeout(searchDebounceTimeout);
+    }
+    
+    // Debounce search to prevent excessive filtering during typing
+    const debounce = setTimeout(() => {
+      filterUsers(term);
+    }, 300); // 300ms debounce
+    
+    setSearchDebounceTimeout(debounce);
   };
 
   // Filter users based on search term and current tab
@@ -253,32 +383,49 @@ export default function UsersPage() {
            (role.roleName === 'SystemAdmin' || role.roleName === 'RegionalAdmin'))
         )
       );
-    } else if (tabValue === 3) { // Temp Users
-      filtered = filtered.filter(user => 
-        user.firebaseUserId?.startsWith('temp_')
-      );
     }
     
     // Apply search term filtering
     applySearch(filtered, term);
   };
 
-  // Apply search filter to the provided list
+  // Apply search filter to the provided list with improved error handling
   const applySearch = (userList, term) => {
-    if (!term) {
+    try {
+      // Update pagination information
+      setPagination(prev => ({
+        ...prev,
+        totalCount: userList.length,
+        page: 0 // Reset to first page on new search
+      }));
+      
+      if (!term) {
+        setFilteredUsers(userList);
+        return;
+      }
+      
+      const lowerTerm = term.toLowerCase();
+      const filtered = userList.filter(user => {
+        try {
+          // Add optional chaining for all properties to prevent null/undefined errors
+          return (
+            (user.displayName?.toLowerCase()?.includes(lowerTerm) || false) ||
+            (user.email?.toLowerCase()?.includes(lowerTerm) || false) ||
+            (user.roleNames?.toLowerCase()?.includes(lowerTerm) || false) ||
+            (user.firebaseUserId?.toLowerCase()?.includes(lowerTerm) || false)
+          );
+        } catch (error) {
+          console.error(`Error filtering user ${user.id || 'unknown'}:`, error);
+          return false; // Skip this user on error
+        }
+      });
+      
+      setFilteredUsers(filtered);
+    } catch (error) {
+      console.error('Error in search filtering:', error);
+      // Provide fallback behavior
       setFilteredUsers(userList);
-      return;
     }
-    
-    const lowerTerm = term.toLowerCase();
-    const filtered = userList.filter(user =>
-      (user.displayName.toLowerCase().includes(lowerTerm)) ||
-      (user.email.toLowerCase().includes(lowerTerm)) ||
-      (user.roleNames.toLowerCase().includes(lowerTerm)) ||
-      (user.firebaseUserId.toLowerCase().includes(lowerTerm))
-    );
-    
-    setFilteredUsers(filtered);
   };
 
   // Handle edit user button click
@@ -291,6 +438,31 @@ export default function UsersPage() {
   const handleDialogClose = () => {
     setDialogOpen(false);
     setEditingUser(null);
+  };
+
+  // Handle field changes in the user edit form
+  const handleUserFieldChange = (fieldPath, value) => {
+    if (!editingUser) return;
+    
+    // Create a deep copy of the editing user
+    setEditingUser(prevUser => {
+      const newUser = JSON.parse(JSON.stringify(prevUser));
+      
+      // Handle nested paths like 'localUserInfo.isApproved'
+      if (fieldPath.includes('.')) {
+        const [parent, child] = fieldPath.split('.');
+        if (!newUser[parent]) {
+          newUser[parent] = {};
+        }
+        newUser[parent][child] = value;
+      } else {
+        // Handle top-level properties
+        newUser[fieldPath] = value;
+      }
+      
+      console.log(`Field ${fieldPath} updated to ${value}`);
+      return newUser;
+    });
   };
 
   // Handle user update
@@ -341,8 +513,8 @@ export default function UsersPage() {
       setSelectedUser(user);
       setCreatingOrganizer(true);
       
-      // Check if this user has a valid firebase ID (check if it's not a temp ID)
-      const isFirebaseUser = !user.firebaseUserId.startsWith('temp_');
+      // All users now have a valid Firebase ID
+      const isFirebaseUser = true;
       
       // Use the existing user's Firebase ID if available
       const fullName = `${user.localUserInfo?.firstName || ''} ${user.localUserInfo?.lastName || ''}`.trim() || 'Unnamed Organizer';
@@ -413,18 +585,56 @@ export default function UsersPage() {
       const refreshedUsers = await usersApi.getUsers(appId, undefined, timestamp);
       
       // Process users data
-      const processedUsers = refreshedUsers.map(user => ({
-        ...user,
-        id: user._id,
-        displayName: `${user.localUserInfo?.firstName || ''} ${user.localUserInfo?.lastName || ''}`.trim() || 'Unnamed User',
-        email: user.firebaseUserInfo?.email || 'No email',
-        roleNames: (user.roleIds || [])
-          .map(role => typeof role === 'object' ? role.roleName : 'Unknown')
-          .join(', '),
-        isActive: user.active ? 'Active' : 'Inactive',
-        isOrganizer: user.regionalOrganizerInfo?.organizerId ? 'Yes' : 'No',
-        tempFirebaseId: user.firebaseUserId || '',
-      }));
+      const processedUsers = refreshedUsers.map(user => {
+        // Map role IDs to the actual role objects using the roles array
+        const userRoleCodes = [];
+        
+        // Handle the case where user.roleIds might be undefined or null
+        if (Array.isArray(user.roleIds)) {
+          // Process each role ID to get the corresponding roleNameCode
+          for (const roleId of user.roleIds) {
+            // Case 1: roleId is already an object with roleNameCode property
+            if (typeof roleId === 'object' && roleId.roleNameCode) {
+              userRoleCodes.push(roleId.roleNameCode);
+              continue;
+            }
+            
+            // Case 2: roleId is an object with _id property - convert to string
+            // or roleId is already a string - use as is
+            const roleIdStr = typeof roleId === 'object' && roleId._id 
+              ? String(roleId._id).trim() 
+              : String(roleId).trim();
+            
+            // Find the matching role in the roles array
+            const foundRole = roles.find(r => {
+              const roleDbIdStr = String(r._id).trim();
+              return roleDbIdStr === roleIdStr;
+            });
+            
+            // Add the roleNameCode if found, otherwise '?'
+            if (foundRole && foundRole.roleNameCode) {
+              userRoleCodes.push(foundRole.roleNameCode);
+            } else {
+              userRoleCodes.push('?');
+            }
+          }
+        }
+        
+        // Join the role codes with commas - this creates the concatenated roleNameCode display
+        const roleNamesStr = userRoleCodes.join(', ');
+        
+        return {
+          ...user,
+          id: user._id,
+          displayName: `${user.localUserInfo?.firstName || ''} ${user.localUserInfo?.lastName || ''}`.trim() || 'Unnamed User',
+          email: user.firebaseUserInfo?.email || 'No email',
+          roleNames: roleNamesStr || '',
+          isApproved: user.localUserInfo?.isApproved ? 'Yes' : 'No',
+          isEnabled: user.localUserInfo?.isEnabled ? 'Yes' : 'No',
+          isOrganizer: user.regionalOrganizerInfo?.organizerId ? 'Yes' : 'No',
+          hasOrganizerId: !!user.regionalOrganizerInfo?.organizerId,
+        };
+      });
       
       setUsers(processedUsers);
       filterUsers(searchTerm);
@@ -513,14 +723,8 @@ export default function UsersPage() {
   const handleDeleteUser = async (user) => {
     try {
       // Get confirmation with clear warning
-      const isTemp = user.firebaseUserId?.startsWith('temp_');
       let confirmMessage = `Are you sure you want to delete user "${user.displayName}"?`;
-      
-      if (isTemp) {
-        confirmMessage += "\nThis is a temporary user created during import.";
-      } else {
-        confirmMessage += "\n\nWARNING: This will permanently remove this user and they will no longer be able to log in.";
-      }
+      confirmMessage += "\n\nWARNING: This will permanently remove this user and they will no longer be able to log in.";
       
       // Check if user is linked to an organizer
       const hasOrganizer = user.regionalOrganizerInfo?.organizerId;
@@ -587,47 +791,6 @@ export default function UsersPage() {
     }
   };
   
-  // Handle delete all temporary users
-  const handleDeleteAllTempUsers = async () => {
-    try {
-      // Find all temporary users
-      const tempUsers = users.filter(user => 
-        user.firebaseUserId?.startsWith('temp_')
-      );
-      
-      if (tempUsers.length === 0) {
-        alert('No temporary users found to delete.');
-        return;
-      }
-      
-      // Get confirmation
-      const confirmMessage = `Are you sure you want to delete ALL ${tempUsers.length} temporary users?\n\nThis action cannot be undone.`;
-      if (!window.confirm(confirmMessage)) {
-        return;
-      }
-      
-      setLoading(true);
-      
-      // Use our direct bulk deletion endpoint
-      const result = await usersApi.deleteAllTempUsers(appId);
-      
-      // Refresh the user list
-      await refreshUsers();
-      filterUsers(searchTerm);
-      
-      // Show results
-      if (result.success) {
-        alert(`Successfully deleted ${result.message}`);
-      } else {
-        alert(`Error deleting temporary users: ${result.error || 'Unknown error'}`);
-      }
-    } catch (error) {
-      console.error("Error in bulk delete process:", error);
-      alert(`Error in bulk delete process: ${error.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
   
   // Handle create new user
   const handleCreateUser = async () => {
@@ -650,13 +813,11 @@ export default function UsersPage() {
       // Log what we're attempting to do
       console.log(`Creating new user: ${newUser.email} (${newUser.firstName} ${newUser.lastName})`);
       
-      // Confirm that the user understands temp users
+      // Password is required for new users
       if (!newUser.password || newUser.password.length === 0) {
-        const confirm = window.confirm("You are creating a temporary user without Firebase authentication. This user won't be able to log in. Continue?");
-        if (!confirm) {
-          setLoading(false);
-          return;
-        }
+        alert('Password is required to create a new user.');
+        setLoading(false);
+        return;
       }
       
       // 1. Create user - direct backend call
@@ -664,7 +825,7 @@ export default function UsersPage() {
         // Create user data
         const userData = {
           email: newUser.email,
-          password: newUser.password || '', // Password is optional, will create temp user if missing
+          password: newUser.password, // Password is required
           firstName: newUser.firstName,
           lastName: newUser.lastName,
           appId: appId,
@@ -787,19 +948,127 @@ export default function UsersPage() {
 
   // Define columns for DataGrid
   const columns = [
-    { field: 'displayName', headerName: 'Name', flex: 1 },
-    { field: 'email', headerName: 'Email', flex: 1 },
-    { field: 'roleNames', headerName: 'Roles', flex: 1 },
-    { field: 'isActive', headerName: 'Status', width: 100 },
-    { field: 'isOrganizer', headerName: 'Organizer', width: 100 },
+    { field: 'displayName', headerName: 'Name', width: 180 },
+    { field: 'email', headerName: 'Email', width: 220 },
+    { field: 'roleNames', headerName: 'Roles', width: 120 },
+    { 
+      field: 'hasOrganizerId', 
+      headerName: 'Org ID', 
+      width: 80,
+      renderCell: (params) => {
+        const user = params.row;
+        const hasOrganizerId = user.regionalOrganizerInfo?.organizerId;
+        return (
+          <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+            {hasOrganizerId ? (
+              <Typography 
+                color="success.main" 
+                sx={{ fontWeight: 'bold', fontSize: '1.2rem' }}
+              >
+                ✓
+              </Typography>
+            ) : (
+              <Typography 
+                color="text.disabled" 
+                sx={{ fontWeight: 'bold', fontSize: '0.9rem' }}
+              >
+                -
+              </Typography>
+            )}
+          </Box>
+        );
+      }
+    },
+    { 
+      field: 'status', 
+      headerName: 'Status', 
+      width: 200,
+      renderCell: (params) => {
+        const user = params.row;
+        
+        // Get status values with safe access
+        const userApproved = user.localUserInfo?.isApproved || false;
+        const userEnabled = user.localUserInfo?.isEnabled || false;
+        const orgApproved = user.regionalOrganizerInfo?.isApproved || false;
+        const orgEnabled = user.regionalOrganizerInfo?.isEnabled || false;
+        const adminApproved = user.localAdminInfo?.isApproved || false;
+        const adminEnabled = user.localAdminInfo?.isEnabled || false;
+        
+        // Define card style
+        const cardStyle = {
+          display: 'flex',
+          gap: '4px',
+          alignItems: 'center',
+          justifyContent: 'center',
+        };
+        
+        // Define status chip style
+        const chipStyle = (isActive) => ({
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderRadius: '4px',
+          padding: '2px 4px',
+          fontSize: '11px',
+          fontWeight: 'bold',
+          backgroundColor: isActive ? '#e3f2fd' : '#f5f5f5',
+          color: isActive ? '#1976d2' : '#757575',
+          border: `1px solid ${isActive ? '#bbdefb' : '#e0e0e0'}`,
+          width: '28px',
+          height: '20px',
+        });
+        
+        return (
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            {/* User Status */}
+            <Tooltip title="User Status (Approved/Enabled)">
+              <Box sx={{ ...cardStyle, border: '1px solid #e0e0e0', borderRadius: '4px', padding: '2px 4px', backgroundColor: '#f8f9fa' }}>
+                <Typography variant="caption" sx={{ fontSize: '10px', width: '16px', color: '#616161' }}>U:</Typography>
+                <Box sx={chipStyle(userApproved)}>
+                  {userApproved ? 'Y' : 'N'}
+                </Box>
+                <Box sx={chipStyle(userEnabled)}>
+                  {userEnabled ? 'Y' : 'N'}
+                </Box>
+              </Box>
+            </Tooltip>
+            
+            {/* Organizer Status */}
+            <Tooltip title="Organizer Status (Approved/Enabled)">
+              <Box sx={{ ...cardStyle, border: '1px solid #e0e0e0', borderRadius: '4px', padding: '2px 4px', backgroundColor: '#f8f9fa' }}>
+                <Typography variant="caption" sx={{ fontSize: '10px', width: '16px', color: '#616161' }}>O:</Typography>
+                <Box sx={chipStyle(orgApproved)}>
+                  {orgApproved ? 'Y' : 'N'}
+                </Box>
+                <Box sx={chipStyle(orgEnabled)}>
+                  {orgEnabled ? 'Y' : 'N'}
+                </Box>
+              </Box>
+            </Tooltip>
+            
+            {/* Admin Status */}
+            <Tooltip title="Admin Status (Approved/Enabled)">
+              <Box sx={{ ...cardStyle, border: '1px solid #e0e0e0', borderRadius: '4px', padding: '2px 4px', backgroundColor: '#f8f9fa' }}>
+                <Typography variant="caption" sx={{ fontSize: '10px', width: '16px', color: '#616161' }}>A:</Typography>
+                <Box sx={chipStyle(adminApproved)}>
+                  {adminApproved ? 'Y' : 'N'}
+                </Box>
+                <Box sx={chipStyle(adminEnabled)}>
+                  {adminEnabled ? 'Y' : 'N'}
+                </Box>
+              </Box>
+            </Tooltip>
+          </Box>
+        );
+      }
+    },
     { 
       field: 'actions', 
       headerName: 'Actions', 
-      width: 280,
+      width: 150,
       renderCell: (params) => {
         const user = params.row;
         const isDeleting = loading && selectedUser?._id === user._id;
-        const isTemp = user.firebaseUserId?.startsWith('temp_');
         
         return (
           <Box sx={{ display: 'flex', gap: 1 }}>
@@ -813,22 +1082,7 @@ export default function UsersPage() {
               Edit
             </Button>
             
-            {user.isOrganizer === 'No' && (
-              <Tooltip title="Create an organizer for this user">
-                <Button
-                  variant="text"
-                  color="secondary"
-                  onClick={() => handleQuickCreateOrganizer(user)}
-                  startIcon={<LinkIcon />}
-                  disabled={creatingOrganizer}
-                  size="small"
-                >
-                  {creatingOrganizer && selectedUser?._id === user._id ? 'Creating...' : 'Create Org'}
-                </Button>
-              </Tooltip>
-            )}
-            
-            <Tooltip title={isTemp ? "Delete temporary user" : "Delete user permanently"}>
+            <Tooltip title="Delete user permanently">
               <Button
                 variant="text"
                 color="error"
@@ -836,11 +1090,7 @@ export default function UsersPage() {
                 startIcon={<DeleteIcon />}
                 disabled={isDeleting}
                 size="small"
-                sx={{ 
-                  marginLeft: 'auto',
-                  // Make delete button more prominent for temp users
-                  ...(isTemp && { fontWeight: 'bold' })
-                }}
+                sx={{ marginLeft: 'auto' }}
               >
                 {isDeleting ? 'Deleting...' : 'Delete'}
               </Button>
@@ -870,7 +1120,6 @@ export default function UsersPage() {
           <Tab label="All Users" />
           <Tab label="Organizers" />
           <Tab label="Admins" />
-          <Tab label="Temp Users" />
         </Tabs>
         
         <TextField
@@ -899,10 +1148,23 @@ export default function UsersPage() {
             <DataGrid
               rows={filteredUsers}
               columns={columns}
-              pageSize={10}
-              rowsPerPageOptions={[10, 25, 50]}
+              pagination
+              page={pagination.page}
+              pageSize={pagination.pageSize}
+              rowCount={pagination.totalCount}
+              rowsPerPageOptions={[10, 25, 50, 100]}
+              onPageChange={(newPage) => setPagination(prev => ({ ...prev, page: newPage }))}
+              onPageSizeChange={(newPageSize) => setPagination(prev => ({ ...prev, pageSize: newPageSize, page: 0 }))}
               disableSelectionOnClick
               density="standard"
+              paginationMode="client"
+              components={{
+                NoRowsOverlay: () => (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                    {loading ? 'Loading...' : 'No users found matching the criteria'}
+                  </Box>
+                )
+              }}
             />
           )}
         </Paper>
@@ -918,10 +1180,23 @@ export default function UsersPage() {
             <DataGrid
               rows={filteredUsers}
               columns={columns}
-              pageSize={10}
-              rowsPerPageOptions={[10, 25, 50]}
+              pagination
+              page={pagination.page}
+              pageSize={pagination.pageSize}
+              rowCount={pagination.totalCount}
+              rowsPerPageOptions={[10, 25, 50, 100]}
+              onPageChange={(newPage) => setPagination(prev => ({ ...prev, page: newPage }))}
+              onPageSizeChange={(newPageSize) => setPagination(prev => ({ ...prev, pageSize: newPageSize, page: 0 }))}
               disableSelectionOnClick
               density="standard"
+              paginationMode="client"
+              components={{
+                NoRowsOverlay: () => (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                    {loading ? 'Loading...' : 'No users found matching the criteria'}
+                  </Box>
+                )
+              }}
             />
           )}
         </Paper>
@@ -937,44 +1212,28 @@ export default function UsersPage() {
             <DataGrid
               rows={filteredUsers}
               columns={columns}
-              pageSize={10}
-              rowsPerPageOptions={[10, 25, 50]}
+              pagination
+              page={pagination.page}
+              pageSize={pagination.pageSize}
+              rowCount={pagination.totalCount}
+              rowsPerPageOptions={[10, 25, 50, 100]}
+              onPageChange={(newPage) => setPagination(prev => ({ ...prev, page: newPage }))}
+              onPageSizeChange={(newPageSize) => setPagination(prev => ({ ...prev, pageSize: newPageSize, page: 0 }))}
               disableSelectionOnClick
               density="standard"
+              paginationMode="client"
+              components={{
+                NoRowsOverlay: () => (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                    {loading ? 'Loading...' : 'No users found matching the criteria'}
+                  </Box>
+                )
+              }}
             />
           )}
         </Paper>
       </TabPanel>
       
-      <TabPanel value={tabValue} index={3}>
-        <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
-          <Button
-            variant="contained"
-            color="error"
-            startIcon={<DeleteIcon />}
-            onClick={handleDeleteAllTempUsers}
-            disabled={loading || filteredUsers.length === 0}
-          >
-            Delete All Temporary Users ({filteredUsers.length})
-          </Button>
-        </Box>
-        <Paper sx={{ height: 600, width: '100%' }}>
-          {loading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-              <CircularProgress />
-            </Box>
-          ) : (
-            <DataGrid
-              rows={filteredUsers}
-              columns={columns}
-              pageSize={10}
-              rowsPerPageOptions={[10, 25, 50]}
-              disableSelectionOnClick
-              density="standard"
-            />
-          )}
-        </Paper>
-      </TabPanel>
       
       {/* User Edit Dialog */}
       <Dialog 
@@ -990,6 +1249,8 @@ export default function UsersPage() {
               user={editingUser}
               roles={roles}
               onSubmit={handleUpdateUser}
+              onChange={handleUserFieldChange}
+              loading={loading}
             />
           )}
         </DialogContent>
@@ -1044,7 +1305,7 @@ export default function UsersPage() {
                   type="password"
                   value={newUser.password}
                   onChange={(e) => setNewUser({...newUser, password: e.target.value})}
-                  helperText="Optional. If provided, minimum 6 characters. Empty = create temporary user."
+                  helperText="Required. Minimum 6 characters."
                 />
               </Grid>
               <Grid item xs={12}>

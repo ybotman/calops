@@ -1,179 +1,101 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import {
   Box,
-  Grid,
-  TextField,
-  FormControl,
-  FormControlLabel,
-  InputLabel,
-  Select,
-  MenuItem,
-  Switch,
   Typography,
-  Divider,
+  Grid,
+  FormControlLabel,
+  Switch,
   Button,
+  Paper,
+  Divider,
+  Chip,
+  Tabs,
+  Tab,
+  TextField,
+  List,
+  ListItem,
+  Checkbox,
   Accordion,
   AccordionSummary,
   AccordionDetails,
-  Checkbox,
-  List,
-  ListItem,
-  ListItemText,
   Alert,
-  CircularProgress,
   Autocomplete,
+  CircularProgress
 } from '@mui/material';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import SaveIcon from '@mui/icons-material/Save';
-import axios from 'axios';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
-export default function UserEditForm({ user, roles, onSubmit }) {
-  const [formData, setFormData] = useState({
-    localUserInfo: {
-      firstName: '',
-      lastName: '',
-      isActive: true,
-      isApproved: true,
-      isEnabled: true,
-    },
-    roleIds: [],
-    active: true,
-    regionalOrganizerInfo: {
-      isApproved: false,
-      isEnabled: false,
-      isActive: false,
-      organizerId: null,
-    },
-    localAdminInfo: {
-      isApproved: false,
-      isEnabled: false,
-      isActive: false,
-    },
-  });
-  const [loading, setLoading] = useState(false);
+// Tab panel component
+function TabPanel(props) {
+  const { children, value, index, ...other } = props;
+
+  return (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`user-edit-tabpanel-${index}`}
+      aria-labelledby={`user-edit-tab-${index}`}
+      {...other}
+    >
+      {value === index && <Box sx={{ pt: 2 }}>{children}</Box>}
+    </div>
+  );
+}
+
+/**
+ * Enhanced User Edit Form Component
+ * Provides a tabbed interface for editing user details, roles, and status
+ */
+const UserEditForm = ({ user, roles, onChange, onSubmit, loading }) => {
+  const [tabValue, setTabValue] = useState(0);
   const [error, setError] = useState('');
-  const [organizers, setOrganizers] = useState([]);
-  const [organizersLoading, setOrganizersLoading] = useState(false);
-  const [selectedOrganizer, setSelectedOrganizer] = useState(null);
 
-  // Fetch organizers
-  useEffect(() => {
-    const fetchOrganizers = async () => {
-      try {
-        setOrganizersLoading(true);
-        // Use the appId from the user if available, or default to "1"
-        const appId = user?.appId || "1";
-        
-        // Try first approach - using our specific API endpoint
-        try {
-          // Make sure to add isActive=true as a parameter to satisfy backend requirements
-          const response = await axios.get(`/api/organizers?appId=${appId}&isActive=true`);
-          
-          if (response.data && Array.isArray(response.data)) {
-            console.log(`Loaded ${response.data.length} organizers for dropdown`);
-            setOrganizers(response.data);
-            setOrganizersLoading(false);
-            return; // Exit early if successful
-          } else {
-            console.warn('Invalid organizers data format, trying direct backend access:', response.data);
-            // Continue to fallback approach
-          }
-        } catch (apiError) {
-          console.warn('First organizer fetch approach failed, trying direct backend access:', apiError);
-          // Continue to fallback approach
-        }
-        
-        // Fallback - try fetching directly from backend
-        try {
-          const BE_URL = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
-          const directResponse = await axios.get(`${BE_URL}/api/organizers/all?appId=${appId}&isActive=true`);
-          
-          if (directResponse.data && Array.isArray(directResponse.data)) {
-            console.log(`Loaded ${directResponse.data.length} organizers from direct backend call`);
-            setOrganizers(directResponse.data);
-          } else {
-            console.error('Invalid organizers data from direct backend call:', directResponse.data);
-            setOrganizers([]);
-          }
-        } catch (directError) {
-          console.error('All organizer fetch approaches failed:', directError);
-          setOrganizers([]); // Set empty array to prevent errors
-        }
-        
-        setOrganizersLoading(false);
-      } catch (error) {
-        console.error('Error in organizer fetch process:', error);
-        setOrganizersLoading(false);
-        setOrganizers([]); // Set empty array to prevent errors
-      }
-    };
+  if (!user) return null;
 
-    fetchOrganizers();
-  }, [user]);
-
-  // Initialize form with user data
-  useEffect(() => {
-    if (user) {
-      const organizerId = user.regionalOrganizerInfo?.organizerId 
-        ? (typeof user.regionalOrganizerInfo.organizerId === 'object' 
-           ? user.regionalOrganizerInfo.organizerId._id 
-           : user.regionalOrganizerInfo.organizerId)
-        : null;
-        
-      // Find the selected organizer if organizerId is available
-      if (organizerId && organizers.length > 0) {
-        const foundOrganizer = organizers.find(org => org._id === organizerId);
-        setSelectedOrganizer(foundOrganizer || null);
-      }
-      
-      setFormData({
-        firebaseUserId: user.firebaseUserId,
-        localUserInfo: {
-          firstName: user.localUserInfo?.firstName || '',
-          lastName: user.localUserInfo?.lastName || '',
-          isActive: user.localUserInfo?.isActive !== false, // Default to true if undefined
-          isApproved: user.localUserInfo?.isApproved !== false, // Default to true if undefined
-          isEnabled: user.localUserInfo?.isEnabled !== false, // Default to true if undefined
-        },
-        roleIds: user.roleIds?.map(role => typeof role === 'object' ? role._id : role) || [],
-        active: user.active !== false, // Default to true if undefined
-        regionalOrganizerInfo: {
-          isApproved: user.regionalOrganizerInfo?.isApproved || false,
-          isEnabled: user.regionalOrganizerInfo?.isEnabled || false,
-          isActive: user.regionalOrganizerInfo?.isActive || false,
-          organizerId: organizerId,
-        },
-        localAdminInfo: {
-          isApproved: user.localAdminInfo?.isApproved || false,
-          isEnabled: user.localAdminInfo?.isEnabled || false,
-          isActive: user.localAdminInfo?.isActive || false,
-        },
-      });
-    }
-  }, [user, organizers]);
-
-  // Handle form field changes
-  const handleChange = (e) => {
-    const { name, value, checked } = e.target;
+  // Helper function to safely get nested values
+  const getNestedValue = (obj, path, defaultValue = '') => {
+    const keys = path.split('.');
+    let result = obj;
     
-    // Handle nested fields
-    if (name.includes('.')) {
-      const [parent, child] = name.split('.');
-      setFormData(prev => ({
-        ...prev,
-        [parent]: {
-          ...prev[parent],
-          [child]: e.target.type === 'checkbox' ? checked : value
-        }
-      }));
+    for (const key of keys) {
+      if (result === undefined || result === null) return defaultValue;
+      result = result[key];
+    }
+    
+    return result === undefined || result === null ? defaultValue : result;
+  };
+
+  // Extract user information
+  const firebaseUserId = user.firebaseUserId || '';
+  const email = getNestedValue(user, 'firebaseUserInfo.email');
+  const firstName = getNestedValue(user, 'localUserInfo.firstName', '');
+  const lastName = getNestedValue(user, 'localUserInfo.lastName', '');
+  const displayName = getNestedValue(user, 'firebaseUserInfo.displayName') || 
+    `${firstName} ${lastName}`.trim();
+
+  // Handle toggle change
+  const handleToggleChange = (fieldPath) => (event) => {
+    // Make sure onChange exists before calling it
+    if (typeof onChange === 'function') {
+      onChange(fieldPath, event.target.checked);
     } else {
-      // Handle top-level fields
-      setFormData(prev => ({
-        ...prev,
-        [name]: e.target.type === 'checkbox' ? checked : value
-      }));
+      console.error('onChange prop is not a function or is not provided');
+      setError('Unable to save changes. Please try again later.');
+    }
+  };
+
+  // Handle text field change
+  const handleTextChange = (e) => {
+    const { name, value } = e.target;
+    
+    if (typeof onChange === 'function') {
+      onChange(name, value);
+    } else {
+      console.error('onChange prop is not a function or is not provided');
+      setError('Unable to save changes. Please try again later.');
     }
   };
 
@@ -181,73 +103,71 @@ export default function UserEditForm({ user, roles, onSubmit }) {
   const handleRoleChange = (e, roleId) => {
     const { checked } = e.target;
     
-    setFormData(prev => {
-      if (checked) {
-        // Add role if it doesn't exist
-        return {
-          ...prev,
-          roleIds: [...prev.roleIds, roleId]
-        };
-      } else {
-        // Remove role if it exists
-        return {
-          ...prev,
-          roleIds: prev.roleIds.filter(id => id !== roleId)
-        };
-      }
-    });
+    // Get current roleIds
+    const currentRoleIds = [...(user.roleIds || [])].map(role => 
+      typeof role === 'object' ? role._id : role
+    );
+    
+    // Update roleIds based on selection
+    let newRoleIds;
+    if (checked) {
+      // Add role if it doesn't exist
+      newRoleIds = [...currentRoleIds, roleId];
+    } else {
+      // Remove role if it exists
+      newRoleIds = currentRoleIds.filter(id => id !== roleId);
+    }
+    
+    // Update the entire roleIds array
+    if (typeof onChange === 'function') {
+      onChange('roleIds', newRoleIds);
+    } else {
+      console.error('onChange prop is not a function or is not provided');
+      setError('Unable to save changes. Please try again later.');
+    }
   };
 
+  // Handle tab change
+  const handleTabChange = (event, newValue) => {
+    setTabValue(newValue);
+  };
+
+  // Configuration for status sections and fields
+  const statusSections = [
+    {
+      title: 'User Status',
+      fields: [
+        { path: 'localUserInfo.isApproved', label: 'Approved' },
+        { path: 'localUserInfo.isEnabled', label: 'Enabled' },
+      ],
+      activeField: 'localUserInfo.isActive'
+    },
+    {
+      title: 'Organizer Status',
+      fields: [
+        { path: 'regionalOrganizerInfo.isApproved', label: 'Approved' },
+        { path: 'regionalOrganizerInfo.isEnabled', label: 'Enabled' },
+      ],
+      activeField: 'regionalOrganizerInfo.isActive'
+    },
+    {
+      title: 'Admin Status',
+      fields: [
+        { path: 'localAdminInfo.isApproved', label: 'Approved' },
+        { path: 'localAdminInfo.isEnabled', label: 'Enabled' },
+      ],
+      activeField: 'localAdminInfo.isActive'
+    }
+  ];
+
   // Handle form submission
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
-    
-    try {
-      // Check if the organizer relationship has changed
-      const originalOrganizerId = user.regionalOrganizerInfo?.organizerId 
-        ? (typeof user.regionalOrganizerInfo.organizerId === 'object' 
-           ? user.regionalOrganizerInfo.organizerId._id 
-           : user.regionalOrganizerInfo.organizerId)
-        : null;
-      
-      const newOrganizerId = formData.regionalOrganizerInfo.organizerId;
-      
-      // If the user has selected a different organizer, use connectToUser API
-      if (newOrganizerId && newOrganizerId !== originalOrganizerId) {
-        try {
-          console.log(`Connecting user ${formData.firebaseUserId} to organizer ${newOrganizerId} before saving user data`);
-          
-          // Call the organizer connect-user API to establish the relationship
-          const connectResponse = await axios.patch(`/api/organizers/${newOrganizerId}/connect-user`, {
-            firebaseUserId: formData.firebaseUserId,
-            appId: user.appId || '1'
-          });
-          
-          console.log('Successfully connected user to organizer:', connectResponse.data);
-          
-          // Make sure the RegionalOrganizer role is also included
-          const organizerRole = roles.find(role => role.roleName === 'RegionalOrganizer');
-          if (organizerRole && !formData.roleIds.includes(organizerRole._id)) {
-            formData.roleIds.push(organizerRole._id);
-            console.log('Added RegionalOrganizer role to user roles');
-          }
-        } catch (connectError) {
-          console.warn('Error connecting user to organizer via API, will rely on standard update:', connectError);
-          // Continue with regular update, which will set the organizerId reference
-        }
-      }
-      
-      // Update user information with the prepared data
-      onSubmit({
-        ...formData,
-        appId: user.appId || '1', // Default to TangoTiempo if not specified
-      });
-    } catch (err) {
-      console.error('Error in form submission:', err);
-      setError('Failed to update user. Please try again.');
-      setLoading(false);
+    if (typeof onSubmit === 'function') {
+      onSubmit(user);
+    } else {
+      console.error('onSubmit prop is not a function or is not provided');
+      setError('Unable to save changes. Please try again later.');
     }
   };
 
@@ -255,262 +175,322 @@ export default function UserEditForm({ user, roles, onSubmit }) {
     <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       
-      {/* Basic User Information */}
-      <Typography variant="h6" gutterBottom>Basic Information</Typography>
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6}>
-          <TextField
-            fullWidth
-            label="First Name"
-            name="localUserInfo.firstName"
-            value={formData.localUserInfo.firstName}
-            onChange={handleChange}
-          />
-        </Grid>
-        <Grid item xs={12} sm={6}>
-          <TextField
-            fullWidth
-            label="Last Name"
-            name="localUserInfo.lastName"
-            value={formData.localUserInfo.lastName}
-            onChange={handleChange}
-          />
-        </Grid>
-        
-        <Grid item xs={12}>
-          <TextField
-            fullWidth
-            label="Firebase User ID"
-            value={formData.firebaseUserId || ''}
-            disabled
-          />
-        </Grid>
-        
-        <Grid item xs={12}>
-          <FormControlLabel
-            control={
-              <Switch 
-                checked={formData.active} 
-                onChange={handleChange}
-                name="active"
-                color="primary"
-              />
-            }
-            label="User is Active"
-          />
-        </Grid>
-      </Grid>
-      
-      <Divider sx={{ my: 3 }} />
-      
-      {/* Roles Section */}
-      <Typography variant="h6" gutterBottom>User Roles</Typography>
-      <Accordion>
-        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-          <Typography>Role Assignments</Typography>
-        </AccordionSummary>
-        <AccordionDetails>
-          <List>
-            {roles.map((role) => (
-              <ListItem key={role._id} dense>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={formData.roleIds.includes(role._id)}
-                      onChange={(e) => handleRoleChange(e, role._id)}
-                      name={`role-${role._id}`}
-                    />
-                  }
-                  label={
-                    <Box>
-                      <Typography variant="body1">{role.roleName}</Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {role.description}
-                      </Typography>
-                    </Box>
-                  }
-                />
-              </ListItem>
-            ))}
-          </List>
-        </AccordionDetails>
-      </Accordion>
-      
-      <Divider sx={{ my: 3 }} />
-      
-      {/* Organizer Section */}
-      <Typography variant="h6" gutterBottom>Organizer Status</Typography>
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={12}>
-          <FormControlLabel
-            control={
-              <Switch 
-                checked={formData.regionalOrganizerInfo.isApproved} 
-                onChange={handleChange}
-                name="regionalOrganizerInfo.isApproved"
-                color="primary"
-              />
-            }
-            label="Approved as Organizer"
-          />
-        </Grid>
-        
-        <Grid item xs={12}>
-          <FormControlLabel
-            control={
-              <Switch 
-                checked={formData.regionalOrganizerInfo.isEnabled} 
-                onChange={handleChange}
-                name="regionalOrganizerInfo.isEnabled"
-                color="primary"
-              />
-            }
-            label="Enabled as Organizer"
-          />
-        </Grid>
-        
-        <Grid item xs={12}>
-          <FormControlLabel
-            control={
-              <Switch 
-                checked={formData.regionalOrganizerInfo.isActive} 
-                onChange={handleChange}
-                name="regionalOrganizerInfo.isActive"
-                color="primary"
-              />
-            }
-            label="Active as Organizer"
-          />
-        </Grid>
+      {/* User identity information (read-only) */}
+      <Paper elevation={0} sx={{ p: 2, mb: 3, bgcolor: 'grey.50', borderRadius: 1 }}>
+        <Typography variant="subtitle1" gutterBottom>User Information</Typography>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          <Typography variant="body2">
+            <strong>Name:</strong> {displayName}
+          </Typography>
+          <Typography variant="body2">
+            <strong>Email:</strong> {email}
+          </Typography>
+          <Typography variant="body2">
+            <strong>Firebase ID:</strong> {firebaseUserId}
+          </Typography>
+        </Box>
+      </Paper>
 
-        <Grid item xs={12}>
-          <Autocomplete
-            options={organizers}
-            loading={organizersLoading}
-            value={selectedOrganizer}
-            onChange={(event, newValue) => {
-              setSelectedOrganizer(newValue);
-              // Update formData with the new organizerId
-              setFormData(prev => ({
-                ...prev,
-                regionalOrganizerInfo: {
-                  ...prev.regionalOrganizerInfo,
-                  organizerId: newValue?._id || null
-                }
-              }));
-            }}
-            getOptionLabel={(option) => `${option.shortName || ''} - ${option.fullName || option.name || 'Unnamed'}`}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                label="Select Organizer"
-                variant="outlined"
-                helperText="Select an organizer to connect to this user"
-                InputProps={{
-                  ...params.InputProps,
-                  endAdornment: (
-                    <>
-                      {organizersLoading ? <CircularProgress color="inherit" size={20} /> : null}
-                      {params.InputProps.endAdornment}
-                    </>
-                  ),
-                }}
-              />
-            )}
-            renderOption={(props, option) => (
-              <li {...props}>
-                <Box>
-                  <Typography variant="body1" fontWeight="bold">
-                    {option.shortName || 'No Short Name'}
-                  </Typography>
-                  <Typography variant="body2">
-                    {option.fullName || option.name || 'Unnamed Organizer'}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    ID: {option._id}
-                  </Typography>
-                </Box>
-              </li>
-            )}
-          />
+      {/* Tabs for different sections */}
+      <Tabs value={tabValue} onChange={handleTabChange} aria-label="user edit tabs">
+        <Tab label="Basic Info" id="user-edit-tab-0" />
+        <Tab label="Roles" id="user-edit-tab-1" />
+        <Tab label="User Status" id="user-edit-tab-2" />
+        <Tab label="Organizer Status" id="user-edit-tab-3" />
+        <Tab label="Admin Status" id="user-edit-tab-4" />
+        <Tab label="Advanced" id="user-edit-tab-5" />
+      </Tabs>
+
+      {/* Basic Info Tab */}
+      <TabPanel value={tabValue} index={0}>
+        <Grid container spacing={2}>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="First Name"
+              name="localUserInfo.firstName"
+              value={firstName}
+              onChange={handleTextChange}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Last Name"
+              name="localUserInfo.lastName"
+              value={lastName}
+              onChange={handleTextChange}
+            />
+          </Grid>
+          
+          <Grid item xs={12}>
+            <TextField
+              fullWidth
+              label="Firebase User ID"
+              value={firebaseUserId}
+              disabled
+            />
+          </Grid>
+          
+          <Grid item xs={12}>
+            <FormControlLabel
+              control={
+                <Switch 
+                  checked={user.active !== false}
+                  onChange={handleToggleChange('active')}
+                  color="primary"
+                />
+              }
+              label="User is Active"
+            />
+          </Grid>
         </Grid>
-        
-        <Grid item xs={12}>
-          {selectedOrganizer ? (
-            <Box sx={{ mt: 1, p: 1.5, border: '1px solid #eee', borderRadius: 1 }}>
-              <Typography variant="subtitle2">Selected Organizer:</Typography>
-              <Typography variant="body2">
-                <strong>Name:</strong> {selectedOrganizer.fullName || selectedOrganizer.name}
-              </Typography>
-              <Typography variant="body2">
-                <strong>Short Name:</strong> {selectedOrganizer.shortName}
-              </Typography>
-              <Typography variant="body2">
-                <strong>ID:</strong> {selectedOrganizer._id}
+      </TabPanel>
+
+      {/* Roles Tab */}
+      <TabPanel value={tabValue} index={1}>
+        <Accordion defaultExpanded>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Typography>Role Assignments</Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <List>
+              {roles.map((role) => {
+                // Get current roleIds in a consistent format
+                const roleIds = (user.roleIds || []).map(r => 
+                  typeof r === 'object' && r._id ? r._id : r
+                );
+                
+                // Check if this role is included
+                const isChecked = roleIds.some(id => 
+                  String(id).trim() === String(role._id).trim()
+                );
+                
+                return (
+                  <ListItem key={role._id} dense>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={isChecked}
+                          onChange={(e) => handleRoleChange(e, role._id)}
+                          name={`role-${role._id}`}
+                        />
+                      }
+                      label={
+                        <Box>
+                          <Typography variant="body1">{role.roleName}</Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {role.description || role.roleNameCode}
+                          </Typography>
+                        </Box>
+                      }
+                    />
+                  </ListItem>
+                );
+              })}
+            </List>
+          </AccordionDetails>
+        </Accordion>
+      </TabPanel>
+
+      {/* User Status Tab */}
+      <TabPanel value={tabValue} index={2}>
+        <Paper sx={{ p: 2 }}>
+          <Typography variant="subtitle1" gutterBottom>User Status</Typography>
+          <Divider sx={{ my: 1 }} />
+          
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <FormControlLabel
+              control={
+                <Switch 
+                  checked={getNestedValue(user, 'localUserInfo.isApproved', false)}
+                  onChange={handleToggleChange('localUserInfo.isApproved')}
+                  color="primary"
+                />
+              }
+              label="Approved"
+            />
+            
+            <FormControlLabel
+              control={
+                <Switch 
+                  checked={getNestedValue(user, 'localUserInfo.isEnabled', false)}
+                  onChange={handleToggleChange('localUserInfo.isEnabled')}
+                  color="primary"
+                />
+              }
+              label="Enabled"
+            />
+            
+            {/* Read-only Active status */}
+            <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+              <Typography variant="body2" sx={{ mr: 1 }}>Status:</Typography>
+              <Chip 
+                label={getNestedValue(user, 'localUserInfo.isActive', false) ? "Active" : "Inactive"} 
+                color={getNestedValue(user, 'localUserInfo.isActive', false) ? "success" : "default"}
+                size="small"
+              />
+              <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                (auto-configured based on approval and enabled status)
               </Typography>
             </Box>
-          ) : (
-            <Typography variant="caption" color="text.secondary">
-              Note: To link an organizer to this user, you can also use the Organizers section 
-              and click the "Link" button on an organizer to connect it to a user.
-            </Typography>
-          )}
-        </Grid>
-      </Grid>
-      
-      <Divider sx={{ my: 3 }} />
-      
-      {/* Admin Section */}
-      <Typography variant="h6" gutterBottom>Admin Status</Typography>
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={12}>
-          <FormControlLabel
-            control={
-              <Switch 
-                checked={formData.localAdminInfo.isApproved} 
-                onChange={handleChange}
-                name="localAdminInfo.isApproved"
-                color="primary"
+          </Box>
+        </Paper>
+      </TabPanel>
+
+      {/* Organizer Status Tab */}
+      <TabPanel value={tabValue} index={3}>
+        <Paper sx={{ p: 2 }}>
+          <Typography variant="subtitle1" gutterBottom>Organizer Status</Typography>
+          <Divider sx={{ my: 1 }} />
+          
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <FormControlLabel
+              control={
+                <Switch 
+                  checked={getNestedValue(user, 'regionalOrganizerInfo.isApproved', false)}
+                  onChange={handleToggleChange('regionalOrganizerInfo.isApproved')}
+                  color="primary"
+                />
+              }
+              label="Approved as Organizer"
+            />
+            
+            <FormControlLabel
+              control={
+                <Switch 
+                  checked={getNestedValue(user, 'regionalOrganizerInfo.isEnabled', false)}
+                  onChange={handleToggleChange('regionalOrganizerInfo.isEnabled')}
+                  color="primary"
+                />
+              }
+              label="Enabled as Organizer"
+            />
+            
+            {/* Read-only Active status */}
+            <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+              <Typography variant="body2" sx={{ mr: 1 }}>Status:</Typography>
+              <Chip 
+                label={getNestedValue(user, 'regionalOrganizerInfo.isActive', false) ? "Active" : "Inactive"} 
+                color={getNestedValue(user, 'regionalOrganizerInfo.isActive', false) ? "success" : "default"}
+                size="small"
               />
-            }
-            label="Approved as Admin"
-          />
-        </Grid>
-        
-        <Grid item xs={12}>
-          <FormControlLabel
-            control={
-              <Switch 
-                checked={formData.localAdminInfo.isEnabled} 
-                onChange={handleChange}
-                name="localAdminInfo.isEnabled"
-                color="primary"
+              <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                (auto-configured based on approval and enabled status)
+              </Typography>
+            </Box>
+            
+            {/* Organizer ID display */}
+            {getNestedValue(user, 'regionalOrganizerInfo.organizerId') && (
+              <Box sx={{ mt: 2, p: 1.5, border: '1px solid #eee', borderRadius: 1 }}>
+                <Typography variant="subtitle2">Connected Organizer:</Typography>
+                <Typography variant="body2">
+                  <strong>ID:</strong> {typeof user.regionalOrganizerInfo.organizerId === 'object' 
+                    ? user.regionalOrganizerInfo.organizerId._id 
+                    : user.regionalOrganizerInfo.organizerId}
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        </Paper>
+      </TabPanel>
+
+      {/* Admin Status Tab */}
+      <TabPanel value={tabValue} index={4}>
+        <Paper sx={{ p: 2 }}>
+          <Typography variant="subtitle1" gutterBottom>Admin Status</Typography>
+          <Divider sx={{ my: 1 }} />
+          
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <FormControlLabel
+              control={
+                <Switch 
+                  checked={getNestedValue(user, 'localAdminInfo.isApproved', false)}
+                  onChange={handleToggleChange('localAdminInfo.isApproved')}
+                  color="primary"
+                />
+              }
+              label="Approved as Admin"
+            />
+            
+            <FormControlLabel
+              control={
+                <Switch 
+                  checked={getNestedValue(user, 'localAdminInfo.isEnabled', false)}
+                  onChange={handleToggleChange('localAdminInfo.isEnabled')}
+                  color="primary"
+                />
+              }
+              label="Enabled as Admin"
+            />
+            
+            {/* Read-only Active status */}
+            <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+              <Typography variant="body2" sx={{ mr: 1 }}>Status:</Typography>
+              <Chip 
+                label={getNestedValue(user, 'localAdminInfo.isActive', false) ? "Active" : "Inactive"} 
+                color={getNestedValue(user, 'localAdminInfo.isActive', false) ? "success" : "default"}
+                size="small"
               />
-            }
-            label="Enabled as Admin"
-          />
-        </Grid>
-        
-        <Grid item xs={12}>
-          <FormControlLabel
-            control={
-              <Switch 
-                checked={formData.localAdminInfo.isActive} 
-                onChange={handleChange}
-                name="localAdminInfo.isActive"
-                color="primary"
+              <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                (auto-configured based on approval and enabled status)
+              </Typography>
+            </Box>
+          </Box>
+        </Paper>
+      </TabPanel>
+
+      {/* Advanced Tab */}
+      <TabPanel value={tabValue} index={5}>
+        <Paper sx={{ p: 2 }}>
+          <Typography variant="subtitle1" gutterBottom>Advanced Settings</Typography>
+          <Divider sx={{ my: 1 }} />
+          
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Box>
+              <Typography variant="subtitle2" gutterBottom>App ID</Typography>
+              <TextField
+                fullWidth
+                size="small"
+                name="appId"
+                value={user.appId || '1'}
+                onChange={handleTextChange}
+                disabled
+                helperText="Application identifier (read-only)"
               />
-            }
-            label="Active as Admin"
-          />
-        </Grid>
-      </Grid>
-      
+            </Box>
+            
+            <Box>
+              <Typography variant="subtitle2" gutterBottom>Creation Date</Typography>
+              <TextField
+                fullWidth
+                size="small"
+                value={user.createdAt ? new Date(user.createdAt).toLocaleString() : 'Unknown'}
+                disabled
+                helperText="Date when this user was created"
+              />
+            </Box>
+            
+            <Box>
+              <Typography variant="subtitle2" gutterBottom>Last Updated</Typography>
+              <TextField
+                fullWidth
+                size="small"
+                value={user.updatedAt ? new Date(user.updatedAt).toLocaleString() : 'Unknown'}
+                disabled
+                helperText="Date when this user was last updated"
+              />
+            </Box>
+          </Box>
+        </Paper>
+      </TabPanel>
+
+      {/* Save button */}
       <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
-        <Button 
-          type="submit" 
-          variant="contained" 
-          color="primary" 
+        <Button
+          type="submit"
+          variant="contained"
+          color="primary"
           disabled={loading}
           startIcon={<SaveIcon />}
         >
@@ -519,4 +499,67 @@ export default function UserEditForm({ user, roles, onSubmit }) {
       </Box>
     </Box>
   );
-}
+};
+
+UserEditForm.propTypes = {
+  /**
+   * User object containing all user data
+   */
+  user: PropTypes.shape({
+    _id: PropTypes.string,
+    firebaseUserId: PropTypes.string,
+    appId: PropTypes.string,
+    active: PropTypes.bool,
+    roleIds: PropTypes.array,
+    createdAt: PropTypes.string,
+    updatedAt: PropTypes.string,
+    firebaseUserInfo: PropTypes.shape({
+      email: PropTypes.string,
+      displayName: PropTypes.string
+    }),
+    localUserInfo: PropTypes.shape({
+      firstName: PropTypes.string,
+      lastName: PropTypes.string,
+      isApproved: PropTypes.bool,
+      isEnabled: PropTypes.bool,
+      isActive: PropTypes.bool
+    }),
+    regionalOrganizerInfo: PropTypes.shape({
+      isApproved: PropTypes.bool,
+      isEnabled: PropTypes.bool,
+      isActive: PropTypes.bool,
+      organizerId: PropTypes.oneOfType([PropTypes.string, PropTypes.object])
+    }),
+    localAdminInfo: PropTypes.shape({
+      isApproved: PropTypes.bool,
+      isEnabled: PropTypes.bool,
+      isActive: PropTypes.bool
+    })
+  }).isRequired,
+  
+  /**
+   * Array of available roles
+   */
+  roles: PropTypes.array.isRequired,
+  
+  /**
+   * Callback function when a field is changed
+   */
+  onChange: PropTypes.func.isRequired,
+  
+  /**
+   * Callback function when form is submitted
+   */
+  onSubmit: PropTypes.func.isRequired,
+  
+  /**
+   * Loading state to disable form submission
+   */
+  loading: PropTypes.bool
+};
+
+UserEditForm.defaultProps = {
+  loading: false
+};
+
+export default UserEditForm;

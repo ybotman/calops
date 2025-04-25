@@ -1,0 +1,118 @@
+'use client';
+
+import React from 'react';
+import PropTypes from 'prop-types';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button
+} from '@mui/material';
+import UserEditForm from '@/components/users/UserEditForm';
+
+/**
+ * EditUserDialog component
+ * Dialog for editing existing users
+ */
+const EditUserDialog = ({ 
+  open, 
+  onClose, 
+  user, 
+  roles, 
+  onSubmit, 
+  loading 
+}) => {
+  // Handle dialog close
+  const handleClose = () => {
+    onClose();
+  };
+
+  return (
+    <Dialog 
+      open={open} 
+      onClose={handleClose} 
+      maxWidth="md" 
+      fullWidth
+    >
+      <DialogTitle>Edit User</DialogTitle>
+      <DialogContent>
+        {user && roles.length > 0 && (
+          <UserEditForm
+            user={user}
+            roles={roles}
+            onSubmit={onSubmit}
+            loading={loading}
+          />
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={handleClose} disabled={loading}>
+          Cancel
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+EditUserDialog.propTypes = {
+  /**
+   * Dialog visibility
+   */
+  open: PropTypes.bool.isRequired,
+  
+  /**
+   * Close dialog callback
+   */
+  onClose: PropTypes.func.isRequired,
+  
+  /**
+   * User being edited
+   */
+  user: PropTypes.shape({
+    _id: PropTypes.string,
+    firebaseUserId: PropTypes.string,
+    appId: PropTypes.string,
+    active: PropTypes.bool,
+    roleIds: PropTypes.array,
+    firebaseUserInfo: PropTypes.shape({
+      email: PropTypes.string,
+      displayName: PropTypes.string
+    }),
+    localUserInfo: PropTypes.shape({
+      firstName: PropTypes.string,
+      lastName: PropTypes.string,
+      isApproved: PropTypes.bool,
+      isEnabled: PropTypes.bool,
+      isActive: PropTypes.bool
+    }),
+    regionalOrganizerInfo: PropTypes.shape({
+      isApproved: PropTypes.bool,
+      isEnabled: PropTypes.bool,
+      isActive: PropTypes.bool,
+      organizerId: PropTypes.oneOfType([PropTypes.string, PropTypes.object])
+    }),
+    localAdminInfo: PropTypes.shape({
+      isApproved: PropTypes.bool,
+      isEnabled: PropTypes.bool,
+      isActive: PropTypes.bool
+    })
+  }),
+  
+  /**
+   * Available roles
+   */
+  roles: PropTypes.array.isRequired,
+  
+  /**
+   * Submit callback
+   */
+  onSubmit: PropTypes.func.isRequired,
+  
+  /**
+   * Loading state during submission
+   */
+  loading: PropTypes.bool
+};
+
+export default EditUserDialog;

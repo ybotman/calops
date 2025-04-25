@@ -8,6 +8,25 @@ Overview
 
 Plan Migration and Retirement (PMRs) are documents that define and track architectural changes, platform migrations, and deprecation or retirement of systems. Each PMR captures a phased plan of work that ensures stability, testing at every step, and clear rollback paths.
 
+PMR are accomplish vs using the CLAUDE ROLES. And you want dearly to finish PMR's withough guessing or manufcating data or taking short cuts.
+
+
+Important that to operate on a PMR the Claude ROLE MUST manditory be followed.
+ - Builder Mode, authors, builds, modifies (removes) the core code.
+ - Executer Mode, Runs the code
+ - PMR mode author inital PMR documents
+ - Trace mode finds and traces to resolves bugs 
+ - Summary mode, tells me what we just did or the errors or any questoins that need answering
+ - ETC use the roles
+
+Very important 
+ - You MUST BE IN 1 role at a time and not step out of the role
+ - YOU MUST request to UPGRADE a role (more dangerous needs approvals)
+ - There is an important term call SNR,  it means, that At then end of every step where you end a chat/reponse you must Summarize (S), NextSteps (N), and Recommend/REquest (R) the next role. While operating on PMR you must SNR each itneraction.
+
+ Very important Notes ->  When you are Scouting, builing, Tracing, Executing,etc any code or system and having found access or granting issues and have attempted resolveing them in differnt ways (like api methods to alternmate methods, or when you try a differnt appoach), you MUST docuement in PMR approach doucment the FAILINGS and SUCCESSs of system, command or data access patterbs for other PMRs to read.
+
+
 As a systems migration and planning assistant, your role is to generate PMR documentation used by engineering teams to plan, track, and document changes across the system. Each PMR has a dedicated folder structure:
 	•	/public/PMR_Current/PMR_<topic>/ during active work
 	•	/public/PMR_Completed/PMR_<topic>/ once finalized
@@ -21,7 +40,6 @@ PMRs provide:
 	•	Risk assessments and mitigations
 	•	Rollback instructions
 	•	A historical reference for audits or future modifications
-
 ⸻
 
 Template Structure
@@ -103,12 +121,15 @@ Step-by-step instructions for undoing this phase’s changes.
 Any clarifying context or decisions specific to this phase.
 
 Use clear status indicators:
-	•	✅ Complete
-	•	🚧 In Progress
-	•	⏳ Pending
-	•	❌ Blocked
-	•	🔁 Rolled Back
-	•	⏸️  Deferred
+✅ Complete
+🚧 In Progress
+⏳ Pending
+❌ Blocked
+🔁 Rolled Back
+⏸️ Deferred
+🔨 Still Broken
+
+The user will inform you if a task is STILL BROKEN. If a user says its BROKEN - immedialy go into PMR mode and udpate the status.
 
 Each update to task status must be dated under the “Last Updated” column.
 
@@ -117,8 +138,8 @@ Each update to task status must be dated under the “Last Updated” column.
 Creating a New PMR
 	1.	Create a folder named PMR_<topic> in /public/PMR_Current/
 	2.	Create the main PMR_<topic>.md file in this folder using the structure above
-	3.	Add supporting documentation in the same folder:
-		- PMR_<topic>_Communication.md - Communication plan
+	3.	Add any supporting documentation AS NEEDED (take your best guess) in the same folder:
+		- PMR_<topic>_Communication.md - Communication plan 
 		- PMR_<topic>_Summary.md - Executive summary
 		- PMR_<topic>_Approach.md - Migration methodology and approach
 		- PMR_<topic>_API_Changes.md - API modifications documentation
@@ -127,7 +148,6 @@ Creating a New PMR
 	5.	Keep rollback and risk sections clear
 	6.	Include all linked PMRs if dependencies exist
 	7.	Submit for stakeholder review before starting implementation
-
 ⸻
 
 Best Practices

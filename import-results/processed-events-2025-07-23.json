@@ -1,0 +1,26 @@
+[
+  {
+    "btcId": 10018060,
+    "ttId": "680a9ecd689c3f3d9a5310a8",
+    "title": "Academy: Absolute Beginner Class + Social",
+    "dryRun": false
+  },
+  {
+    "btcId": 10010838,
+    "ttId": "680a9ed0689c3f3d9a531259",
+    "title": "Wednesday Tango Break– 7pm Beginner Tango Classes",
+    "dryRun": false
+  },
+  {
+    "btcId": 10011361,
+    "ttId": "680a9ed3689c3f3d9a5313ff",
+    "title": "Wednesday Tango Break– 8pm Intermediate Tango Classes",
+    "dryRun": false
+  },
+  {
+    "btcId": 10011100,
+    "ttId": "680a9ed5689c3f3d9a5315a5",
+    "title": "Wednesday Tango Break  –Dancing",
+    "dryRun": false
+  }
+]

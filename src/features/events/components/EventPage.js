@@ -21,6 +21,7 @@ import AllEventsTab from './tabs/AllEventsTab';
 import ActiveEventsTab from './tabs/ActiveEventsTab';
 import InactiveEventsTab from './tabs/InactiveEventsTab';
 import FeaturedEventsTab from './tabs/FeaturedEventsTab';
+import BtcImportTab from './tabs/BtcImportTab';
 import useEventData from '../hooks/useEventData';
 import useEventFilters from '../hooks/useEventFilters';
 import { organizersApi, eventsApi } from '@/lib/api-client';
@@ -393,8 +394,8 @@ const EventPage = () => {
             division: searchFilters.masteredDivisionName,
             city: searchFilters.masteredCityName,
             dates: {
-              start: searchFilters.startDate,
-              end: searchFilters.endDate
+              afterEqualDate: searchFilters.afterEqualDate,
+              beforeEqualDate: searchFilters.beforeEqualDate
             }
           });
           
@@ -439,6 +440,7 @@ const EventPage = () => {
           <Tab label="Active" />
           <Tab label="Inactive" />
           <Tab label="Featured" />
+          <Tab label="BTC Import" />
         </Tabs>
       </Box>
       
@@ -511,6 +513,12 @@ const EventPage = () => {
           onEdit={handleEditEvent}
           onDelete={handleDeleteEvent}
           onToggleStatus={handleToggleStatus}
+        />
+      </Box>
+      
+      <Box sx={{ display: tabValue === 4 ? 'block' : 'none' }}>
+        <BtcImportTab 
+          key={`btc-import-${refreshKey}`} // Add refresh key to force re-render
         />
       </Box>
       

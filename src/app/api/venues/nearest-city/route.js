@@ -82,6 +82,13 @@ export async function GET(request) {
         );
       }
       
+      // Check if it's a 404 (endpoint not found or no city found)
+      if (backendError.response?.status === 404) {
+        console.log('No nearest city found for coordinates, returning empty array');
+        // Return an empty array instead of an error to let the client handle it
+        return NextResponse.json([]);
+      }
+      
       // Forward any other backend error
       const status = backendError.response?.status || 500;
       const message = backendError.response?.data?.message || backendError.message || 'Backend API error';
