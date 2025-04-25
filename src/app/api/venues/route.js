@@ -112,9 +112,26 @@ export async function POST(request) {
     const requestBody = { ...body, appId };
     
     console.log(`Proxying POST venues request to backend: ${url}`);
-    const response = await axios.post(url, requestBody);
+    console.log('Request body:', JSON.stringify(requestBody, null, 2));
     
-    return NextResponse.json(response.data);
+    try {
+      const response = await axios.post(url, requestBody, {
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        timeout: 15000 // 15 seconds timeout
+      });
+      
+      console.log('Venue creation successful:', response.data);
+      return NextResponse.json(response.data);
+    } catch (proxyError) {
+      console.error('Error from backend venue creation:', proxyError.message);
+      if (proxyError.response) {
+        console.error('Backend status:', proxyError.response.status);
+        console.error('Backend response:', proxyError.response.data);
+      }
+      throw proxyError; // Re-throw to be caught by outer catch
+    }
   } catch (error) {
     console.error('Error proxying POST venues request:', error.message);
     

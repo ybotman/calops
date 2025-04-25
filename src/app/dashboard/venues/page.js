@@ -869,14 +869,15 @@ export default function VenuesPage() {
           } else {
             // Ensure all venues have coordinates
             if (venue.latitude && venue.longitude) {
+              // Ensure numeric latitude/longitude fields are properly set
+              venue.latitude = parseFloat(venue.latitude);
+              venue.longitude = parseFloat(venue.longitude);
+              
               // Ensure venue has proper geolocation coordinates in GeoJSON format
               venue.geolocation = {
                 type: "Point",
-                coordinates: [parseFloat(venue.longitude), parseFloat(venue.latitude)]
+                coordinates: [venue.longitude, venue.latitude]
               };
-              // Ensure numeric latitude/longitude fields are also set
-              venue.latitude = parseFloat(venue.latitude);
-              venue.longitude = parseFloat(venue.longitude);
               
               // Set validation flag based on proximity to city (if found during lookup)
               if (venue.masteredCityId && venue.distanceInKm !== undefined) {
@@ -892,7 +893,7 @@ export default function VenuesPage() {
               venue.longitude = -71.0589;
               venue.geolocation = {
                 type: "Point",
-                coordinates: [-71.0589, 42.3601] // Boston coordinates
+                coordinates: [-71.0589, 42.3601] // Boston coordinates [lng, lat]
               };
               // Default coordinates are not validated
               venue.isValidVenueGeolocation = false;
@@ -921,7 +922,11 @@ export default function VenuesPage() {
               }));
               
               // Save to the database
-              const response = await axios.post('/api/venues', venue);
+              const response = await axios.post('/api/venues', venue, {
+                headers: {
+                  'Content-Type': 'application/json'
+                }
+              });
               console.log(`Successfully imported venue: ${venue.name}`, response.data);
               
               setImportResults(prev => ({
@@ -937,13 +942,14 @@ export default function VenuesPage() {
                 // Check for any errors where we should retry with defaults
                 const shouldRetry = 
                   // No city found error
-                  (saveError.response.status === 404 && 
-                   saveError.response.data.error === "No city found near the provided coordinates") ||
+                  (saveError.response?.status === 404 && 
+                   saveError.response?.data?.error === "No city found near the provided coordinates") ||
                   // Duplicate venue error
-                  (saveError.response.status === 409 && 
-                   saveError.response.data.error === "Duplicate venue within 100 meters") ||
-                  // Any other 400 errors that might need default data
-                  (saveError.response.status === 400);
+                  (saveError.response?.status === 409 && 
+                   saveError.response?.data?.error === "Duplicate venue within 100 meters") ||
+                  // Any other 400 or 500 errors that might need default data
+                  (saveError.response?.status === 400) || 
+                  (saveError.response?.status === 500);
                 
                 if (shouldRetry) {
                   // Try again with completely default Boston data
@@ -954,21 +960,26 @@ export default function VenuesPage() {
                     // Use small random offsets for uniqueness
                     const randomOffset = () => (Math.random() - 0.5) * 0.01; // ±0.005 degrees (about 500m)
                     
+                    // Create a simpler venue object with only the required fields
+                    const lat = 42.3601 + randomOffset();
+                    const lng = -71.0589 + randomOffset();
+                    
                     const retryVenue = {
-                      ...venue,
-                      // Default Boston location with random offset to avoid duplicates
-                      latitude: 42.3601 + randomOffset(),
-                      longitude: -71.0589 + randomOffset(),
-                      // Ensure unique name if needed
+                      appId: currentApp.id,
                       name: venue.name || `Imported Venue ${Date.now()}`,
+                      shortName: venue.shortName || '',
                       address1: venue.address1 || venue.name || "Default Address",
                       city: "Boston",
                       state: "MA",
                       zip: "02108",
+                      phone: venue.phone || '',
+                      comments: venue.comments || '',
+                      latitude: lat,
+                      longitude: lng,
                       // Default GeoJSON
                       geolocation: {
                         type: "Point",
-                        coordinates: [-71.0589 + randomOffset(), 42.3601 + randomOffset()]
+                        coordinates: [lng, lat]
                       },
                       // Fixed masteredCity fields
                       masteredCityId: "64f26a9f75bfc0db12ed7a1e", // Boston city ID
@@ -986,16 +997,40 @@ export default function VenuesPage() {
                     }));
                     
                     // Try saving again with the modified data
-                    const retryResponse = await axios.post('/api/venues', retryVenue);
-                    console.log(`Successfully imported venue on retry: ${retryVenue.name}`, retryResponse.data);
-                    
-                    setImportResults(prev => ({
-                      ...prev,
-                      success: prev.success + 1
-                    }));
-                    
-                    // Skip the error counter increment
-                    return;
+                    try {
+                      console.log('Retry payload:', JSON.stringify({
+                        name: retryVenue.name,
+                        address1: retryVenue.address1,
+                        city: retryVenue.city,
+                        lat: retryVenue.latitude,
+                        lng: retryVenue.longitude
+                      }));
+                      
+                      const retryResponse = await axios.post('/api/venues', retryVenue, {
+                        headers: {
+                          'Content-Type': 'application/json'
+                        },
+                        timeout: 15000 // 15 seconds
+                      });
+                      
+                      console.log(`Successfully imported venue on retry: ${retryVenue.name}`, retryResponse.data);
+                      
+                      setImportResults(prev => ({
+                        ...prev,
+                        success: prev.success + 1
+                      }));
+                      
+                      // Skip the error counter increment
+                      return;
+                    } catch (finalError) {
+                      console.error(`Final retry failed for venue ${venue.name}:`, finalError.message);
+                      if (finalError.response) {
+                        console.error('Final error status:', finalError.response.status);
+                        console.error('Final error details:', JSON.stringify(finalError.response.data));
+                      }
+                      
+                      // Let it continue to the error counter increment
+                    }
                   } catch (retryError) {
                     console.error(`Retry failed for venue ${venue.name}:`, retryError);
                     if (retryError.response?.data) {
