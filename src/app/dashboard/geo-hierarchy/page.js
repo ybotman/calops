@@ -60,9 +60,9 @@ export default function GeoHierarchyPage() {
         setLoading(true);
         console.log(`Fetching geo hierarchy for AppId: ${currentApp.id}`);
         
-        // Fetch all geo hierarchy data in a single request - simplify to just fetch everything
-        console.log('Fetching ALL geo hierarchy data');
-        const response = await axios.get(`/api/geo-hierarchy?type=all`);
+        // Fetch all geo hierarchy data in a single request - with population of parent references
+        console.log('Fetching ALL geo hierarchy data with population');
+        const response = await axios.get(`/api/geo-hierarchy?type=all&populate=true`);
         
         if (response.data) {
           // Process cities - city uses isActive, others use active

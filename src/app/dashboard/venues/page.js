@@ -44,6 +44,7 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import LocationSearchingIcon from '@mui/icons-material/LocationSearching';
 import { useAppContext } from '@/lib/AppContext';
+import GeolocationResolver from '@/lib/services/geolocation-resolver';
 
 export default function VenuesPage() {
   const [loading, setLoading] = useState(true);
@@ -416,17 +417,66 @@ export default function VenuesPage() {
       
       setLoading(true);
       
+      // Ensure venue has coordinates, especially if masteredCityId is selected
+      let submissionData = { ...venueForm };
+      
+      // If we're missing coordinates but have masteredCityId, try to get coordinates
+      if ((!submissionData.latitude || !submissionData.longitude) && submissionData.masteredCityId) {
+        try {
+          // Get or find the city in our loaded cities data
+          const selectedCity = cities.find(city => city._id === submissionData.masteredCityId);
+          
+          if (selectedCity && selectedCity.geolocation && 
+              selectedCity.geolocation.coordinates && 
+              selectedCity.geolocation.coordinates.length === 2) {
+            // Use coordinates from selected city
+            console.log(`Using coordinates from city for submission`);
+            submissionData.latitude = selectedCity.geolocation.coordinates[1];
+            submissionData.longitude = selectedCity.geolocation.coordinates[0];
+            submissionData.coordinatesSource = 'city_on_submit';
+          } else {
+            // Use Boston defaults as fallback
+            console.log(`Using Boston defaults for coordinates on submission`);
+            submissionData.latitude = GeolocationResolver.BOSTON_DEFAULTS.coordinates[1];
+            submissionData.longitude = GeolocationResolver.BOSTON_DEFAULTS.coordinates[0];
+            submissionData.coordinatesSource = 'boston_on_submit';
+          }
+        } catch (coordError) {
+          console.error('Error getting coordinates for submission:', coordError);
+          // Use Boston defaults if anything goes wrong
+          submissionData.latitude = GeolocationResolver.BOSTON_DEFAULTS.coordinates[1];
+          submissionData.longitude = GeolocationResolver.BOSTON_DEFAULTS.coordinates[0];
+          submissionData.coordinatesSource = 'boston_fallback_on_submit';
+        }
+      }
+      
       // Format latitude and longitude as numbers
       const formattedData = {
-        ...venueForm,
-        latitude: venueForm.latitude ? parseFloat(venueForm.latitude) : null,
-        longitude: venueForm.longitude ? parseFloat(venueForm.longitude) : null,
+        ...submissionData,
+        latitude: submissionData.latitude ? parseFloat(submissionData.latitude) : null,
+        longitude: submissionData.longitude ? parseFloat(submissionData.longitude) : null,
         appId: currentApp.id,
       };
+      
+      // Ensure geolocation in GeoJSON format
+      if (formattedData.latitude && formattedData.longitude) {
+        formattedData.geolocation = {
+          type: "Point",
+          coordinates: [formattedData.longitude, formattedData.latitude]
+        };
+      }
       
       if (editMode && selectedVenueId) {
         // Update existing venue
         console.log(`Updating venue with ID: ${selectedVenueId}`);
+        console.log('Submission data:', JSON.stringify({
+          name: formattedData.name,
+          city: formattedData.city,
+          masteredCityId: formattedData.masteredCityId,
+          coordinates: formattedData.latitude && formattedData.longitude ? 
+            [formattedData.longitude, formattedData.latitude] : 'none'
+        }));
+        
         const response = await axios.put(`/api/venues/${selectedVenueId}`, formattedData);
         console.log('Update response:', response.data);
         
@@ -438,11 +488,22 @@ export default function VenuesPage() {
       } else {
         // Create new venue
         console.log('Creating new venue');
+        console.log('Submission data:', JSON.stringify({
+          name: formattedData.name,
+          city: formattedData.city,
+          masteredCityId: formattedData.masteredCityId,
+          coordinates: formattedData.latitude && formattedData.longitude ? 
+            [formattedData.longitude, formattedData.latitude] : 'none'
+        }));
+        
         const response = await axios.post('/api/venues', formattedData);
         console.log('Create response:', response.data);
         
         if (response.data.message) {
           alert(response.data.message);
+        } else if (response.data.note) {
+          // Custom message from our enhanced API
+          alert(`Venue created successfully! Note: ${response.data.note}`);
         } else {
           alert('Venue created successfully!');
         }
@@ -455,7 +516,15 @@ export default function VenuesPage() {
       setDialogOpen(false);
     } catch (error) {
       console.error('Error saving venue:', error);
-      alert(`Failed to save venue: ${error.message}`);
+      // Show a more helpful error message
+      if (error.response && error.response.data && error.response.data.error) {
+        alert(`Failed to save venue: ${error.response.data.error}`);
+        if (error.response.data.suggestion) {
+          alert(error.response.data.suggestion);
+        }
+      } else {
+        alert(`Failed to save venue: ${error.message}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -499,6 +568,10 @@ export default function VenuesPage() {
     }
   };
   
+  // Import the GeolocationResolver service
+  // At the top of the file with other imports (we'll add it through the Edit function for simplicity):
+  // import GeolocationResolver from '@/lib/services/geolocation-resolver';
+  
   // Handle geo hierarchy selection change
   const handleCountryChange = (e) => {
     const countryId = e.target.value;
@@ -530,12 +603,76 @@ export default function VenuesPage() {
     }));
   };
   
-  const handleCityChange = (e) => {
+  const handleCityChange = async (e) => {
     const cityId = e.target.value;
     setVenueForm(prev => ({
       ...prev,
       masteredCityId: cityId,
     }));
+    
+    // Auto-populate coordinates from selected city
+    if (cityId) {
+      try {
+        // Find selected city in cities array to get coordinates
+        const selectedCity = cities.find(city => city._id === cityId);
+        
+        if (selectedCity && selectedCity.geolocation && 
+            selectedCity.geolocation.coordinates && 
+            selectedCity.geolocation.coordinates.length === 2) {
+          // Use coordinates from the city object
+          console.log(`Using coordinates from selected city ${cityId}`);
+          setVenueForm(prev => ({
+            ...prev,
+            latitude: selectedCity.geolocation.coordinates[1],
+            longitude: selectedCity.geolocation.coordinates[0],
+            coordinatesSource: 'city'
+          }));
+          return;
+        }
+        
+        // If city doesn't have coordinates in the object, fetch from API
+        console.log(`Fetching coordinates for city ${cityId} from API`);
+        
+        try {
+          const cityResponse = await axios.get(`/api/geo-hierarchy/cities/${cityId}`, {
+            params: { appId: currentApp.id }
+          });
+          
+          if (cityResponse.data && cityResponse.data.geolocation && 
+              cityResponse.data.geolocation.coordinates && 
+              cityResponse.data.geolocation.coordinates.length === 2) {
+            // Use coordinates from API response
+            setVenueForm(prev => ({
+              ...prev,
+              latitude: cityResponse.data.geolocation.coordinates[1],
+              longitude: cityResponse.data.geolocation.coordinates[0],
+              coordinatesSource: 'city_api'
+            }));
+            return;
+          }
+        } catch (apiError) {
+          console.error(`Error fetching city ${cityId} details:`, apiError);
+        }
+        
+        // If we still don't have coordinates, use Boston defaults
+        console.log(`No coordinates found for city ${cityId} - using Boston defaults`);
+        setVenueForm(prev => ({
+          ...prev,
+          latitude: 42.3601, // Boston latitude
+          longitude: -71.0589, // Boston longitude
+          coordinatesSource: 'boston_defaults'
+        }));
+      } catch (error) {
+        console.error(`Error populating coordinates for city ${cityId}:`, error);
+        // Use Boston defaults if an error occurs
+        setVenueForm(prev => ({
+          ...prev,
+          latitude: 42.3601, // Boston latitude
+          longitude: -71.0589, // Boston longitude
+          coordinatesSource: 'boston_defaults_fallback'
+        }));
+      }
+    }
   };
   
   // Toggle between hierarchy selection modes
@@ -1081,6 +1218,7 @@ export default function VenuesPage() {
   };
 
   const handleSelectCity = (city) => {
+    // Update form with selected city and its hierarchy
     setVenueForm(prev => ({
       ...prev,
       masteredCityId: city._id,
@@ -1088,6 +1226,35 @@ export default function VenuesPage() {
       masteredRegionId: city.masteredDivisionId?.masteredRegionId?._id || '',
       masteredCountryId: city.masteredDivisionId?.masteredRegionId?.masteredCountryId?._id || '',
     }));
+    
+    // Also populate coordinates from the city if available
+    if (city.geolocation && city.geolocation.coordinates && city.geolocation.coordinates.length === 2) {
+      console.log(`Using coordinates from nearest city ${city._id}`);
+      setVenueForm(prev => ({
+        ...prev,
+        latitude: city.geolocation.coordinates[1],
+        longitude: city.geolocation.coordinates[0],
+        coordinatesSource: 'nearest_city'
+      }));
+    } else if (city.latitude && city.longitude) {
+      // Alternative format sometimes returned by nearest-city endpoint
+      console.log(`Using lat/lng from nearest city ${city._id}`);
+      setVenueForm(prev => ({
+        ...prev,
+        latitude: city.latitude,
+        longitude: city.longitude,
+        coordinatesSource: 'nearest_city_alt'
+      }));
+    } else {
+      // If the city doesn't have coordinates, use the GeolocationResolver defaults
+      console.log(`No coordinates in nearest city ${city._id} - using Boston defaults`);
+      setVenueForm(prev => ({
+        ...prev,
+        latitude: GeolocationResolver.BOSTON_DEFAULTS.coordinates[1],
+        longitude: GeolocationResolver.BOSTON_DEFAULTS.coordinates[0],
+        coordinatesSource: 'boston_defaults'
+      }));
+    }
   };
 
   // Define columns for DataGrid
