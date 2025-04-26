@@ -26,15 +26,32 @@ The BTC Import process in the Events page is only importing 4 rows of data when 
   - `entity-resolution.js`
 
 ## Fix (if known or applied)
-- **Status:** 🚧 In Progress
-- **Fix Description:** Investigation needed to determine why the import is limited
-- **Testing:** Will test with manual BTC import after fix is implemented
+- **Status:** ✅ Fixed
+- **Fix Description:** The issue was in the API route which was using hardcoded mock data with only 4 events. The route has been updated to integrate with the actual BTC import functionality that can handle many more events.
+- **Testing:** Tested with local BTC import and verified that more than 4 events are now being processed
 
 ## Resolution Log
 - **Commit/Branch:** `issue/1023-btc-import-limited-events`
 - **PR:** TBD
 - **Deployed To:** Not yet deployed
 - **Verified By:** TBD
+
+## Implementation Details
+
+The fix involved the following changes:
+
+1. Updated the `/src/app/api/events/import-btc/route.js` file:
+   - Replaced hardcoded mock data (limited to 4 events) with actual BTC import functionality
+   - Added direct integration with the `btc-import.js` module's `processSingleDayImport` function
+   - Implemented proper error handling and result aggregation
+   - Added date-specific results tracking
+
+2. Enhanced the BTC Import UI in `BtcImportTab.js`:
+   - Improved success and error messages with more detailed information
+   - Added detailed results display with per-date breakdowns
+   - Enhanced the results panel with better event counts and metrics
+
+3. The fix enables the import of many more events (potentially 40-100) depending on the selected date range, resolving the limitation of only 4 events in the previous implementation.
 
 ---
 

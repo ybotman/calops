@@ -1,5 +1,7 @@
 // API route for importing events from Boston Tango Calendar
 import { NextResponse } from 'next/server';
+import path from 'path';
+import { processSingleDayImport, performGoNoGoAssessment } from '../../../../../btc-import.js';
 
 // Simple error logging function
 const logError = (message, error) => {
@@ -15,7 +17,7 @@ export async function POST(request) {
   try {
     // Parse request body
     const body = await request.json();
-    const { startDate, endDate, dryRun = true } = body;
+    const { startDate, endDate, dryRun = true, appId = '1' } = body;
     
     // Validate required parameters
     if (!startDate || !endDate) {
@@ -36,62 +38,101 @@ export async function POST(request) {
     
     const token = authHeader.slice(7); // Remove 'Bearer ' prefix
     
-    // Run the import process
-    const importProcess = async () => {
-      // This simulates the actual import process - in production, this would call
-      // the appropriate functions to import the events
+    // Set environment variables for btc-import.js
+    process.env.AUTH_TOKEN = token;
+    process.env.DRY_RUN = String(dryRun);
+    process.env.APP_ID = appId;
+    
+    try {
+      // Process each date in the range
+      const startDateObj = new Date(startDate);
+      const endDateObj = new Date(endDate);
       
-      // Simple mock response for the UI to display
-      return {
+      // Track overall results
+      const overallResults = {
         dateRange: {
           start: startDate,
           end: endDate
         },
         btcEvents: {
-          total: 4,
-          processed: 4
+          total: 0,
+          processed: 0
         },
         entityResolution: {
-          success: 4,
+          success: 0,
           failure: 0
         },
         validation: {
-          valid: 4,
+          valid: 0,
           invalid: 0
         },
         ttEvents: {
-          deleted: dryRun ? 0 : 2,
-          created: dryRun ? 0 : 4,
+          deleted: 0,
+          created: 0,
           failed: 0
         },
         dryRun: dryRun,
-        duration: 2.34,
+        duration: 0,
+        dates: [],
         startTime: new Date().toISOString(),
-        endTime: new Date().toISOString(),
-        assessment: {
-          canProceed: true,
-          metrics: {
-            entityResolutionRate: 1.0,
-            validationRate: 1.0,
-            overallSuccessRate: 1.0
-          },
-          thresholds: {
-            minimumResolutionRate: 0.9,
-            minimumValidationRate: 0.95,
-            minimumOverallRate: 0.85
-          },
-          recommendations: dryRun 
-            ? ["Run actual import to create events in the database"] 
-            : ["Verify imported events in the UI"]
-        }
+        endTime: null
       };
-    };
-    
-    // Execute the import process
-    const result = await importProcess();
-    
-    // Return the results
-    return NextResponse.json(result);
+      
+      // Only process the start date initially for simplicity
+      // In a future enhancement, we could process the entire date range
+      const currentDate = startDateObj.toISOString().split('T')[0];
+      
+      // Run the import process for the current date
+      console.log(`Processing import for date: ${currentDate}`);
+      const dateResults = await processSingleDayImport(currentDate);
+      
+      // Aggregate results
+      overallResults.btcEvents.total += dateResults.btcEvents.total;
+      overallResults.btcEvents.processed += dateResults.btcEvents.processed;
+      overallResults.entityResolution.success += dateResults.entityResolution.success;
+      overallResults.entityResolution.failure += dateResults.entityResolution.failure;
+      overallResults.validation.valid += dateResults.validation.valid;
+      overallResults.validation.invalid += dateResults.validation.invalid;
+      overallResults.ttEvents.deleted += dateResults.ttEvents.deleted;
+      overallResults.ttEvents.created += dateResults.ttEvents.created;
+      overallResults.ttEvents.failed += dateResults.ttEvents.failed;
+      overallResults.duration += dateResults.duration;
+      
+      // Add date-specific results
+      overallResults.dates.push({
+        date: currentDate,
+        results: dateResults
+      });
+      
+      // Complete the results
+      overallResults.endTime = new Date().toISOString();
+      
+      // Perform Go/No-Go assessment on overall results
+      const assessment = performGoNoGoAssessment(overallResults);
+      
+      // Return combined results with assessment
+      return NextResponse.json({
+        ...overallResults,
+        assessment,
+        // Additional metadata for UI
+        progressTracking: {
+          totalDates: 1, // Currently only processing the start date
+          completedDates: 1,
+          currentStatus: 'Complete'
+        }
+      });
+    } catch (importError) {
+      console.error('Import process error:', importError);
+      
+      return NextResponse.json(
+        { 
+          message: 'Error during import process', 
+          error: importError.message,
+          partialResults: importError.partialResults || null
+        },
+        { status: 500 }
+      );
+    }
   } catch (error) {
     // Log the error
     logError('Error in BTC import API:', error);

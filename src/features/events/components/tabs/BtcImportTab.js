@@ -36,6 +36,7 @@ const BtcImportTab = () => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [importResults, setImportResults] = useState(null);
+  const [progress, setProgress] = useState(null); // Track import progress
   
   // Function to handle import
   const handleImport = async () => {
@@ -59,6 +60,7 @@ const BtcImportTab = () => {
     setError(null);
     setSuccess(null);
     setImportResults(null);
+    setProgress({ step: 'initializing', message: 'Starting import process...' });
     
     try {
       // Format dates for API
@@ -88,14 +90,19 @@ const BtcImportTab = () => {
       const result = await response.json();
       
       // Set success message and results
+      const eventCount = result.btcEvents?.total || 0;
+      const createdCount = result.ttEvents?.created || 0;
+      const failedCount = result.ttEvents?.failed || 0;
+      
       setSuccess(dryRun 
-        ? 'Dry run completed successfully. No events were created.' 
-        : 'Import completed successfully.');
+        ? `Dry run completed successfully. Found ${eventCount} events that would be processed. No events were created.` 
+        : `Import completed successfully. Created ${createdCount} events${failedCount > 0 ? ` (${failedCount} failed)` : ''}.`);
       setImportResults(result);
     } catch (err) {
       setError(err.message || 'An error occurred during import');
     } finally {
       setLoading(false);
+      setProgress(null);
     }
   };
   
@@ -226,6 +233,34 @@ const BtcImportTab = () => {
         <Alert severity="error" sx={{ mb: 3 }}>
           <AlertTitle>Import Error</AlertTitle>
           {error}
+          {importResults && (
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="subtitle2">Partial Results:</Typography>
+              <Typography variant="body2">
+                {importResults.btcEvents?.processed || 0} events processed out of {importResults.btcEvents?.total || 0} found.
+              </Typography>
+              {importResults.ttEvents?.created > 0 && (
+                <Typography variant="body2">
+                  {importResults.ttEvents.created} events successfully created.
+                </Typography>
+              )}
+              {importResults.ttEvents?.failed > 0 && (
+                <Typography variant="body2">
+                  {importResults.ttEvents.failed} events failed to import.
+                </Typography>
+              )}
+            </Box>
+          )}
+        </Alert>
+      )}
+      
+      {progress && loading && (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          <AlertTitle>Import In Progress</AlertTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <CircularProgress size={24} sx={{ mr: 2 }} />
+            <Typography>{progress.message || 'Processing import...'}</Typography>
+          </Box>
         </Alert>
       )}
       
@@ -256,6 +291,11 @@ const BtcImportTab = () => {
                 <Typography>
                   <strong>Import Time:</strong> {importResults.duration?.toFixed(2) || 0} seconds
                 </Typography>
+                {importResults.dates && importResults.dates.length > 0 && (
+                  <Typography>
+                    <strong>Dates Processed:</strong> {importResults.dates.length}
+                  </Typography>
+                )}
               </Box>
             </Grid>
             
@@ -303,6 +343,46 @@ const BtcImportTab = () => {
                   </Box>
                 )}
               </Alert>
+            </Box>
+          )}
+          
+          {/* Detailed Results (if available) */}
+          {importResults.dates && importResults.dates.length > 0 && (
+            <Box sx={{ mt: 3 }}>
+              <Typography variant="subtitle1">Import Details</Typography>
+              
+              <Box sx={{ mt: 1 }}>
+                {importResults.dates.map((dateResult, index) => (
+                  <Box key={index} sx={{ mb: 2, p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
+                    <Typography variant="subtitle2">
+                      Date: {dateResult.date}
+                    </Typography>
+                    
+                    <Grid container spacing={1} sx={{ mt: 1 }}>
+                      <Grid item xs={6} md={3}>
+                        <Typography variant="body2">
+                          <strong>Events Found:</strong> {dateResult.results.btcEvents?.total || 0}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={6} md={3}>
+                        <Typography variant="body2">
+                          <strong>Created:</strong> {dateResult.results.ttEvents?.created || 0}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={6} md={3}>
+                        <Typography variant="body2">
+                          <strong>Failed:</strong> {dateResult.results.ttEvents?.failed || 0}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={6} md={3}>
+                        <Typography variant="body2">
+                          <strong>Duration:</strong> {dateResult.results.duration?.toFixed(2) || 0}s
+                        </Typography>
+                      </Grid>
+                    </Grid>
+                  </Box>
+                ))}
+              </Box>
             </Box>
           )}
         </Paper>
