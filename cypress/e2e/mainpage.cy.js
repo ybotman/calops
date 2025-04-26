@@ -1,5 +1,6 @@
-describe('template spec', () => {
-  it('passes', () => {
-    cy.visit('https://example.cypress.io')
+describe('Main page test', () => {
+  it('successfully loads', () => {
+    cy.visit('/')
+    cy.contains('h1', 'Calendar Admin').should('be.visible')
   })
 })

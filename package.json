@@ -6,11 +6,15 @@
   "type": "module",
   "scripts": {
     "dev": "next dev -p 3003",
+    "dev:alt": "next dev -p 3111",
+    "dev:cypress": "next dev -p 3013",
     "build": "next build",
     "start": "next start -p 3003",
     "lint": "next lint",
     "format": "prettier --write .",
-    "sync-models": "node scripts/syncModels.js"
+    "sync-models": "node scripts/syncModels.js",
+    "cypress": "cypress open",
+    "test:e2e": "start-server-and-test dev:cypress http://localhost:3013 cypress"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -21,7 +25,9 @@
     "@mui/icons-material": "^6.1.5",
     "@mui/material": "^6.1.5",
     "@mui/x-data-grid": "^7.22.0",
+    "@mui/x-date-pickers": "^8.1.0",
     "axios": "^1.8.4",
+    "date-fns": "^4.1.0",
     "dotenv": "^16.4.5",
     "firebase": "^11.6.0",
     "firebase-admin": "^13.0.1",
@@ -37,6 +43,7 @@
     "cypress": "^14.3.2",
     "eslint": "^9.13.0",
     "eslint-config-next": "^15.0.1",
-    "prettier": "^3.3.3"
+    "prettier": "^3.3.3",
+    "start-server-and-test": "^2.0.11"
   }
 }

@@ -14,6 +14,17 @@ const __dirname = path.dirname(__filename);
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3010/api';
 const APP_ID = process.env.APP_ID || '1';
 
+// Default Boston masteredCity information for fallback use
+const BOSTON_DEFAULTS = {
+  masteredCityId: "64f26a9f75bfc0db12ed7a1e",
+  masteredCityName: "Boston",
+  masteredDivisionId: "64f26a9f75bfc0db12ed7a15",
+  masteredDivisionName: "Massachusetts",
+  masteredRegionId: "64f26a9f75bfc0db12ed7a12",
+  masteredRegionName: "New England",
+  coordinates: [-71.0589, 42.3601] // Boston coordinates [longitude, latitude]
+};
+
 // Cache for entity lookups to minimize API calls
 const cache = {
   venues: new Map(), // name -> venueId
@@ -105,6 +116,37 @@ export async function resolveVenue(btcVenue) {
       }
     } catch (fallbackError) {
       console.error(`Error using NotFound venue fallback: ${fallbackError.message}`);
+    }
+    
+    // If NotFound venue fallback fails, try creating a new venue with Boston defaults
+    try {
+      // Use the venue name and Boston defaults to create a minimum venue record
+      const newVenuePayload = {
+        name: venueName,
+        address1: "Unknown Address",
+        city: BOSTON_DEFAULTS.masteredCityName,
+        state: BOSTON_DEFAULTS.masteredDivisionName,
+        zipcode: "00000", // Placeholder zipcode
+        latitude: BOSTON_DEFAULTS.coordinates[1],
+        longitude: BOSTON_DEFAULTS.coordinates[0],
+        masteredCityId: BOSTON_DEFAULTS.masteredCityId,
+        masteredDivisionId: BOSTON_DEFAULTS.masteredDivisionId,
+        masteredRegionId: BOSTON_DEFAULTS.masteredRegionId,
+        appId: APP_ID,
+        isValidVenueGeolocation: true, // Mark as valid since using known good coordinates
+        venueFromBTC: true // Flag to identify venues created from BTC import
+      };
+      
+      const createResponse = await axios.post(`${API_BASE_URL}/venues?appId=${APP_ID}`, newVenuePayload);
+      
+      if (createResponse.data && createResponse.data._id) {
+        const newVenueId = createResponse.data._id;
+        console.log(`Created new venue with Boston defaults for "${venueName}" -> ${newVenueId}`);
+        cache.venues.set(venueName, newVenueId);
+        return newVenueId;
+      }
+    } catch (createError) {
+      console.error(`Error creating fallback venue for "${venueName}": ${createError.message}`);
     }
     
     // Log unmatched venue
@@ -434,8 +476,22 @@ export async function getVenueGeography(venueId) {
         // Default to Boston coordinates as last resort
         cityGeolocation = {
           type: "Point",
-          coordinates: [-71.0589, 42.3601] // Explicit coordinates for Boston
+          coordinates: BOSTON_DEFAULTS.coordinates // Explicit coordinates for Boston
         };
+        
+        // If we're using Boston fallback, also set the masteredCityId if not already set
+        if (!venue.masteredCityId) {
+          console.log(`Setting default Boston masteredCityId for venue ${venueId}`);
+          try {
+            await axios.put(`${API_BASE_URL}/venues/${venueId}?appId=${APP_ID}`, {
+              ...venue,
+              masteredCityId: BOSTON_DEFAULTS.masteredCityId,
+              appId: APP_ID
+            });
+          } catch (updateError) {
+            console.error(`Failed to update venue ${venueId} with default masteredCityId: ${updateError.message}`);
+          }
+        }
       }
       
       // Determine if the venue's geolocation is valid
@@ -482,16 +538,19 @@ export async function getVenueGeography(venueId) {
         }
       }
       
+      // If venue lacks masteredCity information, use Boston defaults
+      const needsBostonDefaults = !venue.masteredCityId && !venue.masteredDivisionId;
+      
       return {
         venueGeolocation: venueGeolocation,
-        masteredCityId: venue.masteredCityId?._id || venue.masteredCityId,
-        masteredCityName: venue.masteredCityId?.cityName || venue.city,
-        masteredDivisionId: venue.masteredDivisionId?._id || venue.masteredDivisionId,
-        masteredDivisionName: venue.masteredDivisionId?.divisionName || venue.state,
-        masteredRegionId: venue.masteredRegionId?._id || venue.masteredRegionId,
-        masteredRegionName: venue.masteredRegionId?.regionName || "Unknown Region",
+        masteredCityId: venue.masteredCityId?._id || venue.masteredCityId || BOSTON_DEFAULTS.masteredCityId,
+        masteredCityName: venue.masteredCityId?.cityName || venue.city || BOSTON_DEFAULTS.masteredCityName,
+        masteredDivisionId: venue.masteredDivisionId?._id || venue.masteredDivisionId || BOSTON_DEFAULTS.masteredDivisionId,
+        masteredDivisionName: venue.masteredDivisionId?.divisionName || venue.state || BOSTON_DEFAULTS.masteredDivisionName,
+        masteredRegionId: venue.masteredRegionId?._id || venue.masteredRegionId || BOSTON_DEFAULTS.masteredRegionId,
+        masteredRegionName: venue.masteredRegionId?.regionName || (needsBostonDefaults ? BOSTON_DEFAULTS.masteredRegionName : "Unknown Region"),
         masteredCityGeolocation: cityGeolocation,
-        isValidVenueGeolocation: isValidVenueGeolocation
+        isValidVenueGeolocation: isValidVenueGeolocation || needsBostonDefaults // If using Boston defaults, consider valid
       };
     }
     return null;
