@@ -718,47 +718,110 @@ export default function VenuesPage() {
       
       do {
         console.log(`Fetching BTC venues page ${currentPage}...`);
-        const response = await axios.get(`https://bostontangocalendar.com/wp-json/tribe/events/v1/venues`, {
-          params: {
-            page: currentPage
+        try {
+          const response = await axios.get(`https://bostontangocalendar.com/wp-json/tribe/events/v1/venues`, {
+            params: {
+              page: currentPage
+            },
+            timeout: 15000 // 15 second timeout
+          });
+          
+          // Get total pages from headers or response
+          if (currentPage === 1) {
+            // Try to get from X-WP-TotalPages header
+            const totalPagesHeader = response.headers['x-wp-totalpages'] || response.headers['X-WP-TotalPages'];
+            if (totalPagesHeader) {
+              totalPages = parseInt(totalPagesHeader, 10);
+            } else if (response.data && response.data.total_pages) {
+              // Fallback to response data
+              totalPages = response.data.total_pages;
+            }
+            console.log(`Total pages of venues: ${totalPages}`);
           }
-        });
-        
-        // Get total pages from headers or response
-        if (currentPage === 1) {
-          // Try to get from X-WP-TotalPages header
-          const totalPagesHeader = response.headers['x-wp-totalpages'] || response.headers['X-WP-TotalPages'];
-          if (totalPagesHeader) {
-            totalPages = parseInt(totalPagesHeader, 10);
-          } else if (response.data && response.data.total_pages) {
-            // Fallback to response data
-            totalPages = response.data.total_pages;
+          
+          if (response.data && response.data.venues) {
+            allVenues = [...allVenues, ...response.data.venues];
+            console.log(`Fetched ${response.data.venues.length} venues from page ${currentPage}`);
+          } else {
+            console.warn(`Invalid response format from BTC API on page ${currentPage}`);
+            break;
           }
-          console.log(`Total pages of venues: ${totalPages}`);
+          
+          currentPage++;
+        } catch (fetchError) {
+          console.error(`Error fetching page ${currentPage} from BTC API:`, fetchError.message);
+          // If we got a response on the first page, we can use what we have
+          if (allVenues.length > 0) {
+            console.warn(`Will use ${allVenues.length} venues already fetched`);
+            break;
+          } else if (currentPage > 1) {
+            // If we're beyond the first page, use what we've got
+            console.warn(`Got ${allVenues.length} venues before error, will use those`);
+            break;
+          } else {
+            // First page failed completely
+            setImportStatus('error');
+            throw new Error(`Failed to fetch venues: ${fetchError.message}`);
+          }
         }
-        
-        if (response.data && response.data.venues) {
-          allVenues = [...allVenues, ...response.data.venues];
-          console.log(`Fetched ${response.data.venues.length} venues from page ${currentPage}`);
-        } else {
-          throw new Error(`Invalid response format from BTC API on page ${currentPage}`);
-        }
-        
-        currentPage++;
       } while (currentPage <= totalPages);
       
-      console.log(`Fetched a total of ${allVenues.length} venues from BTC API`);
+      if (allVenues.length === 0) {
+        setImportStatus('error');
+        throw new Error('No venues found from BTC API');
+      }
+      
+      console.log(`Processing a total of ${allVenues.length} venues from BTC API`);
       
       // Transform the WordPress venue format to our application format
       const transformedVenues = allVenues.map(venue => {
         // Extract coordinates from WordPress venue
         let latitude = null;
         let longitude = null;
+        let coordinatesSource = null;
         
         // Check if we have geo coordinates
         if (venue.geo_lat && venue.geo_lng) {
-          latitude = parseFloat(venue.geo_lat);
-          longitude = parseFloat(venue.geo_lng);
+          try {
+            latitude = parseFloat(venue.geo_lat);
+            longitude = parseFloat(venue.geo_lng);
+            coordinatesSource = 'btc_api';
+            
+            // Validate the coordinates are in reasonable ranges
+            if (isNaN(latitude) || isNaN(longitude) || 
+                latitude < -90 || latitude > 90 || 
+                longitude < -180 || longitude > 180) {
+              console.warn(`Invalid coordinates for venue ${venue.venue}: [${longitude}, ${latitude}]`);
+              latitude = longitude = null; // Will use lookup below
+            }
+          } catch (parseError) {
+            console.warn(`Failed to parse coordinates for venue ${venue.venue}:`, parseError.message);
+            latitude = longitude = null; // Will use lookup below
+          }
+        }
+        
+        // If we don't have coordinates yet, try to look them up based on city/state
+        if (!latitude || !longitude) {
+          // See if we can extract useful location information
+          const city = venue.city || '';
+          const state = venue.state || '';
+          
+          if (city.toLowerCase() === 'boston' || state.toLowerCase() === 'ma' || 
+              state.toLowerCase() === 'massachusetts') {
+            // Use Boston coordinates for Boston or MA venues without coordinates
+            latitude = GeolocationResolver.BOSTON_DEFAULTS.coordinates[1];
+            longitude = GeolocationResolver.BOSTON_DEFAULTS.coordinates[0];
+            coordinatesSource = 'location_based';
+          } else if (city && state) {
+            // For other venues with city/state but no coordinates, we'll try to set them later
+            // via nearest-city lookup in the venue creation process
+            coordinatesSource = 'to_be_determined';
+          } else {
+            // Last resort - use Boston defaults for unknown venues
+            latitude = GeolocationResolver.BOSTON_DEFAULTS.coordinates[1];
+            longitude = GeolocationResolver.BOSTON_DEFAULTS.coordinates[0];
+            coordinatesSource = 'boston_defaults';
+          }
         }
         
         // Check if this venue already exists in our system
@@ -770,9 +833,9 @@ export default function VenuesPage() {
                                venue.address?.toLowerCase()?.includes(existingVenue.address1?.toLowerCase());
           
           // Alternate match: exact coordinates match (if available)
-          const coordMatch = venue.geo_lat && venue.geo_lng && 
-                             existingVenue.latitude === parseFloat(venue.geo_lat) && 
-                             existingVenue.longitude === parseFloat(venue.geo_lng);
+          const coordMatch = latitude && longitude && 
+                             existingVenue.latitude === latitude && 
+                             existingVenue.longitude === longitude;
           
           return (nameMatch && addressMatch) || coordMatch;
         });
@@ -793,6 +856,7 @@ export default function VenuesPage() {
           comments: venue.description || '',
           latitude,
           longitude,
+          coordinatesSource, // Track where the coordinates came from
           isActive: true,
           masteredCityId: '',
           source: 'BTC WordPress',
@@ -1021,7 +1085,9 @@ export default function VenuesPage() {
                 venue.isValidVenueGeolocation = venue.distanceInKm <= 5;
                 console.log(`Setting venue ${venue.name} validation: ${venue.isValidVenueGeolocation} (${venue.distanceInKm.toFixed(2)}km)`);
               } else {
-                venue.isValidVenueGeolocation = false;
+                // For venues with coordinates but no masteredCity yet, set validation based on coordinates source
+                venue.isValidVenueGeolocation = venue.coordinatesSource === 'btc_api'; // Trust original BTC coords
+                console.log(`Setting venue ${venue.name} validation based on coordinate source (${venue.coordinatesSource}): ${venue.isValidVenueGeolocation}`);
               }
             } else {
               // Provide default coordinates for Boston if none exist
@@ -1084,6 +1150,9 @@ export default function VenuesPage() {
                   // Duplicate venue error
                   (saveError.response?.status === 409 && 
                    saveError.response?.data?.error === "Duplicate venue within 100 meters") ||
+                  // GeoNear index error
+                  (saveError.response?.status === 500 && 
+                   saveError.response?.data?.error?.includes("unable to find index for $geoNear query")) ||
                   // Any other 400 or 500 errors that might need default data
                   (saveError.response?.status === 400) || 
                   (saveError.response?.status === 500);
@@ -1100,6 +1169,45 @@ export default function VenuesPage() {
                     // Create a simpler venue object with only the required fields
                     const lat = 42.3601 + randomOffset();
                     const lng = -71.0589 + randomOffset();
+                    
+                    // First try without geolocation if we had a geoNear error
+                    if (saveError.response?.status === 500 && 
+                        saveError.response?.data?.error?.includes("unable to find index for $geoNear query")) {
+                      console.log(`First retry without geolocation for venue ${venue.name}`);
+                      
+                      const noGeoVenue = {
+                        appId: currentApp.id,
+                        name: venue.name || `Imported Venue ${Date.now()}`,
+                        shortName: venue.shortName || '',
+                        address1: venue.address1 || venue.name || "Default Address",
+                        city: "Boston",
+                        state: "MA",
+                        zip: "02108",
+                        phone: venue.phone || '',
+                        comments: venue.comments || '',
+                        // No geolocation
+                        masteredCityId: "64f26a9f75bfc0db12ed7a1e", // Boston city ID
+                        masteredDivisionId: "64f26a9f75bfc0db12ed7a15", // Massachusetts division ID
+                        masteredRegionId: "64f26a9f75bfc0db12ed7a12", // New England region ID
+                        appId: currentApp.id
+                      };
+                      
+                      try {
+                        const noGeoResponse = await axios.post('/api/venues', noGeoVenue);
+                        console.log(`Successfully imported venue without geolocation: ${venue.name}`, noGeoResponse.data);
+                        
+                        setImportResults(prev => ({
+                          ...prev,
+                          success: prev.success + 1
+                        }));
+                        
+                        // Skip the rest of the retry attempts and error counter
+                        return;
+                      } catch (noGeoError) {
+                        console.error(`No-geo retry failed for venue ${venue.name}:`, noGeoError.message);
+                        // Continue to the random location retry
+                      }
+                    }
                     
                     const retryVenue = {
                       appId: currentApp.id,

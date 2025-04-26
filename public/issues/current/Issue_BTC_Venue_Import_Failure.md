@@ -48,7 +48,18 @@ This issue documents the failure of venue import and geolocation validation from
      - Getting coordinates from masteredCity when available 
      - Falling back to Boston coordinates
      - Updating venue records with valid coordinates
-  5. Improved error messages and added retry logic for common error conditions
+  5. Added special handling for MongoDB GeoNear index errors:
+     - Detecting "unable to find index for $geoNear query" errors
+     - Retrying venue creation without geolocation field when this error occurs
+     - Ensuring venues can be created even when the backend geospatial index is missing
+  6. Improved BTC import robustness:
+     - Implementing proper partial failure handling for API requests
+     - Using venues already fetched from successful pages when later pages fail
+     - Adding coordinate source tracking for better data provenance
+     - Implementing intelligent coordinate validation based on source
+     - Ensuring coordinates are always available with proper validation
+     - Adding specific retry logic for different error scenarios
+  7. Improved error messages and added more comprehensive retry logic for all common error conditions
   
 - **Testing:** Ready for manual verification with test BTC import run and venue creation testing
 
