@@ -6,7 +6,23 @@
     "errors": [
       "Venue not found: Ultimate Tango Studio",
       "Category not resolved: Drop-in Class"
-    ]
+    ],
+    "source": {
+      "venue": "Ultimate Tango Studio",
+      "organizer": "Ultimate Tango",
+      "categories": "Drop-in Class, Milonga, WorkShop"
+    },
+    "target": {
+      "venueId": null,
+      "organizerId": "680669162f92688130212454",
+      "categoryFirstId": null
+    },
+    "resolution": {
+      "venueResolved": false,
+      "organizerResolved": true,
+      "categoryResolved": false,
+      "geographyResolved": false
+    }
   },
   {
     "btcId": 10010317,
@@ -15,7 +31,23 @@
     "errors": [
       "Venue not found: Ultimate Tango Studio",
       "Category not resolved: Progressive Class"
-    ]
+    ],
+    "source": {
+      "venue": "Ultimate Tango Studio",
+      "organizer": "Ultimate Tango",
+      "categories": "Progressive Class"
+    },
+    "target": {
+      "venueId": null,
+      "organizerId": "680669162f92688130212454",
+      "categoryFirstId": null
+    },
+    "resolution": {
+      "venueResolved": false,
+      "organizerResolved": true,
+      "categoryResolved": false,
+      "geographyResolved": false
+    }
   },
   {
     "btcId": 10010568,
@@ -24,6 +56,22 @@
     "errors": [
       "Venue not found: Ultimate Tango Studio",
       "Category not resolved: Progressive Class"
-    ]
+    ],
+    "source": {
+      "venue": "Ultimate Tango Studio",
+      "organizer": "Ultimate Tango",
+      "categories": "Progressive Class"
+    },
+    "target": {
+      "venueId": null,
+      "organizerId": "680669162f92688130212454",
+      "categoryFirstId": null
+    },
+    "resolution": {
+      "venueResolved": false,
+      "organizerResolved": true,
+      "categoryResolved": false,
+      "geographyResolved": false
+    }
   }
 ]
