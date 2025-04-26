@@ -1,6 +1,7 @@
 // API route for importing events from Boston Tango Calendar
 import { NextResponse } from 'next/server';
 import path from 'path';
+import fs from 'fs';
 import { processSingleDayImport, performGoNoGoAssessment } from '../../../../../btc-import.js';
 
 // Simple error logging function
@@ -97,6 +98,17 @@ export async function POST(request) {
       overallResults.ttEvents.created += dateResults.ttEvents.created;
       overallResults.ttEvents.failed += dateResults.ttEvents.failed;
       overallResults.duration += dateResults.duration;
+      
+      // Get the failed events from the output directory
+      try {
+        const failedEventsPath = path.join(process.cwd(), 'import-results', `failed-events-${currentDate}.json`);
+        if (fs.existsSync(failedEventsPath)) {
+          const failedEventsData = fs.readFileSync(failedEventsPath, 'utf8');
+          dateResults.failedEvents = JSON.parse(failedEventsData);
+        }
+      } catch (error) {
+        console.error('Failed to read failed events file:', error);
+      }
       
       // Add date-specific results
       overallResults.dates.push({

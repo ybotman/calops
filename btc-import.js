@@ -809,7 +809,29 @@ async function processSingleDayImport(date) {
               btcId: btcEvent.id,
               title: btcEvent.title,
               stage: 'validation',
-              errors: validationResult.errors
+              errors: validationResult.errors,
+              source: {
+                venue: btcEvent.venue ? btcEvent.venue.venue : 'unknown',
+                organizer: btcEvent.organizer ? (Array.isArray(btcEvent.organizer) && btcEvent.organizer.length > 0 
+                  ? btcEvent.organizer[0].organizer 
+                  : btcEvent.organizer.organizer) : 'unknown',
+                categories: btcEvent.categories ? btcEvent.categories.map(c => c.name).join(', ') : 'unknown'
+              },
+              mappedData: {
+                title: ttEvent.title,
+                venueID: ttEvent.venueID,
+                ownerOrganizerID: ttEvent.ownerOrganizerID,
+                ownerOrganizerName: ttEvent.ownerOrganizerName,
+                startDate: ttEvent.startDate,
+                endDate: ttEvent.endDate,
+                categoryFirstId: ttEvent.categoryFirstId,
+                categoryFirst: ttEvent.categoryFirst
+              },
+              validation: {
+                hasRequiredFields: !validationResult.errors.some(err => err.includes('Missing required field')),
+                hasValidDates: !validationResult.errors.some(err => err.includes('Invalid date') || err.includes('Start date is after end date')),
+                hasValidReferences: !validationResult.errors.some(err => err.includes('Category ID present but category name missing'))
+              }
             });
             
             results.ttEvents.failed++;
@@ -820,7 +842,25 @@ async function processSingleDayImport(date) {
             btcId: btcEvent.id,
             title: btcEvent.title,
             stage: 'entity_resolution',
-            errors: resolvedEntities.errors
+            errors: resolvedEntities.errors,
+            source: {
+              venue: btcEvent.venue ? btcEvent.venue.venue : 'unknown',
+              organizer: btcEvent.organizer ? (Array.isArray(btcEvent.organizer) && btcEvent.organizer.length > 0 
+                ? btcEvent.organizer[0].organizer 
+                : btcEvent.organizer.organizer) : 'unknown',
+              categories: btcEvent.categories ? btcEvent.categories.map(c => c.name).join(', ') : 'unknown'
+            },
+            target: {
+              venueId: resolvedEntities.entities.venueId || null,
+              organizerId: resolvedEntities.entities.organizerId || null,
+              categoryFirstId: resolvedEntities.entities.categoryFirstId || null
+            },
+            resolution: {
+              venueResolved: !!resolvedEntities.entities.venueId,
+              organizerResolved: !!resolvedEntities.entities.organizerId,
+              categoryResolved: !!resolvedEntities.entities.categoryFirstId,
+              geographyResolved: !!resolvedEntities.geography
+            }
           });
           
           results.ttEvents.failed++;
@@ -832,7 +872,19 @@ async function processSingleDayImport(date) {
           btcId: btcEvent.id,
           title: btcEvent.title,
           stage: 'processing',
-          error: error.message
+          error: error.message,
+          source: {
+            venue: btcEvent.venue ? btcEvent.venue.venue : 'unknown',
+            organizer: btcEvent.organizer ? (Array.isArray(btcEvent.organizer) && btcEvent.organizer.length > 0 
+              ? btcEvent.organizer[0].organizer 
+              : btcEvent.organizer.organizer) : 'unknown',
+            categories: btcEvent.categories ? btcEvent.categories.map(c => c.name).join(', ') : 'unknown'
+          },
+          debugInfo: {
+            errorName: error.name,
+            errorStack: error.stack,
+            processingStage: 'Unknown'
+          }
         });
         
         results.ttEvents.failed++;
