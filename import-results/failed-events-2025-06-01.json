@@ -1,0 +1,29 @@
+[
+  {
+    "btcId": 10016791,
+    "title": "UT – Open Level –  I Had the Heart – One-of-a-kind tango experience with Oliver Kolker",
+    "stage": "entity_resolution",
+    "errors": [
+      "Venue not found: Ultimate Tango Studio",
+      "Category not resolved: Drop-in Class"
+    ]
+  },
+  {
+    "btcId": 10010317,
+    "title": "UT Pre-Advanced Argentine Tango &#8211; Learn Back Sacadas",
+    "stage": "entity_resolution",
+    "errors": [
+      "Venue not found: Ultimate Tango Studio",
+      "Category not resolved: Progressive Class"
+    ]
+  },
+  {
+    "btcId": 10010568,
+    "title": "UT Advanced Argentine Tango &#8211; Elaborate exploration",
+    "stage": "entity_resolution",
+    "errors": [
+      "Venue not found: Ultimate Tango Studio",
+      "Category not resolved: Progressive Class"
+    ]
+  }
+]

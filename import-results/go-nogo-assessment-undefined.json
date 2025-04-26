@@ -1,0 +1,20 @@
+{
+  "canProceed": false,
+  "metrics": {
+    "entityResolutionRate": 0.4,
+    "validationRate": 1,
+    "overallSuccessRate": 0.4,
+    "entityFailureCount": 3,
+    "validationFailureCount": 0,
+    "processingFailureCount": 3
+  },
+  "thresholds": {
+    "minimumResolutionRate": 0.9,
+    "minimumValidationRate": 0.95,
+    "minimumOverallRate": 0.85
+  },
+  "recommendations": [
+    "Entity resolution rate below threshold. Add missing entities and update mappings.",
+    "Overall success rate below threshold. Review failed events and address issues."
+  ]
+}
