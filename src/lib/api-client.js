@@ -59,7 +59,8 @@ apiClient.interceptors.response.use(
 export const usersApi = {
   getUsers: async (appId = '1', active, timestamp) => {
     try {
-      let url = `/api/userlogins/all?appId=${appId}`;
+      // Use the Next.js API route instead of direct backend access
+      let url = `/api/users?appId=${appId}`;
       if (active !== undefined) {
         url += `&active=${active}`;
       }
@@ -68,9 +69,9 @@ export const usersApi = {
         url += `&_=${timestamp}`;
       }
       console.log('Getting users with URL:', url);
-      const response = await apiClient.get(url);
+      const response = await axios.get(url);
       
-      // The API returns {users: Array, pagination: Object}
+      // The Next.js API route returns {users: Array, pagination: Object}
       if (response.data && response.data.users && Array.isArray(response.data.users)) {
         console.log(`Received ${response.data.users.length} users from API`);
         return response.data.users;

@@ -19,10 +19,26 @@ export async function GET(request) {
     }
     
     // Fetch users from backend
-    const response = await axios.get(`${BE_URL}/api/userlogins/all?${queryString}`);
-    
-    // Return the data directly
-    return NextResponse.json(response.data);
+    // Now that the backend has been fixed to include the /all endpoint in optimizedUserLoginRoutes,
+    // we can use it directly
+    try {
+      console.log('Fetching users with backend API at /api/userlogins/all');
+      const response = await axios.get(`${BE_URL}/api/userlogins/all?${queryString}`);
+      
+      console.log(`Successfully fetched ${response.data?.users?.length || 0} users from backend`);
+      
+      // Return the data directly
+      return NextResponse.json(response.data);
+    } catch (error) {
+      console.error('Error fetching users from backend:', error);
+      
+      // Return empty data structure with appropriate format
+      return NextResponse.json({ 
+        users: [], 
+        pagination: { total: 0, page: 1, limit: 10 },
+        error: `Backend API error: ${error.message}`
+      }, { status: 500 });
+    }
   } catch (error) {
     console.error('Error fetching users:', error);
     return NextResponse.json({ 

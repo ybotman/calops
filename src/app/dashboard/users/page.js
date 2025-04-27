@@ -1151,7 +1151,7 @@ export default function UsersPage() {
               pagination
               page={pagination.page}
               pageSize={pagination.pageSize}
-              rowCount={pagination.totalCount}
+              // rowCount removed as it's not needed with client-side pagination
               rowsPerPageOptions={[10, 25, 50, 100]}
               onPageChange={(newPage) => setPagination(prev => ({ ...prev, page: newPage }))}
               onPageSizeChange={(newPageSize) => setPagination(prev => ({ ...prev, pageSize: newPageSize, page: 0 }))}
@@ -1183,7 +1183,7 @@ export default function UsersPage() {
               pagination
               page={pagination.page}
               pageSize={pagination.pageSize}
-              rowCount={pagination.totalCount}
+              // rowCount removed as it's not needed with client-side pagination
               rowsPerPageOptions={[10, 25, 50, 100]}
               onPageChange={(newPage) => setPagination(prev => ({ ...prev, page: newPage }))}
               onPageSizeChange={(newPageSize) => setPagination(prev => ({ ...prev, pageSize: newPageSize, page: 0 }))}
@@ -1215,7 +1215,7 @@ export default function UsersPage() {
               pagination
               page={pagination.page}
               pageSize={pagination.pageSize}
-              rowCount={pagination.totalCount}
+              // rowCount removed as it's not needed with client-side pagination
               rowsPerPageOptions={[10, 25, 50, 100]}
               onPageChange={(newPage) => setPagination(prev => ({ ...prev, page: newPage }))}
               onPageSizeChange={(newPageSize) => setPagination(prev => ({ ...prev, pageSize: newPageSize, page: 0 }))}

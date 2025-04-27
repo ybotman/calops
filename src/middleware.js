@@ -4,8 +4,8 @@ import { NextResponse } from 'next/server';
 const publicPaths = [
   '/login',
   '/api/auth/verify-password',
-  '/MCAdminIcon.png',
-  '/MCAdminSquare.png',
+  '/CalOpsIcon.png',
+  '/CalOpsWide.png',
   '/_next',
   '/favicon.ico'
 ];
