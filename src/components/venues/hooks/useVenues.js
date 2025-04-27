@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { venuesApi } from '@/lib/api-client';
+import axios from 'axios';
 import { useAppContext } from '@/lib/AppContext';
 
 /**
@@ -112,13 +112,17 @@ const useVenues = (options = {}) => {
       // Fetch venues from API with optimized options
       let venuesData;
       try {
-        // Use the venues API client
-        venuesData = await venuesApi.getVenues({ 
-          appId: normalizedAppId,
-          timestamp,
-          // Generate a unique request ID to help with deduplication
-          requestId: `venues-fetch-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
-        });
+        // Direct API call instead of using venues API client
+        const response = await axios.get(`/api/venues?appId=${normalizedAppId}&_=${timestamp}`);
+        
+        // Process the response data
+        if (response.data && Array.isArray(response.data)) {
+          venuesData = response.data;
+        } else if (response.data && response.data.venues && Array.isArray(response.data.venues)) {
+          venuesData = response.data.venues;
+        } else {
+          venuesData = [];
+        }
       } catch (fetchError) {
         // Enhanced retry logic for transient network issues
         if (retryCount < 2) { // Allow up to 2 retries (3 attempts total)
@@ -277,8 +281,9 @@ const useVenues = (options = {}) => {
         appId: venueData.appId || appId
       };
       
-      // Create venue using the API
-      const createdVenue = await venuesApi.createVenue(venueDataWithAppId);
+      // Create venue using direct API call
+      const response = await axios.post('/api/venues', venueDataWithAppId);
+      const createdVenue = response.data;
       
       // Refresh venues list
       await fetchVenues(true);
@@ -309,11 +314,12 @@ const useVenues = (options = {}) => {
         throw new Error('Venue ID is required for update');
       }
       
-      // Update venue using the API
-      const updatedVenue = await venuesApi.updateVenue(venueId, {
+      // Update venue using direct API call
+      const response = await axios.put(`/api/venues/${venueId}?appId=${appId}`, {
         ...data,
         appId: data.appId || appId
       });
+      const updatedVenue = response.data;
       
       // Refresh venues list
       await fetchVenues(true);
@@ -337,8 +343,8 @@ const useVenues = (options = {}) => {
       setLoading(true);
       setError(null);
       
-      // Delete venue using the API
-      await venuesApi.deleteVenue(venueId, appId);
+      // Delete venue using direct API call
+      await axios.delete(`/api/venues/${venueId}?appId=${appId}`);
       
       // Refresh venues list
       await fetchVenues(true);
@@ -361,11 +367,13 @@ const useVenues = (options = {}) => {
       setLoading(true);
       setError(null);
       
-      // Validate venue using the API
-      const result = await venuesApi.validateGeolocation(venueId, {
+      // Validate venue using direct API call
+      const response = await axios.post(`/api/venues/validate-geo`, {
+        venueId,
         ...options,
         appId: options.appId || appId
       });
+      const result = response.data;
       
       // Refresh venues list
       await fetchVenues(true);
@@ -390,11 +398,13 @@ const useVenues = (options = {}) => {
       setLoading(true);
       setError(null);
       
-      // Batch validate venues using the API
-      const result = await venuesApi.batchValidateGeolocation(venueIds, {
+      // Batch validate venues using direct API call
+      const response = await axios.post(`/api/venues/batch-validate-geo`, {
+        venueIds,
         ...options,
         appId: options.appId || appId
       });
+      const result = response.data;
       
       // Refresh venues list
       await fetchVenues(true);
