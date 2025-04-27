@@ -91,30 +91,50 @@ const useUsers = (options = {}) => {
       // Only use cached data if it's less than the configured cache age
       const cacheAge = Date.now() - lastUpdated;
       if (cacheAge < cacheOptions.maxAge) {
+        console.log(`Using cached users data (age: ${Math.round(cacheAge/1000)}s)`);
         return users;
       }
     }
 
     try {
-      setLoading(true);
+      // Don't set loading state immediately if we have cached data
+      // This prevents UI flicker when refreshing in the background
+      if (users.length === 0 || forceRefresh) {
+        setLoading(true);
+      }
       setError(null);
       
       // Add timestamp to force fresh data
       const timestamp = Date.now();
       
-      // Fetch users from API
+      // Always ensure appId is a string
+      let normalizedAppId = appId;
+      if (typeof normalizedAppId === 'object' && normalizedAppId !== null) {
+        console.warn('Object passed as appId in fetchUsers, normalizing', normalizedAppId);
+        normalizedAppId = normalizedAppId.id || '1';
+      }
+      
+      // Fetch users from API with optimized options
       let usersData;
       try {
+        // Use the improved API client
         usersData = await usersApi.getUsers({ 
-          appId,
-          timestamp 
+          appId: normalizedAppId,
+          timestamp,
+          // Generate a unique request ID to help with deduplication
+          requestId: `users-fetch-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
         });
       } catch (fetchError) {
-        // Implement retry logic for transient network issues
+        // Enhanced retry logic for transient network issues
         if (retryCount < 2) { // Allow up to 2 retries (3 attempts total)
           console.warn(`Error fetching users, retrying (attempt ${retryCount + 1}/3)...`, fetchError);
-          // Exponential backoff: 1s, then 2s
-          const delay = 1000 * Math.pow(2, retryCount);
+          
+          // Exponential backoff with jitter to prevent thundering herd
+          const baseDelay = 1000 * Math.pow(2, retryCount);
+          const jitter = Math.random() * 500; // Add up to 500ms of random jitter
+          const delay = baseDelay + jitter;
+          
+          console.log(`Retrying after ${Math.round(delay)}ms delay`);
           await new Promise(resolve => setTimeout(resolve, delay));
           return fetchUsers(forceRefresh, retryCount + 1);
         }
@@ -124,34 +144,91 @@ const useUsers = (options = {}) => {
       // Process users data
       const processedUsers = processUsers(usersData);
       
-      // Update state
-      setUsers(processedUsers);
-      setLastUpdated(Date.now());
-      
-      // Update pagination total count
-      setPagination(prev => ({
-        ...prev,
-        totalCount: processedUsers.length
-      }));
+      // Update state, but only if we got valid data
+      if (Array.isArray(processedUsers) && processedUsers.length > 0) {
+        setUsers(processedUsers);
+        setLastUpdated(Date.now());
+        
+        // Update pagination total count
+        setPagination(prev => ({
+          ...prev,
+          totalCount: processedUsers.length
+        }));
+        
+        console.log(`Successfully fetched and processed ${processedUsers.length} users`);
+      } else if (usersData.length === 0) {
+        // If we got an empty array but it's valid, update the state
+        setUsers([]);
+        setLastUpdated(Date.now());
+        setPagination(prev => ({
+          ...prev,
+          totalCount: 0
+        }));
+        console.log('Received 0 users from API (valid empty result)');
+      } else {
+        console.warn('Invalid users data received:', usersData);
+        // If we have existing users data, don't overwrite it with bad data
+        if (users.length === 0) {
+          setUsers([]);
+          setPagination(prev => ({
+            ...prev,
+            totalCount: 0
+          }));
+        }
+      }
       
       return processedUsers;
     } catch (err) {
       const errorMessage = err.response?.data?.message || err.message;
       console.error(`Error fetching users: ${errorMessage}`, err);
       setError(err);
-      return [];
+      
+      // Don't return empty array if we have existing data
+      return users.length > 0 ? users : [];
     } finally {
       setLoading(false);
     }
   }, [appId, users, lastUpdated, processUsers, cacheOptions.maxAge]);
 
+  // Debounced fetchUsers implementation
+  const debouncedFetchUsers = useCallback(() => {
+    let timeoutId = null;
+    
+    return (forceRefresh = false) => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      
+      // Return a promise that resolves when the fetch is complete
+      return new Promise((resolve) => {
+        timeoutId = setTimeout(async () => {
+          try {
+            const result = await fetchUsers(forceRefresh);
+            resolve(result);
+          } catch (error) {
+            console.error('Error in debounced fetchUsers:', error);
+            resolve([]);
+          }
+        }, 500); // 500ms debounce time
+      });
+    };
+  }, [fetchUsers]);
+  
+  // Use the debounced function
+  const debouncedFetch = useMemo(() => debouncedFetchUsers(), [debouncedFetchUsers]);
+  
   // Fetch users when the hook is first mounted and when appId changes
   useEffect(() => {
     // Only fetch if roles are loaded (or loading failed)
     if (!rolesLoading) {
-      fetchUsers();
+      // Check if the data in the cache is fresh enough
+      const cacheAge = lastUpdated ? Date.now() - lastUpdated : Infinity;
+      
+      if (cacheAge > cacheOptions.maxAge || users.length === 0) {
+        debouncedFetch();
+      }
     }
-  }, [fetchUsers, appId, rolesLoading]);
+  }, [debouncedFetch, appId, rolesLoading, lastUpdated, users.length, cacheOptions.maxAge]);
 
   /**
    * Filter users based on search term and current tab with improved error handling

@@ -5,14 +5,11 @@ import PropTypes from 'prop-types';
 import {
   Box,
   Typography,
-  Button,
-  Tooltip,
   CircularProgress
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
 import StatusDisplay from './StatusDisplay';
+import ActionButtons from './ActionButtons';
 
 /**
  * UserTable component
@@ -75,34 +72,16 @@ const UserTable = ({
       width: 150,
       renderCell: (params) => {
         const user = params.row;
-        const isDeleting = loading && selectedUser?._id === user._id;
+        const isSelected = selectedUser?._id === user._id;
         
         return (
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <Button
-              variant="text"
-              color="primary"
-              onClick={() => onEdit(user)}
-              startIcon={<EditIcon />}
-              size="small"
-            >
-              Edit
-            </Button>
-            
-            <Tooltip title="Delete user permanently">
-              <Button
-                variant="text"
-                color="error"
-                onClick={() => onDelete(user)}
-                startIcon={<DeleteIcon />}
-                disabled={isDeleting}
-                size="small"
-                sx={{ marginLeft: 'auto' }}
-              >
-                {isDeleting ? 'Deleting...' : 'Delete'}
-              </Button>
-            </Tooltip>
-          </Box>
+          <ActionButtons 
+            user={user}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            loading={loading}
+            isSelected={isSelected}
+          />
         );
       }
     },
@@ -117,33 +96,17 @@ const UserTable = ({
       width: 150,
       renderCell: (params) => {
         const user = params.row;
-        const hasOrgId = user.regionalOrganizerInfo?.organizerId;
-        const isProcessing = loading && selectedUser?._id === user._id;
-        
-        if (hasOrgId) {
-          return (
-            <Button
-              variant="outlined"
-              color="secondary"
-              size="small"
-              onClick={() => onDeleteOrganizer(user)}
-              disabled={isProcessing}
-            >
-              {isProcessing ? 'Processing...' : 'Remove Org'}
-            </Button>
-          );
-        }
+        const isSelected = selectedUser?._id === user._id;
         
         return (
-          <Button
-            variant="outlined"
-            color="primary"
-            size="small"
-            onClick={() => onCreateOrganizer(user)}
-            disabled={isProcessing}
-          >
-            {isProcessing ? 'Creating...' : 'Make Organizer'}
-          </Button>
+          <ActionButtons 
+            user={user}
+            onCreateOrganizer={onCreateOrganizer}
+            onDeleteOrganizer={onDeleteOrganizer}
+            loading={loading}
+            isSelected={isSelected}
+            showConfirmation={false}
+          />
         );
       }
     });

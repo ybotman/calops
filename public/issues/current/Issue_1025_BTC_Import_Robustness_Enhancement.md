@@ -1,4 +1,4 @@
-# Issue: BTC Import Robustness Enhancement
+# Issue: 1025 - BTC Import Robustness Enhancement
 
 ## Overview
 The BTC venue import process has been partially fixed, but still shows inconsistent behavior with venue matching, geolocation resolution, and error reporting. Multiple specific patterns of failures have been identified including duplicate detection, geocoding fallbacks, and masteredCity resolution. The import statistics also appear to be inconsistent with the actual import results.
