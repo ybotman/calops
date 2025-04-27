@@ -5,15 +5,18 @@
 
 import usersApi from './users';
 import rolesApi from './roles';
+import venuesApi from './venues';
 
 // Re-export individual APIs
 export {
   usersApi,
-  rolesApi
+  rolesApi,
+  venuesApi
 };
 
 // Default export with all APIs
 export default {
   users: usersApi,
-  roles: rolesApi
+  roles: rolesApi,
+  venues: venuesApi
 };
