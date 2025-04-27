@@ -14,7 +14,16 @@ import {
  */
 const VenuesPageContainer = () => {
   // Use the hooks to fetch and manage data
-  const venuesHook = useVenues();
+  const venuesHook = useVenues({
+    initialFilters: {
+      searchTerm: '',
+      tabValue: 0
+    },
+    cacheOptions: {
+      maxAge: 5 * 60 * 1000 // 5 minutes cache to prevent frequent API calls
+    }
+  });
+  
   const geoHierarchy = useGeoHierarchy();
   
   // Initialize venue filter hook with venues data

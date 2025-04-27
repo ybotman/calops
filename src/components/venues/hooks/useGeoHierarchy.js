@@ -78,8 +78,14 @@ const useGeoHierarchy = (options = {}) => {
       setLoading(prev => ({ ...prev, countries: true }));
       setError(null);
       
+      // Fetch countries from API - ensure appId is valid and always use string
+      const normalizedAppId = typeof appId === 'object' ? (appId?.id || '1') : (appId || '1');
+      
+      // Add timestamp to prevent caching issues
+      const timestamp = Date.now();
+      
       // Fetch countries from API
-      const response = await axios.get(`/api/geo-hierarchy?type=countries&appId=${appId}`);
+      const response = await axios.get(`/api/geo-hierarchy?type=countries&appId=${normalizedAppId}&_=${timestamp}`);
       
       // Process response
       const countriesData = response.data || [];
@@ -96,7 +102,7 @@ const useGeoHierarchy = (options = {}) => {
     } finally {
       setLoading(prev => ({ ...prev, countries: false }));
     }
-  }, [appId, countries, lastUpdated.countries, cacheOptions.maxAge]);
+  }, [appId, cacheOptions.maxAge]);
 
   /**
    * Fetch regions from the API
@@ -141,7 +147,7 @@ const useGeoHierarchy = (options = {}) => {
     } finally {
       setLoading(prev => ({ ...prev, regions: false }));
     }
-  }, [appId, regions, selectedCountry, lastUpdated.regions, cacheOptions.maxAge]);
+  }, [appId, selectedCountry, cacheOptions.maxAge]);
 
   /**
    * Fetch divisions from the API
@@ -186,7 +192,7 @@ const useGeoHierarchy = (options = {}) => {
     } finally {
       setLoading(prev => ({ ...prev, divisions: false }));
     }
-  }, [appId, divisions, selectedRegion, lastUpdated.divisions, cacheOptions.maxAge]);
+  }, [appId, selectedRegion, cacheOptions.maxAge]);
 
   /**
    * Fetch cities from the API
@@ -231,7 +237,7 @@ const useGeoHierarchy = (options = {}) => {
     } finally {
       setLoading(prev => ({ ...prev, cities: false }));
     }
-  }, [appId, cities, selectedDivision, lastUpdated.cities, cacheOptions.maxAge]);
+  }, [appId, selectedDivision, cacheOptions.maxAge]);
 
   /**
    * Fetch geo data by entity ID (gets all parent data too)
@@ -336,42 +342,60 @@ const useGeoHierarchy = (options = {}) => {
   useEffect(() => {
     if (selectedCountry) {
       fetchRegions(selectedCountry);
+      
+      // Clear selections down the hierarchy only if we're changing country
+      // This prevents infinite loops from state changes
+      if (regions.length > 0) {
+        setSelectedRegion(null);
+        setSelectedDivision(null);
+        setSelectedCity(null);
+        setDivisions([]);
+        setCities([]);
+      }
     } else {
       setRegions([]);
+      setSelectedRegion(null);
+      setSelectedDivision(null);
+      setSelectedCity(null);
+      setDivisions([]);
+      setCities([]);
     }
-    
-    // Clear selections down the hierarchy
-    setSelectedRegion(null);
-    setSelectedDivision(null);
-    setSelectedCity(null);
-    setDivisions([]);
-    setCities([]);
   }, [selectedCountry, fetchRegions]);
 
   // Fetch divisions when the selected region changes
   useEffect(() => {
     if (selectedRegion) {
       fetchDivisions(selectedRegion);
+      
+      // Clear selections down the hierarchy only if we're changing region
+      // This prevents infinite loops from state changes
+      if (divisions.length > 0) {
+        setSelectedDivision(null);
+        setSelectedCity(null);
+        setCities([]);
+      }
     } else {
       setDivisions([]);
+      setSelectedDivision(null);
+      setSelectedCity(null);
+      setCities([]);
     }
-    
-    // Clear selections down the hierarchy
-    setSelectedDivision(null);
-    setSelectedCity(null);
-    setCities([]);
   }, [selectedRegion, fetchDivisions]);
 
   // Fetch cities when the selected division changes
   useEffect(() => {
     if (selectedDivision) {
       fetchCities(selectedDivision);
+      
+      // Clear city selection only if we're changing division and had cities before
+      // This prevents infinite loops from state changes
+      if (cities.length > 0) {
+        setSelectedCity(null);
+      }
     } else {
       setCities([]);
+      setSelectedCity(null);
     }
-    
-    // Clear selections down the hierarchy
-    setSelectedCity(null);
   }, [selectedDivision, fetchCities]);
 
   /**
