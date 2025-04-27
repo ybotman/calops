@@ -165,88 +165,315 @@ export async function resolveVenue(btcVenue) {
  * @returns {Promise<{id: string, name: string}|null>} - TT organizer info or null if not found
  */
 export async function resolveOrganizer(btcOrganizer) {
-  if (!btcOrganizer || !btcOrganizer.organizer) {
-    console.warn('Empty organizer object received');
-    return null;
-  }
+  // Create a log entry for this organizer resolution attempt
+  const logEntry = {
+    timestamp: new Date().toISOString(),
+    source: btcOrganizer,
+    result: null,
+    attempts: [],
+    success: false,
+    errorDetails: null
+  };
 
-  const organizerName = btcOrganizer.organizer;
-  
-  // Check cache first
-  if (cache.organizers.has(organizerName)) {
-    return cache.organizers.get(organizerName);
-  }
-  
-  // Check if it's in the unmatched cache
-  if (cache.unmatched.organizers.has(organizerName)) {
-    return null;
-  }
-  
   try {
-    // Try primary lookup by btcNiceName first (specific integration field)
-    const encodedName = encodeURIComponent(organizerName);
-    let response = await axios.get(`${API_BASE_URL}/organizers?appId=${APP_ID}&btcNiceName=${encodedName}`);
+    // Step 1: Validate input
+    if (!btcOrganizer || !btcOrganizer.organizer) {
+      const error = 'Empty organizer object received';
+      console.warn(error);
+      
+      logEntry.errorDetails = { type: 'validation', message: error };
+      logOrganizerResolution(logEntry);
+      
+      return null;
+    }
+
+    const organizerName = btcOrganizer.organizer;
+    const organizerId = btcOrganizer.id || 'unknown';
     
-    if (response.data && response.data.organizers && response.data.organizers.length > 0) {
-      // Found match by btcNiceName
-      const organizerInfo = {
-        id: response.data.organizers[0]._id,
-        name: response.data.organizers[0].fullName || organizerName
-      };
-      cache.organizers.set(organizerName, organizerInfo);
-      console.log(`Organizer matched by btcNiceName: "${organizerName}" -> ${organizerInfo.id}`);
-      return organizerInfo;
+    logEntry.source = {
+      id: organizerId,
+      name: organizerName,
+      email: btcOrganizer.email || 'unknown'
+    };
+    
+    console.log(`🔍 Resolving organizer: "${organizerName}" (ID: ${organizerId})`);
+    
+    // Step 2: Check cache first
+    if (cache.organizers.has(organizerName)) {
+      const cachedResult = cache.organizers.get(organizerName);
+      console.log(`✅ Organizer found in cache: "${organizerName}" -> ${cachedResult.id}`);
+      
+      logEntry.result = cachedResult;
+      logEntry.success = true;
+      logEntry.attempts.push({
+        method: 'cache',
+        success: true,
+        target: cachedResult
+      });
+      
+      logOrganizerResolution(logEntry);
+      
+      return cachedResult;
     }
     
-    // Fall back to name matching
-    response = await axios.get(`${API_BASE_URL}/organizers?appId=${APP_ID}&name=${encodedName}`);
-    
-    if (response.data && response.data.organizers && response.data.organizers.length > 0) {
-      // Found match by name
-      const organizerInfo = {
-        id: response.data.organizers[0]._id,
-        name: response.data.organizers[0].fullName || organizerName
-      };
-      cache.organizers.set(organizerName, organizerInfo);
-      console.log(`Organizer matched by name: "${organizerName}" -> ${organizerInfo.id}`);
-      return organizerInfo;
+    // Step 3: Check if it's in the unmatched cache
+    if (cache.unmatched.organizers.has(organizerName)) {
+      console.log(`❌ Organizer previously unmatched (in cache): "${organizerName}"`);
+      
+      logEntry.attempts.push({
+        method: 'unmatched-cache',
+        success: false
+      });
+      
+      logOrganizerResolution(logEntry);
+      
+      return null;
     }
     
-    // Try using the default "Un-Identified" organizer
+    // Step 4: Try primary lookup by btcNiceName first (specific integration field)
     try {
+      const encodedName = encodeURIComponent(organizerName);
+      console.log(`🔍 Looking up organizer by btcNiceName: "${organizerName}"`);
+      
+      const btcNiceNameAttempt = {
+        method: 'btcNiceName',
+        query: `${API_BASE_URL}/organizers?appId=${APP_ID}&btcNiceName=${encodedName}`,
+        success: false
+      };
+      
+      let response = await axios.get(`${API_BASE_URL}/organizers?appId=${APP_ID}&btcNiceName=${encodedName}`);
+      
+      btcNiceNameAttempt.status = response.status;
+      btcNiceNameAttempt.resultCount = response.data?.organizers?.length || 0;
+      
+      if (response.data && response.data.organizers && response.data.organizers.length > 0) {
+        // Found match by btcNiceName
+        const organizerInfo = {
+          id: response.data.organizers[0]._id,
+          name: response.data.organizers[0].fullName || organizerName,
+          source: 'btcNiceName'
+        };
+        
+        btcNiceNameAttempt.success = true;
+        btcNiceNameAttempt.result = organizerInfo;
+        
+        cache.organizers.set(organizerName, organizerInfo);
+        console.log(`✅ Organizer matched by btcNiceName: "${organizerName}" -> ${organizerInfo.id}`);
+        
+        logEntry.result = organizerInfo;
+        logEntry.success = true;
+        logEntry.attempts.push(btcNiceNameAttempt);
+        
+        logOrganizerResolution(logEntry);
+        
+        return organizerInfo;
+      }
+      
+      logEntry.attempts.push(btcNiceNameAttempt);
+      console.log(`❌ No match found by btcNiceName: "${organizerName}"`);
+    } catch (btcNiceNameError) {
+      const errorDetail = {
+        method: 'btcNiceName',
+        error: btcNiceNameError.message,
+        status: btcNiceNameError.response?.status,
+        stack: btcNiceNameError.stack
+      };
+      
+      console.error(`Error looking up organizer by btcNiceName: "${organizerName}"`, btcNiceNameError.message);
+      logEntry.attempts.push(errorDetail);
+    }
+    
+    // Step 5: Fall back to name matching
+    try {
+      const encodedName = encodeURIComponent(organizerName);
+      console.log(`🔍 Looking up organizer by name: "${organizerName}"`);
+      
+      const nameMatchAttempt = {
+        method: 'name',
+        query: `${API_BASE_URL}/organizers?appId=${APP_ID}&name=${encodedName}`,
+        success: false
+      };
+      
+      let response = await axios.get(`${API_BASE_URL}/organizers?appId=${APP_ID}&name=${encodedName}`);
+      
+      nameMatchAttempt.status = response.status;
+      nameMatchAttempt.resultCount = response.data?.organizers?.length || 0;
+      
+      if (response.data && response.data.organizers && response.data.organizers.length > 0) {
+        // Found match by name
+        const organizerInfo = {
+          id: response.data.organizers[0]._id,
+          name: response.data.organizers[0].fullName || organizerName,
+          source: 'name'
+        };
+        
+        nameMatchAttempt.success = true;
+        nameMatchAttempt.result = organizerInfo;
+        
+        cache.organizers.set(organizerName, organizerInfo);
+        console.log(`✅ Organizer matched by name: "${organizerName}" -> ${organizerInfo.id}`);
+        
+        logEntry.result = organizerInfo;
+        logEntry.success = true;
+        logEntry.attempts.push(nameMatchAttempt);
+        
+        logOrganizerResolution(logEntry);
+        
+        return organizerInfo;
+      }
+      
+      logEntry.attempts.push(nameMatchAttempt);
+      console.log(`❌ No match found by name: "${organizerName}"`);
+    } catch (nameMatchError) {
+      const errorDetail = {
+        method: 'name',
+        error: nameMatchError.message,
+        status: nameMatchError.response?.status,
+        stack: nameMatchError.stack
+      };
+      
+      console.error(`Error looking up organizer by name: "${organizerName}"`, nameMatchError.message);
+      logEntry.attempts.push(errorDetail);
+    }
+    
+    // Step 6: Try using the default "Un-Identified" organizer
+    try {
+      console.log(`🔍 Looking for default organizer as fallback for: "${organizerName}"`);
+      
+      const defaultOrganizerAttempt = {
+        method: 'default-organizer',
+        query: `${API_BASE_URL}/organizers?appId=${APP_ID}&shortName=DEFAULT`,
+        success: false
+      };
+      
       const defaultResponse = await axios.get(`${API_BASE_URL}/organizers?appId=${APP_ID}&shortName=DEFAULT`);
+      
+      defaultOrganizerAttempt.status = defaultResponse.status;
+      defaultOrganizerAttempt.resultCount = defaultResponse.data?.organizers?.length || 0;
+      
       if (defaultResponse.data && defaultResponse.data.organizers && defaultResponse.data.organizers.length > 0) {
         const organizerInfo = {
           id: defaultResponse.data.organizers[0]._id,
-          name: defaultResponse.data.organizers[0].fullName || 'Un-Identified Organizer'
+          name: defaultResponse.data.organizers[0].fullName || 'Un-Identified Organizer',
+          source: 'default'
         };
-        console.log(`Using default organizer for "${organizerName}" -> ${organizerInfo.id}`);
+        
+        defaultOrganizerAttempt.success = true;
+        defaultOrganizerAttempt.result = organizerInfo;
+        
+        console.log(`✅ Using default organizer for "${organizerName}" -> ${organizerInfo.id}`);
         cache.organizers.set(organizerName, organizerInfo);
+        
+        logEntry.result = organizerInfo;
+        logEntry.success = true;
+        logEntry.attempts.push(defaultOrganizerAttempt);
+        
+        logOrganizerResolution(logEntry);
+        
         return organizerInfo;
       }
+      
+      logEntry.attempts.push(defaultOrganizerAttempt);
+      console.log(`❌ No default organizer found for: "${organizerName}"`);
     } catch (fallbackError) {
+      const errorDetail = {
+        method: 'default-organizer',
+        error: fallbackError.message,
+        status: fallbackError.response?.status,
+        stack: fallbackError.stack
+      };
+      
       console.error(`Error using default organizer fallback: ${fallbackError.message}`);
+      logEntry.attempts.push(errorDetail);
     }
     
-    // For testing purposes, create a mock ID for some organizers
+    // Step 7: For testing purposes, create a mock ID for some organizers
     if (['John Doe', 'Jane Smith', 'Tango Community'].includes(organizerName)) {
       const mockId = `mock-organizer-${Math.random().toString(36).substring(2, 9)}`;
       const organizerInfo = {
         id: mockId,
-        name: organizerName
+        name: organizerName,
+        source: 'mock'
       };
+      
       cache.organizers.set(organizerName, organizerInfo);
-      console.log(`Organizer mock-matched: "${organizerName}" -> ${mockId}`);
+      console.log(`✅ Organizer mock-matched: "${organizerName}" -> ${mockId}`);
+      
+      logEntry.result = organizerInfo;
+      logEntry.success = true;
+      logEntry.attempts.push({
+        method: 'mock',
+        success: true,
+        result: organizerInfo
+      });
+      
+      logOrganizerResolution(logEntry);
+      
       return organizerInfo;
     }
     
-    // Log unmatched organizer
-    console.warn(`Unmatched organizer: "${organizerName}"`);
+    // Step 8: All attempts failed, log unmatched organizer
+    console.warn(`❌ Unmatched organizer after all attempts: "${organizerName}"`);
     cache.unmatched.organizers.add(organizerName);
+    
+    logEntry.errorDetails = {
+      type: 'unmatched',
+      message: `No matching organizer found for "${organizerName}" after all resolution attempts`
+    };
+    
+    logOrganizerResolution(logEntry);
+    
     return null;
   } catch (error) {
-    console.error(`Error resolving organizer "${organizerName}":`, error.message);
+    // Step 9: Handle unexpected errors
+    console.error(`❌ Error resolving organizer:`, error);
+    
+    logEntry.errorDetails = {
+      type: 'unexpected',
+      message: error.message,
+      stack: error.stack
+    };
+    
+    logOrganizerResolution(logEntry);
+    
     return null;
+  }
+}
+
+/**
+ * Log organizer resolution details to a file for analysis
+ * @param {Object} logEntry - The log entry to save
+ */
+function logOrganizerResolution(logEntry) {
+  try {
+    // Get the base directory
+    const baseDir = process.env.OUTPUT_DIR || path.join(__dirname, 'import-results');
+    
+    // Create organizer-resolution directory if it doesn't exist
+    const organizerLogsDir = path.join(baseDir, 'organizer-resolution');
+    if (!fs.existsSync(organizerLogsDir)) {
+      fs.mkdirSync(organizerLogsDir, { recursive: true });
+    }
+    
+    // Create a timestamped filename
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const organizerName = logEntry.source?.name || 'unknown';
+    const success = logEntry.success ? 'success' : 'failure';
+    const filename = `${timestamp}-${success}-${organizerName.replace(/[^a-zA-Z0-9]/g, '_')}.json`;
+    
+    // Write the log entry to a file
+    fs.writeFileSync(
+      path.join(organizerLogsDir, filename),
+      JSON.stringify(logEntry, null, 2)
+    );
+    
+    // Also append to a summary file
+    const summaryFile = path.join(organizerLogsDir, 'resolution-summary.log');
+    const summaryLine = `${logEntry.timestamp} | ${organizerName} | ${success} | Methods: ${logEntry.attempts.map(a => a.method).join(', ')}\n`;
+    
+    fs.appendFileSync(summaryFile, summaryLine);
+  } catch (error) {
+    console.error('Error logging organizer resolution:', error);
   }
 }
 

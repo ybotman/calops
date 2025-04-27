@@ -13,18 +13,70 @@ import {
   FormControlLabel,
   Switch,
   Grid,
-  Divider
+  Divider,
+  Tabs,
+  Tab
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import BackupIcon from '@mui/icons-material/Backup';
+import BtcOrganizerTab from './BtcOrganizerTab';
 
 /**
  * BTC Event Import tab component for importing events from Boston Tango Calendar
  */
 const BtcImportTab = () => {
+  // Tab state
+  const [currentTab, setCurrentTab] = useState(0);
+  
+  // Handle tab change
+  const handleTabChange = (event, newValue) => {
+    setCurrentTab(newValue);
+  };
+  
+  // Tab panel component
+  const TabPanel = (props) => {
+    const { children, value, index, ...other } = props;
+    
+    return (
+      <div
+        role="tabpanel"
+        hidden={value !== index}
+        id={`btc-import-tabpanel-${index}`}
+        aria-labelledby={`btc-import-tab-${index}`}
+        {...other}
+      >
+        {value === index && (
+          <Box sx={{ pt: 2 }}>
+            {children}
+          </Box>
+        )}
+      </div>
+    );
+  };
+  
+  // If on organizer tab, render the organizer component
+  if (currentTab === 1) {
+    return (
+      <Box>
+        <Paper sx={{ p: 2, mb: 3 }}>
+          <Typography variant="h6" gutterBottom>Boston Tango Calendar Import</Typography>
+          <Tabs value={currentTab} onChange={handleTabChange} aria-label="BTC Import tabs">
+            <Tab label="Events Import" />
+            <Tab label="Organizers Log" />
+          </Tabs>
+        </Paper>
+        
+        <TabPanel value={currentTab} index={1}>
+          <BtcOrganizerTab />
+        </TabPanel>
+      </Box>
+    );
+  }
+  
+  // For events tab, continue with the original component
   // State for import parameters
   const [afterEqualDate, setAfterEqualDate] = useState(null);
   const [beforeEqualDate, setBeforeEqualDate] = useState(null);
@@ -113,7 +165,14 @@ const BtcImportTab = () => {
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
       <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>Import Events from Boston Tango Calendar</Typography>
+        <Typography variant="h6" gutterBottom>Boston Tango Calendar Import</Typography>
+        <Tabs value={currentTab} onChange={handleTabChange} aria-label="BTC Import tabs" sx={{ mb: 3 }}>
+          <Tab label="Events Import" />
+          <Tab label="Organizers Log" />
+        </Tabs>
+        
+        <TabPanel value={currentTab} index={0}>
+          <Typography variant="subtitle1" gutterBottom>Import Events from Boston Tango Calendar</Typography>
         
         <Grid container spacing={3}>
           {/* Date Filters */}
@@ -219,24 +278,25 @@ const BtcImportTab = () => {
             {loading ? 'Importing...' : (dryRun ? 'Run Dry Import' : 'Run Actual Import')}
           </Button>
         </Box>
+          </TabPanel>
       </Paper>
       
       {/* Results and Error Display */}
-      {error && (
+      {currentTab === 0 && error && (
         <Alert severity="error" sx={{ mb: 3 }}>
           <AlertTitle>Import Error</AlertTitle>
           {error}
         </Alert>
       )}
       
-      {success && (
+      {currentTab === 0 && success && (
         <Alert severity="success" sx={{ mb: 3 }}>
           <AlertTitle>Import Successful</AlertTitle>
           {success}
         </Alert>
       )}
       
-      {importResults && (
+      {currentTab === 0 && importResults && (
         <Paper sx={{ p: 3 }}>
           <Typography variant="h6" gutterBottom>Import Results</Typography>
           
