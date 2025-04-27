@@ -176,8 +176,37 @@ export default function OrganizersPage() {
       console.log(`Refreshing organizers at ${timestamp}...`);
       
       // Use direct API call to bypass caching
-      const response = await axios.get(`/api/organizers?appId=${appId}&_=${timestamp}`);
+      const response = await axios.get(`/api/organizers?appId=${currentApp.id}&_=${timestamp}`);
       const organizersData = response.data;
+      
+      // Check if organizersData is an array
+      if (!Array.isArray(organizersData)) {
+        console.error('Expected array of organizers, got:', typeof organizersData);
+        // If not an array, try to fetch again using the organizersApi client
+        const apiResponse = await organizersApi.getOrganizers(currentApp.id);
+        if (Array.isArray(apiResponse)) {
+          console.log('Successfully retrieved organizers using api client');
+          const processedOrganizers = apiResponse.map(org => ({
+            ...org,
+            id: org._id,
+            displayName: org.name || 'Unnamed Organizer',
+            shortDisplayName: org.shortName || 'No short name',
+            status: org.isActive ? 'Active' : 'Inactive',
+            approved: org.isApproved ? 'Yes' : 'No',
+            enabled: org.isEnabled ? 'Yes' : 'No',
+            userConnected: org.linkedUserLogin ? 'Yes' : 'No',
+          }));
+          
+          console.log(`Refreshed ${processedOrganizers.length} organizers`);
+          setOrganizers(processedOrganizers);
+          return processedOrganizers;
+        }
+        
+        // If both methods fail, return an empty array as fallback
+        console.warn('Failed to get organizers data, returning empty array');
+        setOrganizers([]);
+        return [];
+      }
       
       // Process organizers data
       const processedOrganizers = organizersData.map(org => ({
@@ -196,7 +225,9 @@ export default function OrganizersPage() {
       return processedOrganizers;
     } catch (error) {
       console.error('Error refreshing organizers:', error);
-      throw error;
+      // Return empty array instead of throwing to avoid crashing the UI
+      setOrganizers([]);
+      return [];
     }
   };
 
@@ -212,55 +243,93 @@ export default function OrganizersPage() {
       
       // First, check if this organizer is connected to a user
       if (organizer.linkedUserLogin) {
-        // Find which user is connected to this organizer
-        const users = await usersApi.getUsers(currentApp.id);
-        const connectedUser = users.find(user => 
-          user.regionalOrganizerInfo?.organizerId === organizer._id ||
-          (typeof user.regionalOrganizerInfo?.organizerId === 'object' && 
-           user.regionalOrganizerInfo?.organizerId._id === organizer._id)
-        );
-        
-        if (connectedUser) {
-          // Disconnect organizer from user
-          const userUpdateData = {
-            firebaseUserId: connectedUser.firebaseUserId,
-            appId: connectedUser.appId || currentApp.id,
-            regionalOrganizerInfo: {
-              ...connectedUser.regionalOrganizerInfo,
-              organizerId: null,
-              isApproved: false,
-              isEnabled: false,
-              isActive: false
-            }
-          };
+        try {
+          // Find which user is connected to this organizer
+          const users = await usersApi.getUsers(currentApp.id);
+          const connectedUser = users.find(user => 
+            user.regionalOrganizerInfo?.organizerId === organizer._id ||
+            (typeof user.regionalOrganizerInfo?.organizerId === 'object' && 
+             user.regionalOrganizerInfo?.organizerId._id === organizer._id)
+          );
           
-          // Update user to remove organizer connection
-          await usersApi.updateUser(userUpdateData);
+          if (connectedUser) {
+            // Disconnect organizer from user
+            const userUpdateData = {
+              firebaseUserId: connectedUser.firebaseUserId,
+              appId: connectedUser.appId || currentApp.id,
+              regionalOrganizerInfo: {
+                ...connectedUser.regionalOrganizerInfo,
+                organizerId: null,
+                isApproved: false,
+                isEnabled: false,
+                isActive: false
+              }
+            };
+            
+            // Update user to remove organizer connection
+            await usersApi.updateUser(userUpdateData);
+            console.log(`Successfully disconnected user ${connectedUser.firebaseUserId} from organizer`);
+          }
+        } catch (userError) {
+          console.warn('Error handling user connection:', userError);
+          // Continue with deletion even if user disconnect fails
         }
       }
       
-      // Delete the organizer using the API
-      const deleteResponse = await axios.delete(`/api/organizers/${organizer._id}?appId=${currentApp.id}`);
-      console.log('Delete response:', deleteResponse.data);
-      
-      // Force a delay before refreshing to allow server-side propagation
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Refresh the organizers list
-      const updatedOrganizers = await refreshOrganizers();
-      
-      // Apply any current filters
-      filterOrganizers(searchTerm);
-      
-      // Set a short timeout to reapply filters (sometimes needed for UI refresh)
-      setTimeout(() => {
-        filterOrganizers(searchTerm);
-      }, 100);
-      
-      alert('Organizer deleted successfully!');
+      try {
+        // Delete the organizer using the API
+        const deleteResponse = await axios.delete(`/api/organizers/${organizer._id}?appId=${currentApp.id}`);
+        console.log('Delete response:', deleteResponse.data);
+        
+        // Force a delay before refreshing to allow server-side propagation
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        try {
+          // Use the organizersApi client directly for more reliable fetching
+          const organizersData = await organizersApi.getOrganizers(currentApp.id);
+          
+          // Process organizers data
+          const processedOrganizers = organizersData.map(org => ({
+            ...org,
+            id: org._id,
+            displayName: org.name || 'Unnamed Organizer',
+            shortDisplayName: org.shortName || 'No short name',
+            status: org.isActive ? 'Active' : 'Inactive',
+            approved: org.isApproved ? 'Yes' : 'No',
+            enabled: org.isEnabled ? 'Yes' : 'No',
+            userConnected: org.linkedUserLogin ? 'Yes' : 'No',
+          }));
+          
+          console.log(`Got ${processedOrganizers.length} organizers after deletion`);
+          setOrganizers(processedOrganizers);
+          
+          // Apply any current filters
+          filterOrganizers(searchTerm);
+        } catch (refreshError) {
+          console.error('Error refreshing organizers after deletion:', refreshError);
+          // Fallback to our refreshOrganizers function
+          await refreshOrganizers();
+        }
+        
+        // Set a short timeout to reapply filters (sometimes needed for UI refresh)
+        setTimeout(() => {
+          filterOrganizers(searchTerm);
+        }, 100);
+        
+        alert('Organizer deleted successfully!');
+      } catch (deleteError) {
+        console.error('Error during actual deletion:', deleteError);
+        throw deleteError; // Re-throw for the outer catch
+      }
     } catch (error) {
       console.error('Error deleting organizer:', error);
-      alert(`Error deleting organizer: ${error.message}`);
+      let errorMessage = error.message;
+      
+      if (error.response && error.response.data) {
+        errorMessage = error.response.data.error || error.response.data.details || error.message;
+      }
+      
+      alert(`Error deleting organizer: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
