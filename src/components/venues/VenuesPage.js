@@ -3,8 +3,9 @@
 import React, { useState } from 'react';
 import { Box, Typography, Tabs, Tab, Paper, Button } from '@mui/material';
 import TabPanel from '@/components/common/TabPanel';
-import { VenueSearchBar, VenueTable } from './components';
+import { VenueSearchBar, VenueTable, ImportVenuesDialog } from './components';
 import AddIcon from '@mui/icons-material/Add';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 
 /**
  * VenuesPage component
@@ -59,6 +60,7 @@ const VenuesPage = ({
   const [validateGeoDialogOpen, setValidateGeoDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [editingVenue, setEditingVenue] = useState(null);
+  const [importResult, setImportResult] = useState(null);
   
   // Handlers
   const handleAddVenue = () => setAddDialogOpen(true);
@@ -80,7 +82,10 @@ const VenuesPage = ({
     }
   };
   
-  const handleImport = () => setImportDialogOpen(true);
+  const handleImport = () => {
+    setImportDialogOpen(true);
+    setImportResult(null);
+  };
   
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
@@ -114,6 +119,14 @@ const VenuesPage = ({
             onClick={handleAddVenue}
           >
             Add Venue
+          </Button>
+          <Button
+            variant="outlined"
+            color="primary"
+            startIcon={<CloudUploadIcon />}
+            onClick={handleImport}
+          >
+            Import BTC Venues
           </Button>
         </Box>
       </Box>
@@ -191,7 +204,25 @@ const VenuesPage = ({
         />
       </TabPanel>
       
-      {/* Dialogs will go here */}
+      {/* Import Venues Dialog */}
+      <ImportVenuesDialog
+        open={importDialogOpen}
+        onClose={() => setImportDialogOpen(false)}
+        onImportComplete={(result) => {
+          setImportResult(result);
+          // Refresh venues list after import
+          if (result && (result.imported > 0 || result.updated > 0)) {
+            // Wait a moment to ensure backend has processed everything
+            setTimeout(() => {
+              if (fetchVenues) {
+                fetchVenues(true);
+              }
+            }, 1000);
+          }
+        }}
+      />
+
+      {/* Other dialogs will go here */}
     </Box>
   );
 };

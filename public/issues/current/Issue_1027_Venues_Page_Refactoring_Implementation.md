@@ -29,9 +29,10 @@ This document details the implementation steps taken to refactor the Venues page
 
 ## Current Status
 - ✅ Fixed API endpoint configuration
-- ✅ Added VenueTable component
+- ✅ Added VenueTable component with city, state, zip, and geo status information
 - ✅ Standardized API client usage
 - ✅ Implemented proper event handlers
+- ✅ Added Import BTC Venues functionality with logging and validation
 - ⏳ Need to test with real data
 - ⏳ Consider adding VenueForm component for editing in a future update
 
