@@ -2,9 +2,10 @@
 
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
-import { Box, Typography, Tabs, Tab, Paper } from '@mui/material';
+import { Box, Typography, Tabs, Tab, Paper, Button } from '@mui/material';
 import TabPanel from '@/components/common/TabPanel';
 import { VenueSearchBar } from './components';
+import AddIcon from '@mui/icons-material/Add';
 
 /**
  * VenuesPage component
@@ -91,7 +92,14 @@ const VenuesPage = ({
         </Typography>
         
         <Box sx={{ display: 'flex', gap: 2 }}>
-          {/* Action buttons will go here */}
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<AddIcon />}
+            onClick={handleAddVenue}
+          >
+            Add Venue
+          </Button>
         </Box>
       </Box>
       

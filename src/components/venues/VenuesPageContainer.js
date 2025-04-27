@@ -4,7 +4,8 @@ import React from 'react';
 import VenuesPage from './VenuesPage';
 import { 
   useVenues, 
-  useGeoHierarchy 
+  useGeoHierarchy,
+  useVenueFilter
 } from './hooks';
 
 /**
@@ -14,8 +15,16 @@ import {
 const VenuesPageContainer = () => {
   // Use the hooks to fetch and manage data
   const venuesHook = useVenues();
-  
   const geoHierarchy = useGeoHierarchy();
+  
+  // Initialize venue filter hook with venues data
+  const venueFilter = useVenueFilter({
+    venues: venuesHook.venues,
+    initialFilters: {
+      searchTerm: '',
+      tabValue: 0
+    }
+  });
   
   // Loading state is true if any data is loading
   const loading = venuesHook.loading || 
@@ -25,15 +34,15 @@ const VenuesPageContainer = () => {
   const props = {
     // Venue data
     venues: venuesHook.venues,
-    filteredVenues: venuesHook.filteredVenues,
+    filteredVenues: venueFilter.filteredVenues,
     loading,
     error: venuesHook.error,
     
     // Filters
-    searchTerm: venuesHook.searchTerm,
-    setSearchTerm: venuesHook.setSearchTerm,
-    tabValue: venuesHook.tabValue,
-    setTabValue: venuesHook.setTabValue,
+    searchTerm: venueFilter.searchTerm,
+    setSearchTerm: venueFilter.setSearchTerm,
+    tabValue: venueFilter.tabValue,
+    setTabValue: venueFilter.setTabValue,
     
     // Geo hierarchy data
     countries: geoHierarchy.countries,
