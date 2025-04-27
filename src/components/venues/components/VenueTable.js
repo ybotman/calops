@@ -62,11 +62,14 @@ const VenueTable = ({
   
   // Column definitions
   const columns = [
-    { id: 'name', label: 'Name', minWidth: 200 },
-    { id: 'location', label: 'Location', minWidth: 250 },
-    { id: 'city', label: 'City', minWidth: 150 },
-    { id: 'region', label: 'Region', minWidth: 150 },
-    { id: 'geoStatus', label: 'Geo Status', minWidth: 120 },
+    { id: 'name', label: 'Name', minWidth: 180 },
+    { id: 'location', label: 'Address', minWidth: 200 },
+    { id: 'city', label: 'City', minWidth: 120 },
+    { id: 'state', label: 'State', minWidth: 80 },
+    { id: 'zip', label: 'Zip', minWidth: 80 },
+    { id: 'region', label: 'Region', minWidth: 120 },
+    { id: 'geoStatus', label: 'Geo Status', minWidth: 100 },
+    { id: 'geoUpdated', label: 'Geo Updated', minWidth: 120 },
     { id: 'actions', label: 'Actions', minWidth: 120, align: 'right' }
   ];
   
@@ -122,7 +125,17 @@ const VenueTable = ({
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" noWrap>
-                        {venue.cityName || venue.masteredCityName || venue.city || 'Unknown'}
+                        {venue.cityName || venue.masteredCityName || venue.city || venue.address?.city || 'Unknown'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" noWrap>
+                        {venue.state || venue.address?.state || ''}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" noWrap>
+                        {venue.zip || venue.address?.zip || venue.postalCode || ''}
                       </Typography>
                     </TableCell>
                     <TableCell>
@@ -148,6 +161,15 @@ const VenueTable = ({
                           variant="outlined"
                         />
                       )}
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" noWrap>
+                        {venue.lastGeoUpdate ? 
+                          new Date(venue.lastGeoUpdate).toLocaleDateString() : 
+                          venue.updatedAt ? 
+                            new Date(venue.updatedAt).toLocaleDateString() : 
+                            'Never'}
+                      </Typography>
                     </TableCell>
                     <TableCell align="right">
                       <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>

@@ -13,6 +13,7 @@ This document details the implementation steps taken to refactor the Venues page
 - Created VenueTable component with full functionality for displaying venue data
 - Added pagination support
 - Implemented action buttons for edit, delete, and geo validation
+- Enhanced display to include city, state, zip, and geolocation update timestamps
 - Updated venues component index to export the VenueTable
 
 ### 3. API Client Standardization

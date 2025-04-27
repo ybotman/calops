@@ -88,6 +88,11 @@ const useVenues = (options = {}) => {
         hasValidGeo: !!(normalizedVenue.location?.coordinates && normalizedVenue.masteredCityId),
         cityName: normalizedVenue.masteredCityName || 'Unknown',
         regionName: normalizedVenue.masteredRegionName || 'Unknown',
+        // Add state and zip if available from various sources
+        state: normalizedVenue.state || normalizedVenue.address?.state || '',
+        zip: normalizedVenue.zip || normalizedVenue.address?.zip || normalizedVenue.postalCode || '',
+        // Add geo update timestamp
+        lastGeoUpdate: normalizedVenue.geoUpdatedAt || normalizedVenue.lastGeoUpdate || null,
         locationString: [
           normalizedVenue.name,
           normalizedVenue.address?.street1,
