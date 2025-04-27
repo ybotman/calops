@@ -85,7 +85,7 @@ export default function LoginPage() {
           }}
         >
           <Image
-            src="/MCAdminIcon.png"
+            src="/CalOpsIcon.png"
             alt="Calendar Admin"
             fill
             style={{ objectFit: 'contain' }}

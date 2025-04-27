@@ -55,11 +55,129 @@ apiClient.interceptors.response.use(
   }
 );
 
+/**
+ * Normalize appId to ensure it's always a string
+ * @param {any} appId - The appId value that might be an object or string
+ * @returns {string} - Normalized appId as a string
+ */
+function normalizeAppId(appId) {
+  // If undefined or null, return default
+  if (appId === undefined || appId === null) {
+    return '1';
+  }
+  
+  // If it's already a string, return it
+  if (typeof appId === 'string') {
+    return appId;
+  }
+  
+  // If it's a number, convert to string
+  if (typeof appId === 'number') {
+    return appId.toString();
+  }
+  
+  // If it's an object, try to extract id or _id
+  if (typeof appId === 'object') {
+    console.warn('Object passed as appId, normalizing', appId);
+    
+    // Check for common id properties
+    if (appId.id) {
+      return appId.id.toString();
+    }
+    
+    if (appId._id) {
+      return appId._id.toString();
+    }
+    
+    // Last resort, try toString() or default
+    try {
+      const strValue = appId.toString();
+      // Make sure toString didn't return "[object Object]"
+      if (strValue !== '[object Object]') {
+        return strValue;
+      }
+    } catch (e) {
+      // Ignore toString errors
+    }
+  }
+  
+  // Default fallback
+  return '1';
+}
+
 // Users API
 export const usersApi = {
-  getUsers: async (appId = '1', active, timestamp) => {
+  // API request queue to track in-flight requests
+  _requestQueue: new Map(),
+  
+  // Rate limiter to prevent too many requests
+  _rateLimiter: {
+    lastRequestTime: 0,
+    minInterval: 300, // 300ms minimum time between requests
+    isThrottled: false,
+    retryTimeout: null,
+    
+    // Check if we should throttle a request
+    shouldThrottle() {
+      const now = Date.now();
+      const timeSinceLastRequest = now - this.lastRequestTime;
+      
+      if (this.isThrottled) {
+        return true;
+      }
+      
+      if (timeSinceLastRequest < this.minInterval) {
+        return true;
+      }
+      
+      this.lastRequestTime = now;
+      return false;
+    },
+    
+    // Apply throttling for a brief period
+    throttle(duration = 1000) {
+      this.isThrottled = true;
+      clearTimeout(this.retryTimeout);
+      this.retryTimeout = setTimeout(() => {
+        this.isThrottled = false;
+      }, duration);
+    }
+  },
+  
+  getUsers: async (options = {}) => {
+    // Ensure appId is a string
+    let appId = '1';
+    
+    if (options && typeof options === 'object') {
+      // Extract appId from options object
+      appId = normalizeAppId(options.appId || '1');
+    } else if (options && typeof options === 'string') {
+      // For backward compatibility if just appId is passed
+      appId = options;
+    }
+    
+    // Get active and timestamp from options if provided
+    const active = options && typeof options === 'object' ? options.active : undefined;
+    const timestamp = options && typeof options === 'object' ? options.timestamp : undefined;
+    
+    // Create a request key for deduplication
+    const requestKey = `users-${appId}-${active}-${timestamp || Date.now()}`;
+    
+    // Check if this exact request is in flight
+    if (usersApi._requestQueue.has(requestKey)) {
+      console.log('Request already in progress, returning existing promise');
+      return usersApi._requestQueue.get(requestKey);
+    }
+    
+    // Check for rate limiting
+    if (usersApi._rateLimiter.shouldThrottle()) {
+      console.log('Request throttled, delaying execution');
+      await new Promise(resolve => setTimeout(resolve, usersApi._rateLimiter.minInterval));
+    }
+    
     try {
-      let url = `/api/userlogins/all?appId=${appId}`;
+      // Use the Next.js API route instead of direct backend access
+      let url = `/api/users?appId=${appId}`;
       if (active !== undefined) {
         url += `&active=${active}`;
       }
@@ -67,49 +185,88 @@ export const usersApi = {
       if (timestamp) {
         url += `&_=${timestamp}`;
       }
-      console.log('Getting users with URL:', url);
-      const response = await apiClient.get(url);
       
-      // The API returns {users: Array, pagination: Object}
-      if (response.data && response.data.users && Array.isArray(response.data.users)) {
-        console.log(`Received ${response.data.users.length} users from API`);
-        return response.data.users;
-      } else if (Array.isArray(response.data)) {
-        // Handle case where API might return array directly
-        console.log(`Received ${response.data.length} users directly as array`);
-        return response.data;
-      } else {
-        console.warn('usersApi.getUsers: API did not return users array', response.data);
-        return [];
-      }
+      console.log('Getting users with URL:', url);
+      
+      // Create request promise
+      const requestPromise = new Promise(async (resolve, reject) => {
+        try {
+          const response = await axios.get(url);
+          
+          // Update the rate limiter
+          usersApi._rateLimiter.lastRequestTime = Date.now();
+          
+          // The Next.js API route returns {users: Array, pagination: Object}
+          if (response.data && response.data.users && Array.isArray(response.data.users)) {
+            console.log(`Received ${response.data.users.length} users from API`);
+            resolve(response.data.users);
+          } else if (Array.isArray(response.data)) {
+            // Handle case where API might return array directly
+            console.log(`Received ${response.data.length} users directly as array`);
+            resolve(response.data);
+          } else {
+            console.warn('usersApi.getUsers: API did not return users array', response.data);
+            resolve([]);
+          }
+        } catch (error) {
+          console.error('Error in usersApi.getUsers:', error);
+          // Handle rate limiting errors
+          if (error.response && error.response.status === 429) {
+            console.warn('Rate limited by the server, will retry after delay');
+            usersApi._rateLimiter.throttle(2000); // Throttle for 2 seconds
+            resolve([]); // Return empty array for now
+          } else if (error.response && error.response.status >= 500) {
+            console.error('Server error, will retry after delay');
+            usersApi._rateLimiter.throttle(3000); // Throttle for 3 seconds
+            resolve([]); // Return empty array for now
+          } else {
+            // Return empty array to prevent UI errors
+            resolve([]);
+          }
+        } finally {
+          // Remove from request queue after completion
+          setTimeout(() => {
+            usersApi._requestQueue.delete(requestKey);
+          }, 100);
+        }
+      });
+      
+      // Add to request queue
+      usersApi._requestQueue.set(requestKey, requestPromise);
+      
+      return requestPromise;
     } catch (error) {
-      console.error('Error in usersApi.getUsers:', error);
-      // Return empty array to prevent UI errors
+      console.error('Unexpected error in getUsers wrapper:', error);
       return [];
     }
   },
   
   getUserById: async (firebaseUserId, appId = '1') => {
+    appId = normalizeAppId(appId);
     const response = await apiClient.get(`/api/userlogins/firebase/${firebaseUserId}?appId=${appId}`);
     return response.data;
   },
   
   updateUser: async (userData) => {
     const { firebaseUserId, appId = '1', ...data } = userData;
+    const normalizedAppId = normalizeAppId(appId);
+    
     console.log('Sending update to backend:', {
       firebaseUserId,
-      appId,
+      appId: normalizedAppId,
       ...data
     });
+    
     const response = await apiClient.put('/api/userlogins/updateUserInfo', {
       firebaseUserId,
-      appId,
+      appId: normalizedAppId,
       ...data
     });
     return response.data;
   },
   
   updateUserRoles: async (firebaseUserId, roleIds, appId = '1') => {
+    appId = normalizeAppId(appId);
     const response = await apiClient.put(`/api/userlogins/${firebaseUserId}/roles`, {
       roleIds,
       appId
@@ -118,12 +275,16 @@ export const usersApi = {
   },
   
   createUser: async (userData) => {
+    if (userData.appId) {
+      userData.appId = normalizeAppId(userData.appId);
+    }
     const response = await apiClient.post('/api/userlogins', userData);
     return response.data;
   },
   
   deleteUser: async (userId, appId = '1') => {
     try {
+      appId = normalizeAppId(appId);
       console.log(`Deleting user ${userId} with appId ${appId}...`);
       
       // First attempt the direct database access via our debug endpoint
@@ -134,6 +295,7 @@ export const usersApi = {
       
       // Try the backend API route
       try {
+        appId = normalizeAppId(appId);
         const response = await apiClient.delete(`/api/userlogins/${userId}?appId=${appId}`);
         return response.data;
       } catch (firstError) {
@@ -141,6 +303,7 @@ export const usersApi = {
         
         // Try alternative endpoint
         try {
+          appId = normalizeAppId(appId);
           const alternativeResponse = await apiClient.delete(`/api/users/${userId}?appId=${appId}`);
           return alternativeResponse.data;
         } catch (secondError) {
@@ -158,6 +321,7 @@ export const usersApi = {
 export const rolesApi = {
   getRoles: async (appId = '1') => {
     try {
+      appId = normalizeAppId(appId);
       const response = await apiClient.get(`/api/roles?appId=${appId}`);
       // Handle nested response format with pagination
       if (response.data && response.data.roles && Array.isArray(response.data.roles)) {
@@ -182,6 +346,8 @@ export const rolesApi = {
 export const organizersApi = {
   getOrganizers: async (appId = '1', active, approved) => {
     try {
+      appId = normalizeAppId(appId);
+      
       // Build simple query with required filter params
       let queryParams = new URLSearchParams({
         appId: appId
@@ -230,18 +396,22 @@ export const organizersApi = {
   },
   
   getOrganizerById: async (id, appId = '1') => {
+    appId = normalizeAppId(appId);
     const response = await apiClient.get(`/api/organizers/${id}?appId=${appId}`);
     return response.data;
   },
   
   createOrganizer: async (organizerData) => {
+    if (organizerData.appId) {
+      organizerData.appId = normalizeAppId(organizerData.appId);
+    }
     const response = await apiClient.post('/api/organizers', organizerData);
     return response.data;
   },
   
   updateOrganizer: async (id, organizerData) => {
     // Include appId as a query parameter
-    const appId = organizerData.appId || '1';
+    const appId = normalizeAppId(organizerData.appId || '1');
     const response = await apiClient.patch(`/api/organizers/${id}?appId=${appId}`, organizerData);
     return response.data;
   },
@@ -249,6 +419,7 @@ export const organizersApi = {
   // Helper function to check if a Firebase ID is already in use by another organizer
   checkFirebaseIdUsage: async (firebaseUserId, currentOrganizerId, appId = '1') => {
     try {
+      appId = normalizeAppId(appId);
       // Get all organizers (this should be a small list)
       const response = await apiClient.get(`/api/organizers?appId=${appId}&isActive=true`);
       const organizers = response.data || [];
@@ -275,6 +446,7 @@ export const organizersApi = {
   },
   
   connectToUser: async (id, firebaseUserId, appId = '1') => {
+    appId = normalizeAppId(appId);
     console.log(`Connecting organizer ${id} to user ${firebaseUserId} with appId ${appId}`);
     
     // First, check if the Firebase ID is already in use
@@ -447,6 +619,8 @@ export const organizersApi = {
 export const eventsApi = {
   getEvents: async (filters = {}, appId = '1') => {
     try {
+      appId = normalizeAppId(appId);
+      
       // Build query parameters from filters
       const { 
         active, 
@@ -677,6 +851,7 @@ export const eventsApi = {
   
   getEventById: async (id, appId = '1') => {
     try {
+      appId = normalizeAppId(appId);
       const response = await apiClient.get(`/api/events/id/${id}?appId=${appId}`);
       return response.data;
     } catch (error) {
@@ -687,7 +862,7 @@ export const eventsApi = {
   
   createEvent: async (eventData) => {
     try {
-      const appId = eventData.appId || '1';
+      const appId = normalizeAppId(eventData.appId || '1');
       const response = await apiClient.post(`/api/events/post?appId=${appId}`, eventData);
       return response.data;
     } catch (error) {
@@ -698,7 +873,7 @@ export const eventsApi = {
   
   updateEvent: async (id, eventData) => {
     try {
-      const appId = eventData.appId || '1';
+      const appId = normalizeAppId(eventData.appId || '1');
       const response = await apiClient.put(`/api/events/${id}?appId=${appId}`, eventData);
       return response.data;
     } catch (error) {
@@ -709,6 +884,7 @@ export const eventsApi = {
   
   deleteEvent: async (id, appId = '1') => {
     try {
+      appId = normalizeAppId(appId);
       const response = await apiClient.delete(`/api/events/${id}?appId=${appId}`);
       return response.data;
     } catch (error) {
@@ -720,6 +896,7 @@ export const eventsApi = {
   // Additional helper methods
   toggleEventStatus: async (id, isActive, appId = '1') => {
     try {
+      appId = normalizeAppId(appId);
       const response = await apiClient.patch(`/api/events/${id}?appId=${appId}`, {
         active: isActive
       });
@@ -732,6 +909,7 @@ export const eventsApi = {
   
   getEventCounts: async (appId = '1') => {
     try {
+      appId = normalizeAppId(appId);
       // Use the events endpoint with minimum data and count only
       const activeResponse = await apiClient.get(`/api/events?appId=${appId}&active=true&countOnly=true`);
       const allResponse = await apiClient.get(`/api/events?appId=${appId}&countOnly=true`);

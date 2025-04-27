@@ -1,4 +1,4 @@
-# Issue: BTC Organizer Import Logging
+# Issue: 1024 - BTC Organizer Import Logging
 
 ## Overview
 The BTC organizer import from BostontangoCalendar.com appears to be failing or not loading all the data. This is causing event imports to fail since the organizer resolution step cannot succeed. Enhanced logging is needed to identify the specific issues with the organizer import process.

@@ -1,4 +1,4 @@
-# Issue: BTC Venue Import Geolocation Failure
+# Issue: 1022 - BTC Venue Import Geolocation Failure
 
 ## Overview
 This issue documents the failure of venue import and geolocation validation from BTC.com events. Only 39 out of 70+ venues from BTC.com are being successfully imported, potentially due to masteredCity resolution problems. Additionally, manual venue creation fails with a 400 error "Latitude and longitude are required" when users select masteredCity but don't provide coordinates.
