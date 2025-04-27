@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import axios from 'axios';
 import { useAppContext } from '@/lib/AppContext';
+import venuesApi from '@/lib/api-client/venues';
 
 /**
  * Custom hook for fetching and managing venues data
@@ -55,20 +55,45 @@ const useVenues = (options = {}) => {
     if (!Array.isArray(venuesData)) return [];
     
     return venuesData.map(venue => {
-      return {
+      // Normalize venue properties with fallbacks for different API response formats
+      const normalizedVenue = {
         ...venue,
-        id: venue._id, // For DataGrid key
-        displayName: venue.venueName || 'Unnamed Venue',
-        hasCoordinates: !!(venue.location?.coordinates && venue.location.coordinates.length === 2),
-        hasValidGeo: !!(venue.location?.coordinates && venue.masteredCityId),
-        cityName: venue.masteredCityName || 'Unknown',
-        regionName: venue.masteredRegionName || 'Unknown',
+        _id: venue._id || venue.id, // Support both _id and id
+        name: venue.name || venue.venueName || venue.venue_name || '',
+        location: venue.location || venue.geolocation || {
+          coordinates: venue.coordinates || 
+                      (venue.longitude && venue.latitude ? [venue.longitude, venue.latitude] : null)
+        },
+        address: venue.address || {
+          street1: venue.address1 || venue.street || venue.streetAddress || '',
+          street2: venue.address2 || '',
+          city: venue.city || '',
+          state: venue.state || venue.stateProvince || '',
+          country: venue.country || ''
+        },
+        masteredCityId: venue.masteredCityId || venue.cityId || null,
+        masteredRegionId: venue.masteredRegionId || venue.regionId || null,
+        masteredCityName: venue.masteredCityName || venue.cityName || '',
+        masteredRegionName: venue.masteredRegionName || venue.regionName || ''
+      };
+      
+      // Add computed fields for UI
+      return {
+        ...normalizedVenue,
+        id: normalizedVenue._id, // Ensure id exists for DataGrid key
+        displayName: normalizedVenue.name || 'Unnamed Venue',
+        hasCoordinates: !!(normalizedVenue.location?.coordinates && 
+                        Array.isArray(normalizedVenue.location.coordinates) && 
+                        normalizedVenue.location.coordinates.length === 2),
+        hasValidGeo: !!(normalizedVenue.location?.coordinates && normalizedVenue.masteredCityId),
+        cityName: normalizedVenue.masteredCityName || 'Unknown',
+        regionName: normalizedVenue.masteredRegionName || 'Unknown',
         locationString: [
-          venue.venueName,
-          venue.address?.street1,
-          venue.address?.city,
-          venue.address?.state,
-          venue.address?.country
+          normalizedVenue.name,
+          normalizedVenue.address?.street1,
+          normalizedVenue.address?.city,
+          normalizedVenue.address?.state,
+          normalizedVenue.address?.country
         ].filter(Boolean).join(', ')
       };
     });
@@ -112,15 +137,15 @@ const useVenues = (options = {}) => {
       // Fetch venues from API with optimized options
       let venuesData;
       try {
-        // Direct API call instead of using venues API client
-        const response = await axios.get(`/api/venues?appId=${normalizedAppId}&_=${timestamp}`);
+        // Use venues API client instead of direct axios call
+        venuesData = await venuesApi.getVenues({
+          appId: normalizedAppId,
+          timestamp: timestamp
+        });
         
-        // Process the response data
-        if (response.data && Array.isArray(response.data)) {
-          venuesData = response.data;
-        } else if (response.data && response.data.venues && Array.isArray(response.data.venues)) {
-          venuesData = response.data.venues;
-        } else {
+        // Handle empty array case
+        if (!Array.isArray(venuesData)) {
+          console.warn('Received non-array venues data:', venuesData);
           venuesData = [];
         }
       } catch (fetchError) {
@@ -197,7 +222,18 @@ const useVenues = (options = {}) => {
     if (cacheAge > cacheOptions.maxAge || venues.length === 0) {
       fetchVenues();
     }
-  }, [fetchVenues, appId, lastUpdated, venues.length, cacheOptions.maxAge]);
+    
+    // Set up refresh interval if needed, but avoid constant polling
+    const refreshInterval = 60000; // 1 minute refresh
+    const intervalId = setTimeout(() => {
+      fetchVenues();
+    }, refreshInterval);
+    
+    // Clean up interval on unmount
+    return () => {
+      clearTimeout(intervalId);
+    };
+  }, [fetchVenues, appId]);
 
   /**
    * Filter venues based on search term and current tab

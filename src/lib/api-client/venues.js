@@ -7,7 +7,7 @@ import axios from 'axios';
 import { processResponse, handleApiError, buildQueryString } from './utils';
 
 // Base configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_NEXT_API_URL || '';
+const API_BASE_URL = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
 
 /**
  * Venues API client for interacting with venue endpoints
@@ -52,8 +52,42 @@ const venuesApi = {
       // Make API request
       const response = await axios.get(url);
       
-      // Process response using shared utility
-      return processResponse(response, 'venues', true) || [];
+      // Process response with enhanced handling for different response formats
+      let venues = [];
+      
+      // Handle array directly in response.data
+      if (Array.isArray(response.data)) {
+        venues = response.data;
+      } 
+      // Handle venues property in response.data
+      else if (response.data && response.data.venues && Array.isArray(response.data.venues)) {
+        venues = response.data.venues;
+      }
+      // Handle data property in response.data (common pattern)
+      else if (response.data && response.data.data) {
+        // If data is an array, use it directly
+        if (Array.isArray(response.data.data)) {
+          venues = response.data.data;
+        } 
+        // If data is an object with venue objects as values, convert to array
+        else if (typeof response.data.data === 'object' && response.data.data !== null) {
+          // If appears to be a collection of venues
+          if (Object.values(response.data.data).some(v => v && typeof v === 'object')) {
+            venues = Object.values(response.data.data);
+          }
+          // If appears to be a single venue object
+          else if (response.data.data._id || response.data.data.id) {
+            venues = [response.data.data];
+          }
+        }
+      }
+      // Handle pagination object with results
+      else if (response.data && response.data.results && Array.isArray(response.data.results)) {
+        venues = response.data.results;
+      }
+      
+      // Return processed venues, including an empty array as a valid response
+      return venues;
     } catch (error) {
       return handleApiError(error, {
         returnDefault: true,

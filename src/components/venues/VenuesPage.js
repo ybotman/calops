@@ -1,10 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import PropTypes from 'prop-types';
 import { Box, Typography, Tabs, Tab, Paper, Button } from '@mui/material';
 import TabPanel from '@/components/common/TabPanel';
-import { VenueSearchBar } from './components';
+import { VenueSearchBar, VenueTable } from './components';
 import AddIcon from '@mui/icons-material/Add';
 
 /**
@@ -15,8 +14,8 @@ const VenuesPage = ({
   // Data
   venues,
   filteredVenues,
-  loading,
-  error,
+  loading = false,
+  error = null,
   
   // Filters
   searchTerm,
@@ -38,10 +37,10 @@ const VenuesPage = ({
   cities,
   
   // Geo hierarchy selection
-  selectedCountry,
-  selectedRegion,
-  selectedDivision,
-  selectedCity,
+  selectedCountry = null,
+  selectedRegion = null,
+  selectedDivision = null,
+  selectedCity = null,
   
   setSelectedCountry,
   setSelectedRegion,
@@ -49,7 +48,7 @@ const VenuesPage = ({
   setSelectedCity,
   
   // Other
-  pagination,
+  pagination = { page: 0, pageSize: 10, totalCount: 0 },
   setPagination,
   getCityCoordinates,
   fetchGeoDataById
@@ -69,7 +68,17 @@ const VenuesPage = ({
     setEditDialogOpen(true);
   };
   
-  const handleValidateGeo = () => setValidateGeoDialogOpen(true);
+  const handleValidateGeo = (venue) => {
+    if (venue) {
+      // For single venue validation
+      if (validateVenueGeo) {
+        validateVenueGeo(venue._id || venue.id);
+      }
+    } else {
+      // For batch validation
+      setValidateGeoDialogOpen(true);
+    }
+  };
   
   const handleImport = () => setImportDialogOpen(true);
   
@@ -82,6 +91,12 @@ const VenuesPage = ({
       page,
       pageSize
     });
+  };
+  
+  const handleDeleteVenue = (venue) => {
+    if (window.confirm(`Are you sure you want to delete venue: ${venue.name || venue.displayName}?`)) {
+      deleteVenue(venue.id || venue._id);
+    }
   };
   
   return (
@@ -131,7 +146,15 @@ const VenuesPage = ({
             error ? `Error loading venues: ${error.message}` :
             `${filteredVenues.length} venues found`}
         </Typography>
-        {/* VenueTable will go here */}
+        <VenueTable 
+          venues={filteredVenues}
+          loading={loading}
+          pagination={pagination}
+          onPaginationChange={handlePaginationChange}
+          onEdit={handleEditVenue}
+          onDelete={handleDeleteVenue}
+          onValidateGeo={handleValidateGeo}
+        />
       </TabPanel>
       
       <TabPanel value={tabValue} index={1}>
@@ -140,7 +163,15 @@ const VenuesPage = ({
             error ? `Error loading venues: ${error.message}` :
             `${filteredVenues.length} validated venues found`}
         </Typography>
-        {/* VenueTable will go here */}
+        <VenueTable 
+          venues={filteredVenues}
+          loading={loading}
+          pagination={pagination}
+          onPaginationChange={handlePaginationChange}
+          onEdit={handleEditVenue}
+          onDelete={handleDeleteVenue}
+          onValidateGeo={handleValidateGeo}
+        />
       </TabPanel>
       
       <TabPanel value={tabValue} index={2}>
@@ -149,7 +180,15 @@ const VenuesPage = ({
             error ? `Error loading venues: ${error.message}` :
             `${filteredVenues.length} invalid venues found`}
         </Typography>
-        {/* VenueTable will go here */}
+        <VenueTable 
+          venues={filteredVenues}
+          loading={loading}
+          pagination={pagination}
+          onPaginationChange={handlePaginationChange}
+          onEdit={handleEditVenue}
+          onDelete={handleDeleteVenue}
+          onValidateGeo={handleValidateGeo}
+        />
       </TabPanel>
       
       {/* Dialogs will go here */}
@@ -157,66 +196,6 @@ const VenuesPage = ({
   );
 };
 
-VenuesPage.propTypes = {
-  // Data
-  venues: PropTypes.array.isRequired,
-  filteredVenues: PropTypes.array.isRequired,
-  loading: PropTypes.bool,
-  error: PropTypes.oneOfType([PropTypes.string, PropTypes.object]),
-  
-  // Filters
-  searchTerm: PropTypes.string.isRequired,
-  setSearchTerm: PropTypes.func.isRequired,
-  tabValue: PropTypes.number.isRequired,
-  setTabValue: PropTypes.func.isRequired,
-  
-  // Venue operations
-  createVenue: PropTypes.func.isRequired,
-  updateVenue: PropTypes.func.isRequired,
-  deleteVenue: PropTypes.func.isRequired,
-  validateVenueGeo: PropTypes.func.isRequired,
-  batchValidateGeo: PropTypes.func.isRequired,
-  
-  // Geo hierarchy data
-  countries: PropTypes.array.isRequired,
-  regions: PropTypes.array.isRequired,
-  divisions: PropTypes.array.isRequired,
-  cities: PropTypes.array.isRequired,
-  
-  // Geo hierarchy selection
-  selectedCountry: PropTypes.string,
-  selectedRegion: PropTypes.string,
-  selectedDivision: PropTypes.string,
-  selectedCity: PropTypes.string,
-  
-  setSelectedCountry: PropTypes.func.isRequired,
-  setSelectedRegion: PropTypes.func.isRequired,
-  setSelectedDivision: PropTypes.func.isRequired,
-  setSelectedCity: PropTypes.func.isRequired,
-  
-  // Other
-  pagination: PropTypes.shape({
-    page: PropTypes.number,
-    pageSize: PropTypes.number,
-    totalCount: PropTypes.number
-  }),
-  setPagination: PropTypes.func.isRequired,
-  getCityCoordinates: PropTypes.func.isRequired,
-  fetchGeoDataById: PropTypes.func.isRequired
-};
-
-VenuesPage.defaultProps = {
-  loading: false,
-  error: null,
-  selectedCountry: null,
-  selectedRegion: null,
-  selectedDivision: null,
-  selectedCity: null,
-  pagination: {
-    page: 0,
-    pageSize: 10,
-    totalCount: 0
-  }
-};
+// Using modern JavaScript default parameters instead of PropTypes and defaultProps
 
 export default VenuesPage;
