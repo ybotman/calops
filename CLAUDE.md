@@ -3,11 +3,10 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with the backend API server.
 
 # Readme
- - The systems of Readmes are stored in public/readme.
- - RM is abbreation for Readme
- - so the command "RM CAUDE ROLES" tells you to open the readme like Claude roles in the public/readme folder.
+ - The systems of Readmes are ONLY stored in public/readme.
+ - RMD is abbreation for Readme Docuemntation
+ - so the command "RMD CAUDE ROLES" tells you to open the readme like Claude roles in the public/readme folder.
  - when you have read a readme, you must breifly summerzie your understanding
- 
 
 
 ## Master Calendar System Architecture

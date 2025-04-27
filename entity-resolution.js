@@ -39,25 +39,48 @@ const cache = {
 
 /**
  * Maps a category name from BTC to TT
- * Using a simplified version for testing
+ * Simplified version focusing on three main categories: Milonga, Practica, and Class
  */
 export function mapToTTCategory(sourceName) {
+  // Return null if no source name provided
+  if (!sourceName) return null;
+  
+  // Lowercase for more flexible matching
+  const lowerSourceName = sourceName.toLowerCase();
+  
+  // Check for the three main categories using substring matching
+  if (lowerSourceName.includes('class') || lowerSourceName.includes('workshop')) {
+    return "Class";
+  }
+  
+  if (lowerSourceName.includes('milonga')) {
+    return "Milonga";
+  }
+  
+  if (lowerSourceName.includes('practica')) {
+    return "Practica";
+  }
+  
+  // Legacy mappings for completeness, but will only be reached if no match above
   const categoryMap = {
-    "Class": "Class",
-    "Drop-in Class": "Class",
-    "Progressive Class": "Class",
-    "Workshop": "Workshop",
-    "DayWorkshop": "DayWorkshop",
     "Festivals": "Festival",
-    "Milonga": "Milonga",
-    "Practica": "Practica",
+    "Festival": "Festival",
+    "DayWorkshop": "Class",
+    "Workshop": "Class",
     "Trips-Hosted": "Trip",
+    "Trip": "Trip",
     "Virtual": "Virtual",
     "Party/Gathering": "Gathering",
+    "Party": "Gathering",
+    "Gathering": "Gathering",
     "Live Orchestra": "Orchestra",
+    "Orchestra": "Orchestra",
     "Concert/Show": "Concert",
+    "Concert": "Concert",
+    "Show": "Concert",
     "Forum/RoundTable/Labs": "Forum",
-    "First Timer Friendly": "NewBee",
+    "Forum": "Forum",
+    "First Timer Friendly": "Class"
   };
   
   const ignoredCategories = new Set([
@@ -66,6 +89,8 @@ export function mapToTTCategory(sourceName) {
   ]);
   
   if (ignoredCategories.has(sourceName)) return null;
+  
+  // If still not matched, try exact match from the map
   return categoryMap[sourceName] || null;
 }
 
@@ -506,6 +531,18 @@ export async function resolveCategory(btcCategory) {
   if (!mappedCategoryName) {
     console.warn(`Category ignored or unmapped: "${categoryName}"`);
     cache.unmatched.categories.add(categoryName);
+    
+    // If not one of the three main categories, try to default to "Class" as fallback
+    // Only if this isn't a category we explicitly want to ignore
+    const ignoredCategories = new Set(["Canceled", "Other"]);
+    if (!ignoredCategories.has(categoryName)) {
+      console.log(`Defaulting category "${categoryName}" to "Class" as fallback`);
+      return { 
+        id: "default_class_id", 
+        name: "Class" 
+      };
+    }
+    
     return null;
   }
   
@@ -535,8 +572,49 @@ export async function resolveCategory(btcCategory) {
       return categoryInfo;
     }
     
-    // Fall back to "Unknown" category
+    // If the mapped category is one of our essential categories (Class, Milonga, Practica)
+    // try to find it directly regardless of the exact name format
+    if (["Class", "Milonga", "Practica"].includes(mappedCategoryName)) {
+      try {
+        // Search for essential category by doing a broader search
+        const allCategoriesResponse = await axios.get(`${API_BASE_URL}/categories?appId=${APP_ID}&limit=100`);
+        if (allCategoriesResponse.data && allCategoriesResponse.data.data) {
+          const categories = allCategoriesResponse.data.data;
+          
+          // Look for an exact match or close match
+          const exactMatch = categories.find(c => c.categoryName === mappedCategoryName);
+          if (exactMatch) {
+            const categoryInfo = {
+              id: exactMatch._id,
+              name: mappedCategoryName
+            };
+            cache.categories.set(categoryName, categoryInfo);
+            console.log(`Found essential category: "${categoryName}" -> ${categoryInfo.id} (${mappedCategoryName})`);
+            return categoryInfo;
+          }
+          
+          // If not found, look for a Class category as a fallback
+          if (mappedCategoryName !== "Class") {
+            const classCategory = categories.find(c => c.categoryName === "Class");
+            if (classCategory) {
+              const categoryInfo = {
+                id: classCategory._id,
+                name: "Class"
+              };
+              cache.categories.set(categoryName, categoryInfo);
+              console.log(`Using Class category as fallback for "${categoryName}" -> ${categoryInfo.id}`);
+              return categoryInfo;
+            }
+          }
+        }
+      } catch (essentialError) {
+        console.error(`Error searching for essential category "${mappedCategoryName}": ${essentialError.message}`);
+      }
+    }
+    
+    // Fall back to "Unknown" category or Class as last resort
     try {
+      // First try "Unknown" category
       const unknownResponse = await axios.get(`${API_BASE_URL}/categories?appId=${APP_ID}&categoryName=Unknown`);
       if (unknownResponse.data && unknownResponse.data.data && unknownResponse.data.data.length > 0) {
         const unknownId = unknownResponse.data.data[0]._id;
@@ -548,8 +626,21 @@ export async function resolveCategory(btcCategory) {
         console.log(`Using "Unknown" category for "${categoryName}" -> ${unknownId}`);
         return categoryInfo;
       }
+      
+      // If "Unknown" category not found, try to find "Class" category as final fallback
+      const classResponse = await axios.get(`${API_BASE_URL}/categories?appId=${APP_ID}&categoryName=Class`);
+      if (classResponse.data && classResponse.data.data && classResponse.data.data.length > 0) {
+        const classId = classResponse.data.data[0]._id;
+        const categoryInfo = {
+          id: classId,
+          name: "Class"
+        };
+        cache.categories.set(categoryName, categoryInfo);
+        console.log(`Using "Class" category as final fallback for "${categoryName}" -> ${classId}`);
+        return categoryInfo;
+      }
     } catch (fallbackError) {
-      console.error(`Error using Unknown category fallback: ${fallbackError.message}`);
+      console.error(`Error using category fallbacks: ${fallbackError.message}`);
     }
     
     // If we still don't have a category match, return null
@@ -574,40 +665,60 @@ export async function loadAllCategories() {
       const categories = response.data.data;
       console.log(`Loaded ${categories.length} categories from API`);
       
-      // Create reverse mapping from TT category name to BTC category name
-      const reverseMap = new Map();
+      // Store default class ID for fallback
+      let defaultClassId = null;
       
-      for (const [btcName, ttName] of Object.entries({
-        "Class": "Class",
-        "Drop-in Class": "Class",
-        "Progressive Class": "Class",
-        "Workshop": "Workshop",
-        "DayWorkshop": "DayWorkshop",
-        "Festivals": "Festival",
-        "Milonga": "Milonga",
-        "Practica": "Practica",
-        "Trips-Hosted": "Trip",
-        "Virtual": "Virtual",
-        "Party/Gathering": "Gathering",
-        "Live Orchestra": "Orchestra",
-        "Concert/Show": "Concert",
-        "Forum/RoundTable/Labs": "Forum",
-        "First Timer Friendly": "NewBee",
-      })) {
-        reverseMap.set(ttName, btcName);
-      }
+      // Create mappings for essential categories
+      const essentialCategories = ["Class", "Milonga", "Practica"];
       
-      // Populate cache
+      // Process and cache all categories
       for (const category of categories) {
         const ttName = category.categoryName;
-        const btcName = reverseMap.get(ttName);
         
-        if (btcName) {
-          cache.categories.set(btcName, {
-            id: category._id,
-            name: ttName
-          });
+        // Store the default class ID for fallback
+        if (ttName === "Class") {
+          defaultClassId = category._id;
+          console.log(`Found default Class category with ID: ${defaultClassId}`);
         }
+        
+        // Add direct mappings for essential categories and their variations
+        if (ttName === "Class") {
+          cache.categories.set("Class", { id: category._id, name: ttName });
+          cache.categories.set("Drop-in Class", { id: category._id, name: ttName });
+          cache.categories.set("Progressive Class", { id: category._id, name: ttName });
+          cache.categories.set("Workshop", { id: category._id, name: ttName });
+          cache.categories.set("DayWorkshop", { id: category._id, name: ttName });
+          cache.categories.set("First Timer Friendly", { id: category._id, name: ttName });
+        } else if (ttName === "Milonga") {
+          cache.categories.set("Milonga", { id: category._id, name: ttName });
+        } else if (ttName === "Practica") {
+          cache.categories.set("Practica", { id: category._id, name: ttName });
+        }
+        
+        // Additional mappings for non-essential categories
+        const additionalMappings = {
+          "Festival": "Festivals",
+          "Trip": "Trips-Hosted",
+          "Virtual": "Virtual",
+          "Gathering": ["Party/Gathering", "Party", "Gathering"],
+          "Orchestra": ["Live Orchestra", "Orchestra"],
+          "Concert": ["Concert/Show", "Concert", "Show"],
+          "Forum": ["Forum/RoundTable/Labs", "Forum"]
+        };
+        
+        for (const [ttCategory, btcCategories] of Object.entries(additionalMappings)) {
+          if (ttName === ttCategory) {
+            const btcCategoryList = Array.isArray(btcCategories) ? btcCategories : [btcCategories];
+            for (const btcCategory of btcCategoryList) {
+              cache.categories.set(btcCategory, { id: category._id, name: ttName });
+            }
+          }
+        }
+      }
+      
+      // Set default class ID for fallback
+      if (defaultClassId) {
+        cache.categories.set("default_class_id", { id: defaultClassId, name: "Class" });
       }
       
       console.log(`Cached ${cache.categories.size} category mappings`);

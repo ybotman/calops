@@ -88,6 +88,7 @@ const BtcImportTab = () => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [importResults, setImportResults] = useState(null);
+  const [progress, setProgress] = useState(null); // Track import progress
   
   // Function to handle import
   const handleImport = async () => {
@@ -111,6 +112,7 @@ const BtcImportTab = () => {
     setError(null);
     setSuccess(null);
     setImportResults(null);
+    setProgress({ step: 'initializing', message: 'Starting import process...' });
     
     try {
       // Format dates for API
@@ -140,14 +142,19 @@ const BtcImportTab = () => {
       const result = await response.json();
       
       // Set success message and results
+      const eventCount = result.btcEvents?.total || 0;
+      const createdCount = result.ttEvents?.created || 0;
+      const failedCount = result.ttEvents?.failed || 0;
+      
       setSuccess(dryRun 
-        ? 'Dry run completed successfully. No events were created.' 
-        : 'Import completed successfully.');
+        ? `Dry run completed successfully. Found ${eventCount} events that would be processed. No events were created.` 
+        : `Import completed successfully. Created ${createdCount} events${failedCount > 0 ? ` (${failedCount} failed)` : ''}.`);
       setImportResults(result);
     } catch (err) {
       setError(err.message || 'An error occurred during import');
     } finally {
       setLoading(false);
+      setProgress(null);
     }
   };
   
@@ -286,6 +293,34 @@ const BtcImportTab = () => {
         <Alert severity="error" sx={{ mb: 3 }}>
           <AlertTitle>Import Error</AlertTitle>
           {error}
+          {importResults && (
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="subtitle2">Partial Results:</Typography>
+              <Typography variant="body2">
+                {importResults.btcEvents?.processed || 0} events processed out of {importResults.btcEvents?.total || 0} found.
+              </Typography>
+              {importResults.ttEvents?.created > 0 && (
+                <Typography variant="body2">
+                  {importResults.ttEvents.created} events successfully created.
+                </Typography>
+              )}
+              {importResults.ttEvents?.failed > 0 && (
+                <Typography variant="body2">
+                  {importResults.ttEvents.failed} events failed to import.
+                </Typography>
+              )}
+            </Box>
+          )}
+        </Alert>
+      )}
+      
+      {progress && loading && (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          <AlertTitle>Import In Progress</AlertTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <CircularProgress size={24} sx={{ mr: 2 }} />
+            <Typography>{progress.message || 'Processing import...'}</Typography>
+          </Box>
         </Alert>
       )}
       
@@ -316,6 +351,11 @@ const BtcImportTab = () => {
                 <Typography>
                   <strong>Import Time:</strong> {importResults.duration?.toFixed(2) || 0} seconds
                 </Typography>
+                {importResults.dates && importResults.dates.length > 0 && (
+                  <Typography>
+                    <strong>Dates Processed:</strong> {importResults.dates.length}
+                  </Typography>
+                )}
               </Box>
             </Grid>
             
@@ -363,6 +403,134 @@ const BtcImportTab = () => {
                   </Box>
                 )}
               </Alert>
+            </Box>
+          )}
+          
+          {/* Detailed Results (if available) */}
+          {importResults.dates && importResults.dates.length > 0 && (
+            <Box sx={{ mt: 3 }}>
+              <Typography variant="subtitle1">Import Details</Typography>
+              
+              <Box sx={{ mt: 1 }}>
+                {importResults.dates.map((dateResult, index) => (
+                  <Box key={index} sx={{ mb: 2, p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
+                    <Typography variant="subtitle2">
+                      Date: {dateResult.date}
+                    </Typography>
+                    
+                    <Grid container spacing={1} sx={{ mt: 1 }}>
+                      <Grid item xs={6} md={3}>
+                        <Typography variant="body2">
+                          <strong>Events Found:</strong> {dateResult.results.btcEvents?.total || 0}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={6} md={3}>
+                        <Typography variant="body2">
+                          <strong>Created:</strong> {dateResult.results.ttEvents?.created || 0}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={6} md={3}>
+                        <Typography variant="body2">
+                          <strong>Failed:</strong> {dateResult.results.ttEvents?.failed || 0}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={6} md={3}>
+                        <Typography variant="body2">
+                          <strong>Duration:</strong> {dateResult.results.duration?.toFixed(2) || 0}s
+                        </Typography>
+                      </Grid>
+                    </Grid>
+                    
+                    {/* Failed Events Detail Section */}
+                    {dateResult.results.ttEvents?.failed > 0 && dateResult.results.failedEvents && (
+                      <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #e0e0e0' }}>
+                        <Typography variant="subtitle2" gutterBottom>
+                          Failed Events ({dateResult.results.ttEvents.failed})
+                        </Typography>
+                        
+                        <Box sx={{ maxHeight: '300px', overflow: 'auto' }}>
+                          {dateResult.results.failedEvents.map((failedEvent, idx) => (
+                            <Box key={idx} sx={{ mb: 2, p: 1, backgroundColor: '#f5f5f5', borderRadius: 1, fontSize: '0.875rem' }}>
+                              <Typography variant="body2" fontWeight="bold">
+                                {failedEvent.title} (Failure Stage: {failedEvent.stage})
+                              </Typography>
+                              
+                              <Grid container spacing={1} sx={{ mt: 1 }}>
+                                <Grid item xs={12} md={6}>
+                                  <Typography variant="body2" fontWeight="bold" color="text.secondary">
+                                    Source Data:
+                                  </Typography>
+                                  {failedEvent.source && (
+                                    <Box component="ul" sx={{ m: 0, pl: 2 }}>
+                                      <li>Venue: {failedEvent.source.venue}</li>
+                                      <li>Organizer: {failedEvent.source.organizer}</li>
+                                      <li>Categories: {failedEvent.source.categories}</li>
+                                    </Box>
+                                  )}
+                                </Grid>
+                                
+                                <Grid item xs={12} md={6}>
+                                  <Typography variant="body2" fontWeight="bold" color="text.secondary">
+                                    Failure Reason:
+                                  </Typography>
+                                  {failedEvent.stage === 'entity_resolution' && (
+                                    <Box component="ul" sx={{ m: 0, pl: 2 }}>
+                                      {!failedEvent.resolution?.venueResolved && (
+                                        <li>Venue not resolved</li>
+                                      )}
+                                      {!failedEvent.resolution?.organizerResolved && (
+                                        <li>Organizer not resolved</li>
+                                      )}
+                                      {!failedEvent.resolution?.categoryResolved && (
+                                        <li>Category not resolved</li>
+                                      )}
+                                      {!failedEvent.resolution?.geographyResolved && (
+                                        <li>Venue geography not resolved</li>
+                                      )}
+                                    </Box>
+                                  )}
+                                  {failedEvent.stage === 'validation' && (
+                                    <Box component="ul" sx={{ m: 0, pl: 2 }}>
+                                      {!failedEvent.validation?.hasRequiredFields && (
+                                        <li>Missing required fields</li>
+                                      )}
+                                      {!failedEvent.validation?.hasValidDates && (
+                                        <li>Date format or range issues</li>
+                                      )}
+                                      {!failedEvent.validation?.hasValidReferences && (
+                                        <li>Invalid reference fields</li>
+                                      )}
+                                    </Box>
+                                  )}
+                                  {failedEvent.stage === 'processing' && (
+                                    <Box component="ul" sx={{ m: 0, pl: 2 }}>
+                                      <li>{failedEvent.error}</li>
+                                    </Box>
+                                  )}
+                                </Grid>
+                              </Grid>
+                              
+                              {/* Detailed Errors */}
+                              {failedEvent.errors && failedEvent.errors.length > 0 && (
+                                <Box sx={{ mt: 1 }}>
+                                  <Typography variant="body2" fontWeight="bold" color="error">
+                                    Specific Errors:
+                                  </Typography>
+                                  <Box component="ul" sx={{ m: 0, pl: 2 }}>
+                                    {failedEvent.errors.map((err, errIdx) => (
+                                      <li key={errIdx}>{err}</li>
+                                    ))}
+                                  </Box>
+                                </Box>
+                              )}
+                            </Box>
+                          ))}
+                        </Box>
+                      </Box>
+                    )}
+                  </Box>
+                ))}
+              </Box>
             </Box>
           )}
         </Paper>

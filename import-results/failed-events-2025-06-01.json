@@ -1,0 +1,77 @@
+[
+  {
+    "btcId": 10016791,
+    "title": "UT – Open Level –  I Had the Heart – One-of-a-kind tango experience with Oliver Kolker",
+    "stage": "entity_resolution",
+    "errors": [
+      "Venue not found: Ultimate Tango Studio",
+      "Category not resolved: Drop-in Class"
+    ],
+    "source": {
+      "venue": "Ultimate Tango Studio",
+      "organizer": "Ultimate Tango",
+      "categories": "Drop-in Class, Milonga, WorkShop"
+    },
+    "target": {
+      "venueId": null,
+      "organizerId": "680669162f92688130212454",
+      "categoryFirstId": null
+    },
+    "resolution": {
+      "venueResolved": false,
+      "organizerResolved": true,
+      "categoryResolved": false,
+      "geographyResolved": false
+    }
+  },
+  {
+    "btcId": 10010317,
+    "title": "UT Pre-Advanced Argentine Tango &#8211; Learn Back Sacadas",
+    "stage": "entity_resolution",
+    "errors": [
+      "Venue not found: Ultimate Tango Studio",
+      "Category not resolved: Progressive Class"
+    ],
+    "source": {
+      "venue": "Ultimate Tango Studio",
+      "organizer": "Ultimate Tango",
+      "categories": "Progressive Class"
+    },
+    "target": {
+      "venueId": null,
+      "organizerId": "680669162f92688130212454",
+      "categoryFirstId": null
+    },
+    "resolution": {
+      "venueResolved": false,
+      "organizerResolved": true,
+      "categoryResolved": false,
+      "geographyResolved": false
+    }
+  },
+  {
+    "btcId": 10010568,
+    "title": "UT Advanced Argentine Tango &#8211; Elaborate exploration",
+    "stage": "entity_resolution",
+    "errors": [
+      "Venue not found: Ultimate Tango Studio",
+      "Category not resolved: Progressive Class"
+    ],
+    "source": {
+      "venue": "Ultimate Tango Studio",
+      "organizer": "Ultimate Tango",
+      "categories": "Progressive Class"
+    },
+    "target": {
+      "venueId": null,
+      "organizerId": "680669162f92688130212454",
+      "categoryFirstId": null
+    },
+    "resolution": {
+      "venueResolved": false,
+      "organizerResolved": true,
+      "categoryResolved": false,
+      "geographyResolved": false
+    }
+  }
+]
