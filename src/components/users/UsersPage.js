@@ -21,8 +21,8 @@ const UsersPage = ({
   users,
   filteredUsers,
   roles,
-  loading,
-  error,
+  loading = false,
+  error = null,
   
   // Filters
   searchTerm,
@@ -40,7 +40,11 @@ const UsersPage = ({
   deleteOrganizer,
   
   // Other
-  pagination,
+  pagination = {
+    page: 0,
+    pageSize: 10,
+    totalCount: 0
+  },
   setPagination,
   selectedUser,
   organizerLoading = false
@@ -208,15 +212,5 @@ UsersPage.propTypes = {
   organizerLoading: PropTypes.bool
 };
 
-UsersPage.defaultProps = {
-  loading: false,
-  error: null,
-  pagination: {
-    page: 0,
-    pageSize: 10,
-    totalCount: 0
-  },
-  organizerLoading: false
-};
 
 export default UsersPage;

@@ -49,7 +49,7 @@ function TabPanel(props) {
  * Enhanced User Edit Form Component
  * Provides a tabbed interface for editing user details, roles, and status
  */
-const UserEditForm = ({ user, roles, onChange, onSubmit, loading }) => {
+const UserEditForm = ({ user, roles, onChange, onSubmit, loading = false }) => {
   const [tabValue, setTabValue] = useState(0);
   const [error, setError] = useState('');
 
@@ -558,8 +558,5 @@ UserEditForm.propTypes = {
   loading: PropTypes.bool
 };
 
-UserEditForm.defaultProps = {
-  loading: false
-};
 
 export default UserEditForm;
