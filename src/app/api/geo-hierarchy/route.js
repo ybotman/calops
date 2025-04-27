@@ -24,9 +24,9 @@ export async function GET(request) {
     }
     
     // Validate type
-    if (!['country', 'region', 'division', 'city', 'all'].includes(type)) {
+    if (!['country', 'region', 'division', 'city', 'all', 'countries', 'regions', 'divisions', 'cities'].includes(type)) {
       return NextResponse.json(
-        { error: 'Invalid geo hierarchy type. Must be one of: country, region, division, city, all' },
+        { error: 'Invalid geo hierarchy type. Must be one of: country, region, division, city, countries, regions, divisions, cities, all' },
         { status: 400 }
       );
     }
@@ -44,15 +44,19 @@ export async function GET(request) {
     
     switch (type) {
       case 'country':
+      case 'countries':
         endpoint = '/api/masteredLocations/countries';
         break;
       case 'region':
+      case 'regions':
         endpoint = '/api/masteredLocations/regions';
         break;
       case 'division':
+      case 'divisions':
         endpoint = '/api/masteredLocations/divisions';
         break;
       case 'city':
+      case 'cities':
         endpoint = '/api/masteredLocations/cities';
         break;
       case 'all':

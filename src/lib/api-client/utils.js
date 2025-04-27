@@ -121,3 +121,37 @@ export const formatDateForApi = (date) => {
     return '';
   }
 };
+
+/**
+ * Standard handler for Axios errors
+ * @param {Error} error - The error from axios
+ * @param {string} defaultMessage - Default message to return if no specific message available
+ * @returns {Object} Standardized error response with error, message, and status
+ */
+export const handleAxiosError = (error, defaultMessage = 'API request failed') => {
+  console.error(defaultMessage, error);
+  
+  if (error.response) {
+    // Server responded with a status code outside of 2xx range
+    return { 
+      error: true,
+      message: error.response.data?.error || error.response.data?.message || defaultMessage,
+      status: error.response.status,
+      details: error.response.data
+    };
+  } else if (error.request) {
+    // Request was made but no response received
+    return { 
+      error: true,
+      message: 'No response received from server',
+      status: 0
+    };
+  } else {
+    // Error in setting up the request
+    return { 
+      error: true,
+      message: error.message || defaultMessage,
+      status: 0
+    };
+  }
+};

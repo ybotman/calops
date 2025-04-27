@@ -206,14 +206,17 @@ async function processBatch(venueIds, appId) {
           // If we found a city, update the venue with the masteredCityId
           if (nearestCityResponse.data && nearestCityResponse.data.length > 0) {
             const nearestCity = nearestCityResponse.data[0];
-            const updatedVenue = await axios.put(`${BE_URL}/api/venues/${venueId}?appId=${appId}`, {
+            const updatedVenueResponse = await axios.put(`${BE_URL}/api/venues/${venueId}?appId=${appId}`, {
               ...venue,
               masteredCityId: nearestCity._id,
               appId
             });
             
-            // Update our venue object with the new data for subsequent operations
-            venue = updatedVenue.data || venue;
+            // Create a new venue object with the updated data
+            const updatedVenue = updatedVenueResponse.data || venue;
+            
+            // Use the updated venue for subsequent operations
+            Object.assign(venue, updatedVenue);
             
             console.log(`Assigned venue ${venueId} to nearest city: ${nearestCity.cityName}`);
           } else {

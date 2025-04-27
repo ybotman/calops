@@ -41,6 +41,7 @@ export async function GET(request) {
       
       // Check if the response is as expected
       if (response.data) {
+        // Forward the response directly without wrapping in data object
         return NextResponse.json(response.data);
       } else {
         throw new Error('Invalid response format from backend API');

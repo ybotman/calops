@@ -38,6 +38,7 @@ const mainNavItems = [
   { name: 'Venues', icon: <BusinessIcon />, href: '/dashboard/venues' },
   { name: 'Geo Hierarchy', icon: <LocationOnIcon />, href: '/dashboard/geo-hierarchy' },
   { name: 'Events', icon: <EventIcon />, href: '/dashboard/events' },
+  { name: 'Applications', icon: <AppsIcon />, href: '/dashboard/applications' },
 ];
 
 const drawerWidth = 240;
