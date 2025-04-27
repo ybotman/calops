@@ -6,10 +6,14 @@ import { useAppContext } from '@/lib/AppContext';
 import useRoles from './useRoles';
 
 /**
- * Custom hook for fetching and managing users
+ * Enhanced custom hook for fetching and managing users
  * @param {Object} options - Hook options
  * @param {string} [options.appId] - Application ID (default: from AppContext)
  * @param {Object} [options.initialFilters] - Initial filter settings
+ * @param {string} [options.initialFilters.searchTerm] - Initial search term
+ * @param {number} [options.initialFilters.tabValue] - Initial tab value
+ * @param {Object} [options.cacheOptions] - Cache configuration
+ * @param {number} [options.cacheOptions.maxAge] - Maximum cache age in ms (default: 2 minutes)
  * @returns {Object} Users data and operations
  */
 const useUsers = (options = {}) => {
@@ -17,10 +21,16 @@ const useUsers = (options = {}) => {
   const { currentApp } = useAppContext();
   
   // Use provided appId or default from context
-  const appId = options.appId || currentApp.id;
+  const appId = options.appId || currentApp?.id || '1';
+  
+  // Cache configuration with defaults
+  const cacheOptions = {
+    maxAge: 2 * 60 * 1000, // 2 minutes in milliseconds
+    ...(options.cacheOptions || {})
+  };
   
   // Get roles data
-  const { roles, processRoleIds } = useRoles({ appId });
+  const { roles, processRoleIds, loading: rolesLoading } = useRoles({ appId });
   
   // State for users data
   const [users, setUsers] = useState([]);
@@ -70,16 +80,17 @@ const useUsers = (options = {}) => {
   }, [processRoleIds]);
 
   /**
-   * Fetch users from the API
+   * Fetch users from the API with improved error handling and retries
    * @param {boolean} [forceRefresh=false] - Force a refresh ignoring cache
+   * @param {number} [retryCount=0] - Current retry attempt count
    * @returns {Promise<Array>} Fetched and processed users
    */
-  const fetchUsers = useCallback(async (forceRefresh = false) => {
+  const fetchUsers = useCallback(async (forceRefresh = false, retryCount = 0) => {
     // Skip fetch if we have users and aren't forcing a refresh
     if (users.length > 0 && !forceRefresh && lastUpdated) {
-      // Only use cached data if it's less than 2 minutes old
+      // Only use cached data if it's less than the configured cache age
       const cacheAge = Date.now() - lastUpdated;
-      if (cacheAge < 2 * 60 * 1000) { // 2 minutes in milliseconds
+      if (cacheAge < cacheOptions.maxAge) {
         return users;
       }
     }
@@ -92,7 +103,23 @@ const useUsers = (options = {}) => {
       const timestamp = Date.now();
       
       // Fetch users from API
-      const usersData = await usersApi.getUsers(appId, undefined, timestamp);
+      let usersData;
+      try {
+        usersData = await usersApi.getUsers({ 
+          appId,
+          timestamp 
+        });
+      } catch (fetchError) {
+        // Implement retry logic for transient network issues
+        if (retryCount < 2) { // Allow up to 2 retries (3 attempts total)
+          console.warn(`Error fetching users, retrying (attempt ${retryCount + 1}/3)...`, fetchError);
+          // Exponential backoff: 1s, then 2s
+          const delay = 1000 * Math.pow(2, retryCount);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          return fetchUsers(forceRefresh, retryCount + 1);
+        }
+        throw fetchError; // Re-throw if we've exhausted retries
+      }
       
       // Process users data
       const processedUsers = processUsers(usersData);
@@ -109,67 +136,92 @@ const useUsers = (options = {}) => {
       
       return processedUsers;
     } catch (err) {
+      const errorMessage = err.response?.data?.message || err.message;
+      console.error(`Error fetching users: ${errorMessage}`, err);
       setError(err);
       return [];
     } finally {
       setLoading(false);
     }
-  }, [appId, users, lastUpdated, processUsers]);
+  }, [appId, users, lastUpdated, processUsers, cacheOptions.maxAge]);
 
-  // Fetch users on mount and when appId changes
+  // Fetch users when the hook is first mounted and when appId changes
   useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers, appId]);
+    // Only fetch if roles are loaded (or loading failed)
+    if (!rolesLoading) {
+      fetchUsers();
+    }
+  }, [fetchUsers, appId, rolesLoading]);
 
   /**
-   * Filter users based on search term and current tab
+   * Filter users based on search term and current tab with improved error handling
    * @param {string} [term] - Search term to filter by (defaults to current searchTerm)
    * @param {number} [tab] - Tab value to filter by (defaults to current tabValue)
    */
   const filterUsers = useCallback((term = searchTerm, tab = tabValue) => {
-    let filtered = users;
-    
-    // Apply tab filtering
-    if (tab === 1) { // Organizers
-      filtered = filtered.filter(user => user.regionalOrganizerInfo?.organizerId);
-    } else if (tab === 2) { // Admins
-      filtered = filtered.filter(user => 
-        user.roleIds?.some(role => 
-          (typeof role === 'object' && 
-           (role.roleName === 'SystemAdmin' || role.roleName === 'RegionalAdmin'))
-        )
-      );
+    try {
+      let filtered = users;
+      
+      // Apply tab filtering
+      if (tab === 1) { // Organizers
+        filtered = filtered.filter(user => user.regionalOrganizerInfo?.organizerId);
+      } else if (tab === 2) { // Admins
+        filtered = filtered.filter(user => 
+          user.roleIds?.some(role => {
+            if (typeof role === 'object') {
+              return role.roleName === 'SystemAdmin' || 
+                     role.roleName === 'RegionalAdmin' ||
+                     role.roleNameCode === 'SYA' ||
+                     role.roleNameCode === 'RGA';
+            }
+            // If it's a string, we need to check against the roles array
+            if (typeof role === 'string') {
+              const matchedRole = roles.find(r => r._id === role);
+              return matchedRole && 
+                     (matchedRole.roleName === 'SystemAdmin' || 
+                      matchedRole.roleName === 'RegionalAdmin' ||
+                      matchedRole.roleNameCode === 'SYA' ||
+                      matchedRole.roleNameCode === 'RGA');
+            }
+            return false;
+          })
+        );
+      }
+      
+      // Apply search term filtering
+      if (term) {
+        const lowerTerm = term.toLowerCase();
+        filtered = filtered.filter(user => {
+          try {
+            // Add optional chaining for all properties to prevent null/undefined errors
+            return (
+              (user.displayName?.toLowerCase()?.includes(lowerTerm) || false) ||
+              (user.email?.toLowerCase()?.includes(lowerTerm) || false) ||
+              (user.roleNames?.toLowerCase()?.includes(lowerTerm) || false) ||
+              (user.firebaseUserId?.toLowerCase()?.includes(lowerTerm) || false)
+            );
+          } catch (error) {
+            console.error(`Error filtering user ${user.id || 'unknown'}:`, error);
+            return false; // Skip this user on error
+          }
+        });
+      }
+      
+      // Update pagination information
+      setPagination(prev => ({
+        ...prev,
+        totalCount: filtered.length,
+        page: 0 // Reset to first page on new search
+      }));
+      
+      // Update filtered users
+      setFilteredUsers(filtered);
+    } catch (err) {
+      console.error('Error in filterUsers:', err);
+      // On error, reset to showing all users
+      setFilteredUsers(users);
     }
-    
-    // Apply search term filtering
-    if (term) {
-      const lowerTerm = term.toLowerCase();
-      filtered = filtered.filter(user => {
-        try {
-          // Add optional chaining for all properties to prevent null/undefined errors
-          return (
-            (user.displayName?.toLowerCase()?.includes(lowerTerm) || false) ||
-            (user.email?.toLowerCase()?.includes(lowerTerm) || false) ||
-            (user.roleNames?.toLowerCase()?.includes(lowerTerm) || false) ||
-            (user.firebaseUserId?.toLowerCase()?.includes(lowerTerm) || false)
-          );
-        } catch (error) {
-          console.error(`Error filtering user ${user.id || 'unknown'}:`, error);
-          return false; // Skip this user on error
-        }
-      });
-    }
-    
-    // Update pagination information
-    setPagination(prev => ({
-      ...prev,
-      totalCount: filtered.length,
-      page: 0 // Reset to first page on new search
-    }));
-    
-    // Update filtered users
-    setFilteredUsers(filtered);
-  }, [users, searchTerm, tabValue]);
+  }, [users, searchTerm, tabValue, roles]);
 
   // Keep filtered users in sync with users, searchTerm, and tabValue
   useEffect(() => {
@@ -182,11 +234,12 @@ const useUsers = (options = {}) => {
    * @returns {Object|undefined} User object or undefined if not found
    */
   const getUserById = useCallback((userId) => {
+    if (!userId) return undefined;
     return users.find(user => user._id === userId || user.id === userId);
   }, [users]);
 
   /**
-   * Create a new user
+   * Create a new user with enhanced error handling
    * @param {Object} userData - User data
    * @returns {Promise<Object>} Created user
    */
@@ -201,7 +254,7 @@ const useUsers = (options = {}) => {
         appId
       };
       
-      // Create user using local API endpoint
+      // Create user using Next.js API route
       const response = await fetch('/api/users', {
         method: 'POST',
         headers: {
@@ -219,53 +272,7 @@ const useUsers = (options = {}) => {
       
       // If the user requested to create an organizer, do that now
       if (userData.isOrganizer && createdUser.firebaseUserId) {
-        // Prepare organizer data
-        const organizerData = {
-          firebaseUserId: createdUser.firebaseUserId,
-          linkedUserLogin: createdUser._id,
-          appId: appId,
-          fullName: `${userData.firstName} ${userData.lastName}`.trim(),
-          shortName: userData.firstName,
-          organizerRegion: "66c4d99042ec462ea22484bd", // US region default
-          isActive: true,
-          isEnabled: true,
-          wantRender: true,
-          organizerTypes: {
-            isEventOrganizer: true,
-            isVenue: false,
-            isTeacher: false,
-            isMaestro: false,
-            isDJ: false,
-            isOrchestra: false
-          }
-        };
-        
-        // Create the organizer
-        const organizerResponse = await fetch('/api/organizers', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(organizerData)
-        });
-        
-        if (!organizerResponse.ok) {
-          console.warn('Created user but failed to create organizer');
-        } else {
-          const organizerData = await organizerResponse.json();
-          
-          // Update user to include organizerId reference
-          await usersApi.updateUser({
-            firebaseUserId: createdUser.firebaseUserId,
-            appId: appId,
-            regionalOrganizerInfo: {
-              organizerId: organizerData._id,
-              isApproved: true,
-              isEnabled: true,
-              isActive: true
-            }
-          });
-        }
+        await createOrganizerForUser(createdUser, userData);
       }
       
       // Refresh users list
@@ -281,7 +288,90 @@ const useUsers = (options = {}) => {
   }, [appId, fetchUsers]);
 
   /**
-   * Update an existing user
+   * Helper function to create an organizer for a user
+   * @param {Object} user - User object
+   * @param {Object} userData - Original user data
+   * @returns {Promise<Object>} Created organizer
+   */
+  const createOrganizerForUser = useCallback(async (user, userData) => {
+    // Prepare organizer data
+    const organizerData = {
+      firebaseUserId: user.firebaseUserId,
+      linkedUserLogin: user._id,
+      appId: appId,
+      fullName: `${userData.firstName || user.localUserInfo?.firstName} ${userData.lastName || user.localUserInfo?.lastName}`.trim(),
+      shortName: userData.firstName || user.localUserInfo?.firstName,
+      organizerRegion: userData.organizerRegion || "66c4d99042ec462ea22484bd", // US region default
+      isActive: true,
+      isEnabled: true,
+      wantRender: true,
+      organizerTypes: {
+        isEventOrganizer: true,
+        isVenue: false,
+        isTeacher: false,
+        isMaestro: false,
+        isDJ: false,
+        isOrchestra: false
+      }
+    };
+    
+    try {
+      // Create the organizer
+      const organizerResponse = await fetch('/api/organizers', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(organizerData)
+      });
+      
+      if (!organizerResponse.ok) {
+        const errorData = await organizerResponse.json();
+        throw new Error(errorData.message || 'Failed to create organizer');
+      }
+      
+      const createdOrganizer = await organizerResponse.json();
+      
+      // Update user to include organizerId reference
+      await usersApi.updateUser({
+        firebaseUserId: user.firebaseUserId,
+        appId: appId,
+        regionalOrganizerInfo: {
+          organizerId: createdOrganizer._id,
+          isApproved: true,
+          isEnabled: true,
+          isActive: true
+        }
+      });
+  
+      // Add organizer role to the user
+      const organizerRole = roles.find(role => 
+        role.roleName === 'RegionalOrganizer' || 
+        role.roleNameCode === 'RGO'
+      );
+      
+      if (organizerRole) {
+        // Get current roles
+        const currentRoles = [...(user.roleIds || [])].map(role => 
+          typeof role === 'object' ? role._id : role
+        );
+        
+        // Add organizer role if not present
+        if (!currentRoles.includes(organizerRole._id)) {
+          currentRoles.push(organizerRole._id);
+          await usersApi.updateUserRoles(user.firebaseUserId, currentRoles, appId);
+        }
+      }
+      
+      return createdOrganizer;
+    } catch (err) {
+      console.error('Error creating organizer for user:', err);
+      throw err;
+    }
+  }, [appId, roles]);
+
+  /**
+   * Update an existing user with optimized error handling
    * @param {Object} userData - User data with updates
    * @returns {Promise<Object>} Updated user
    */
@@ -305,7 +395,9 @@ const useUsers = (options = {}) => {
       
       // Update user roles separately if roleIds exists
       if (userData.roleIds) {
-        const roleIds = [...userData.roleIds];
+        const roleIds = [...userData.roleIds].map(role => 
+          typeof role === 'object' ? role._id : role
+        );
         await usersApi.updateUserRoles(userData.firebaseUserId, roleIds, appId);
       }
       
@@ -324,7 +416,7 @@ const useUsers = (options = {}) => {
   }, [appId, fetchUsers, users]);
 
   /**
-   * Delete a user
+   * Delete a user with careful handling of organizer relationships
    * @param {string} userId - User ID
    * @returns {Promise<void>}
    */
@@ -375,7 +467,16 @@ const useUsers = (options = {}) => {
     }
   }, [appId, fetchUsers, getUserById]);
 
-  return {
+  /**
+   * Reset filters to their initial state
+   */
+  const resetFilters = useCallback(() => {
+    setSearchTerm(options.initialFilters?.searchTerm || '');
+    setTabValue(options.initialFilters?.tabValue || 0);
+  }, [options.initialFilters]);
+
+  // Memoize the public API to prevent unnecessary re-renders
+  const api = useMemo(() => ({
     // Data
     users,
     filteredUsers,
@@ -388,6 +489,7 @@ const useUsers = (options = {}) => {
     tabValue,
     setTabValue,
     filterUsers,
+    resetFilters,
     
     // Pagination
     pagination,
@@ -398,8 +500,30 @@ const useUsers = (options = {}) => {
     getUserById,
     createUser,
     updateUser,
-    deleteUser
-  };
+    deleteUser,
+    createOrganizerForUser
+  }), [
+    users, 
+    filteredUsers, 
+    loading, 
+    error, 
+    searchTerm, 
+    tabValue, 
+    pagination,
+    fetchUsers,
+    filterUsers,
+    resetFilters,
+    getUserById,
+    createUser,
+    updateUser,
+    deleteUser,
+    createOrganizerForUser,
+    setPagination,
+    setSearchTerm,
+    setTabValue
+  ]);
+
+  return api;
 };
 
 export default useUsers;
