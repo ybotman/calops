@@ -17,12 +17,16 @@ import ActionButtons from './ActionButtons';
  */
 const UserTable = ({
   users,
-  loading,
+  loading = false,
   onEdit,
   onDelete,
   onCreateOrganizer,
   onDeleteOrganizer,
-  pagination,
+  pagination = {
+    page: 0,
+    pageSize: 10,
+    totalCount: 0
+  },
   onPaginationChange,
   error,
   selectedUser
@@ -214,13 +218,5 @@ UserTable.propTypes = {
   selectedUser: PropTypes.object
 };
 
-UserTable.defaultProps = {
-  loading: false,
-  pagination: {
-    page: 0,
-    pageSize: 10,
-    totalCount: 0
-  }
-};
 
 export default UserTable;
