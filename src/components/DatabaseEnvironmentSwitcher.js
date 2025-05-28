@@ -75,17 +75,24 @@ export default function DatabaseEnvironmentSwitcher() {
   return (
     <>
       <Chip
-        icon={isLoading ? <CircularProgress size={16} /> : <DatabaseIcon />}
+        icon={isLoading ? <CircularProgress size={16} /> : <DatabaseIcon sx={{ color: isTest ? 'white' : undefined }} />}
         label={isLoading ? 'Switching...' : `DB: ${getEnvironmentLabel()}`}
         color={getEnvironmentColor()}
-        variant="outlined"
+        variant={isTest ? "filled" : "outlined"}
         onClick={!isLoading ? handleEnvironmentClick : undefined}
         disabled={isLoading}
         sx={{ 
           mr: 2, 
           cursor: isLoading ? 'default' : 'pointer',
+          ...(isTest && {
+            backgroundColor: 'grey.600',
+            color: 'white',
+            '& .MuiChip-label': {
+              color: 'white'
+            }
+          }),
           '&:hover': !isLoading ? {
-            backgroundColor: isTest ? 'grey.100' : 'warning.light',
+            backgroundColor: isTest ? 'grey.700' : 'warning.light',
             opacity: 0.8
           } : {}
         }}
