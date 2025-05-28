@@ -19,50 +19,64 @@ All task assignments and workflow status updates go here._
 ## 🧭 SCOUT (Required)
 _Research, discoveries, risks, and open questions.  
 Document findings and recommendations here._  
-**Last updated:** 2025-01-28 16:30
+**Last updated:** 2025-01-28 18:00
 
-**Current MongoDB Implementation:**
-- Located in `/src/lib/mongodb.js`
-- Uses single `MONGODB_URI` environment variable
-- Hardcoded connection to TEST database (TangoTiempo)
-- Connection is cached globally for performance
-- Used by 6+ files including scripts and API routes
+**CRITICAL ISSUE DISCOVERED:**
+Most API routes are **NOT using the database environment context**. Two patterns found:
 
-**Environment Variables Available:**
-- `MONGODB_URI` - Currently points to TEST database (TangoTiempo)
-- `MONGODB_URI_PROD` - Available but not used in code
+**Pattern 1: Direct Database (Working with Environment)**
+- Routes like `/api/debug/route.js` use `connectToDatabase()` directly
+- These routes DO respect the environment selection
+- Used by: debug, status, some venue operations
 
-**Risk Assessment:**
-- Need to ensure environment switching doesn't break existing functionality
-- Cache invalidation required when switching environments
-- Scripts in `/scripts/` folder also use MongoDB connections
+**Pattern 2: Backend Proxy (NOT Working with Environment)** 
+- Routes like `/api/users/route.js`, `/api/roles/route.js` proxy to `localhost:3010` backend
+- These routes IGNORE environment context completely
+- Used by: users, roles, organizers, events, applications
+
+**Specific Issues Found:**
+- `src/app/api/users/route.js` Line 230: `axios.get(${BE_URL}/api/userlogins/all)` 
+- `src/app/api/roles/route.js` Line 14: `axios.get(${BE_URL}/api/roles)`
+- **21 API routes** use `BE_URL` proxy pattern, ignoring environment
+
+**Impact:**
+- Users, Organizers, Venues pages always connect to same backend database
+- Environment switching only affects direct database routes
+- No environment context passed to backend service
 
 ## 🏛️ ARCHITECT (Required)
 _User-approved decisions, technical recommendations, and rationale.  
 Document all architectural notes and user approvals here._  
-**Last updated:** 2025-01-28 16:45
+**Last updated:** 2025-01-28 18:00
 
-**Architecture Design:**
-1. **Environment Selection Mechanism:**
-   - Add optional `environment` parameter to `connectToDatabase()` function
-   - Default to 'test' environment for backward compatibility
-   - Support 'test' and 'prod' environment values
+**Original Architecture Design:**
+1. **Environment Selection Mechanism:** ✅ COMPLETED
+2. **Connection URI Selection:** ✅ COMPLETED  
+3. **Cache Management:** ✅ COMPLETED
+4. **Function Signature:** ✅ COMPLETED
 
-2. **Connection URI Selection:**
-   - `environment === 'prod'` → uses `MONGODB_URI_PROD`
-   - `environment === 'test'` (default) → uses `MONGODB_URI`
+**CRITICAL FIX REQUIRED:**
+**Problem:** 21 API routes use backend proxy pattern, ignoring environment context
 
-3. **Cache Management:**
-   - Separate cache per environment: `{ test: {conn, promise}, prod: {conn, promise} }`
-   - Prevents cross-contamination between environments
+**Recommended Solutions (in priority order):**
 
-4. **Function Signature:**
-   - `async function connectToDatabase(environment = 'test')`
-   - Maintains backward compatibility (existing code unchanged)
+**Option 1: Convert Critical Routes to Direct Database (RECOMMENDED)**
+- Convert `/api/users`, `/api/roles`, `/api/organizers` to use `getApiDatabase(request)`
+- Implement proper MongoDB operations instead of backend proxy
+- Immediate environment context support
 
-**Environment Variables:**
-- `MONGODB_URI` = TangoTiempo (TEST database) ✓
-- `MONGODB_URI_PROD` = TangoTiempoProd (PROD database) ✓
+**Option 2: Enhanced Backend Proxy**
+- Modify backend service to accept environment parameter
+- Update proxy routes to pass environment context to backend
+- Requires backend service changes
+
+**Option 3: Hybrid Approach**
+- Keep non-critical routes as backend proxy
+- Convert user-facing routes (Users, Organizers, Venues) to direct database
+- Gradual migration strategy
+
+**Immediate Action Needed:**
+Fix `/api/users/route.js` to use `getApiDatabase(request)` instead of `BE_URL` proxy
 
 ## 🛠️ BUILDER (Required)
 _Implementation details, blockers, and technical choices.  
@@ -143,7 +157,11 @@ Environment selection will be handled at the connection level with TEST as the d
 | ✅ Complete    | Research current MongoDB implementation | 2025-01-28  |
 | ✅ Complete    | Design environment selection mechanism | 2025-01-28 |
 | ✅ Complete    | Implement database environment switching | 2025-01-28 |
-| ✅ Complete    | Test functionality with both environments | 2025-01-28 |
+| ❌ Failed      | Test functionality with both environments | 2025-01-28 |
+| 🚧 Critical   | Fix API routes to use environment context | 2025-01-28 |
+| ⏳ Pending    | Convert /api/users to direct database | 2025-01-28 |
+| ⏳ Pending    | Convert /api/roles to direct database | 2025-01-28 |
+| ⏳ Pending    | Convert /api/organizers to direct database | 2025-01-28 |
 
 ## Rollback Plan
 - Revert changes to `/src/lib/mongodb.js`
