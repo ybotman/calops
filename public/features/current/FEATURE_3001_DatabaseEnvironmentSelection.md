@@ -58,25 +58,48 @@ Document all architectural notes and user approvals here._
 **CRITICAL FIX REQUIRED:**
 **Problem:** 21 API routes use backend proxy pattern, ignoring environment context
 
-**Recommended Solutions (in priority order):**
+**BEST PRACTICE RECOMMENDATION: Direct Database Pattern**
 
-**Option 1: Convert Critical Routes to Direct Database (RECOMMENDED)**
-- Convert `/api/users`, `/api/roles`, `/api/organizers` to use `getApiDatabase(request)`
-- Implement proper MongoDB operations instead of backend proxy
-- Immediate environment context support
+**Architecture Decision: Pattern 1 (Direct Database) - APPROVED**
 
-**Option 2: Enhanced Backend Proxy**
-- Modify backend service to accept environment parameter
-- Update proxy routes to pass environment context to backend
-- Requires backend service changes
+**Why Direct Database is Best Practice:**
+1. **Single Source of Truth:** Application directly manages its own database connections
+2. **Environment Control:** Full control over which database environment is used
+3. **Performance:** Eliminates network hop to backend service
+4. **Simplicity:** Fewer moving parts, easier to debug
+5. **Security:** No exposed backend API endpoints
+6. **Consistency:** All routes use same connection pattern
 
-**Option 3: Hybrid Approach**
-- Keep non-critical routes as backend proxy
-- Convert user-facing routes (Users, Organizers, Venues) to direct database
-- Gradual migration strategy
+**Implementation Strategy:**
 
-**Immediate Action Needed:**
-Fix `/api/users/route.js` to use `getApiDatabase(request)` instead of `BE_URL` proxy
+**Phase 1: Convert Critical User-Facing Routes (IMMEDIATE)**
+- `/api/users` → Direct MongoDB with UserLogin model
+- `/api/roles` → Direct MongoDB with Role model  
+- `/api/organizers` → Direct MongoDB with Organizer model
+
+**Phase 2: Convert Remaining Routes (GRADUAL)**
+- `/api/events` → Direct MongoDB with Event model
+- `/api/venues` → Direct MongoDB with Venue model
+- `/api/applications` → Direct MongoDB with Application model
+
+**Phase 3: Retire Backend Proxy Pattern**
+- Remove `BE_URL` dependencies
+- Consolidate all database operations in CalOps application
+
+**Benefits:**
+- ✅ **Immediate environment context support**
+- ✅ **Reduced complexity** (no backend service dependency)
+- ✅ **Better performance** (direct database access)
+- ✅ **Easier debugging** (single application layer)
+- ✅ **Future-proof architecture** (self-contained)
+
+**Migration Path:**
+1. Create MongoDB models in `/src/lib/models.js` 
+2. Convert one route at a time using `getApiDatabase(request)`
+3. Test environment switching works per route
+4. Remove backend proxy code once all routes converted
+
+**Architectural Principle:** Follows microservice best practices where each application manages its own data layer directly.
 
 ## 🛠️ BUILDER (Required)
 _Implementation details, blockers, and technical choices.  
@@ -158,10 +181,13 @@ Environment selection will be handled at the connection level with TEST as the d
 | ✅ Complete    | Design environment selection mechanism | 2025-01-28 |
 | ✅ Complete    | Implement database environment switching | 2025-01-28 |
 | ❌ Failed      | Test functionality with both environments | 2025-01-28 |
-| 🚧 Critical   | Fix API routes to use environment context | 2025-01-28 |
-| ⏳ Pending    | Convert /api/users to direct database | 2025-01-28 |
-| ⏳ Pending    | Convert /api/roles to direct database | 2025-01-28 |
-| ⏳ Pending    | Convert /api/organizers to direct database | 2025-01-28 |
+| 🚧 Critical   | Document best practice recommendation | 2025-01-28 |
+| ✅ Complete   | Architect direct database pattern strategy | 2025-01-28 |
+| ⏳ Pending    | Phase 1: Convert /api/users to direct database | 2025-01-28 |
+| ⏳ Pending    | Phase 1: Convert /api/roles to direct database | 2025-01-28 |
+| ⏳ Pending    | Phase 1: Convert /api/organizers to direct database | 2025-01-28 |
+| ⏳ Pending    | Phase 2: Convert remaining routes (events, venues, apps) | 2025-01-28 |
+| ⏳ Pending    | Phase 3: Retire backend proxy pattern completely | 2025-01-28 |
 
 ## Rollback Plan
 - Revert changes to `/src/lib/mongodb.js`
