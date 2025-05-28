@@ -38,8 +38,8 @@ const useRoles = (options = {}) => {
    * @returns {Promise<Array>} Fetched roles
    */
   const fetchRoles = useCallback(async (forceRefresh = false, retryCount = 0) => {
-    // Skip fetch if we have roles and aren't forcing a refresh
-    if (roles.length > 0 && !forceRefresh && lastUpdated) {
+    // Skip fetch if we have fresh cached data and aren't forcing a refresh
+    if (!forceRefresh && lastUpdated) {
       // Only use cached data if it's less than the configured cache age
       const cacheAge = Date.now() - lastUpdated;
       if (cacheAge < cacheOptions.maxAge) {
@@ -79,12 +79,32 @@ const useRoles = (options = {}) => {
     } finally {
       setLoading(false);
     }
-  }, [appId, roles, lastUpdated, cacheOptions.maxAge]);
+  }, [appId, lastUpdated, cacheOptions.maxAge]);
 
   // Fetch roles on component mount and when appId changes
   useEffect(() => {
-    fetchRoles();
-  }, [fetchRoles, appId]);
+    // Only fetch if we don't have fresh cached data
+    const cacheAge = lastUpdated ? Date.now() - lastUpdated : Infinity;
+    if (cacheAge > cacheOptions.maxAge || !lastUpdated) {
+      // Call fetchRoles directly to avoid dependency loop
+      (async () => {
+        try {
+          setLoading(true);
+          setError(null);
+          const rolesData = await rolesApi.getRoles(appId);
+          setRoles(rolesData);
+          setLastUpdated(Date.now());
+        } catch (err) {
+          const errorMessage = err.response?.data?.message || err.message;
+          console.error(`Error fetching roles: ${errorMessage}`, err);
+          setError(err);
+          setRoles([]);
+        } finally {
+          setLoading(false);
+        }
+      })();
+    }
+  }, [appId, lastUpdated, cacheOptions.maxAge]);
 
   /**
    * Process role IDs to a consistent string format for display
