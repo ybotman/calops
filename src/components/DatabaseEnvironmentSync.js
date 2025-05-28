@@ -25,11 +25,6 @@ export default function DatabaseEnvironmentSync() {
     }
   }, [environment]);
 
-  // Also set on initial mount to ensure it's always set
-  useEffect(() => {
-    setGlobalDatabaseEnvironment(environment);
-  }, []);
-
   // This component doesn't render anything
   return null;
 }
