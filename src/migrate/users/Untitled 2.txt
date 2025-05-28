@@ -1,0 +1,34 @@
+// buildListing.js
+const fs = require('fs');
+const path = require('path');
+
+// 1. Read the raw listing
+const raw = fs.readFileSync(path.join(__dirname, 'listingJS.txt'), 'utf-8');
+const lines = raw.split(/\r?\n/).filter(l => l.trim());
+
+// 2. Build your entries array
+const entries = lines.map(p => {
+  // normalize leading "./"
+  const filePath = p.startsWith('./') ? p.slice(2) : p;
+  const fileName = path.basename(filePath);
+  const fullFilePath = path.resolve(__dirname, filePath);
+
+  return {
+    fileName,
+    filePath,
+    fullFilePath,
+    Descriptions: [],
+    FolderFunction: "",
+    CalledBy: [],
+    Calls: [],
+    PrimaryFunctions: [],
+    ChangeHistory: [],
+    Contexts: [],
+    States: []
+  };
+});
+
+// 3. Serialize and write out
+const outPath = path.join(__dirname, 'listing.json');
+fs.writeFileSync(outPath, JSON.stringify(entries, null, 2), 'utf-8');
+console.log(`✅ Wrote ${entries.length} entries to ${outPath}`);

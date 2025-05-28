@@ -1,5 +1,5 @@
 {
-  "name": "calendar-admin",
+  "name": "master-calendar-operations",
   "version": "1.0.0",
   "description": "Administration application for Calendar Backend",
   "main": "server.js",
@@ -13,7 +13,7 @@
     "lint": "next lint",
     "format": "prettier --write .",
     "sync-models": "node scripts/syncModels.js",
-    "cypress": "cypress open",
+    "cypress": "cy:dpress open",
     "test:e2e": "start-server-and-test dev:cypress http://localhost:3013 cypress"
   },
   "engines": {
