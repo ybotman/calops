@@ -52,7 +52,7 @@ export default function DatabaseEnvironmentSwitcher() {
   };
 
   const getEnvironmentColor = () => {
-    return isTest ? 'success' : 'warning';
+    return isTest ? 'default' : 'warning';
   };
 
   const getEnvironmentLabel = () => {
@@ -85,7 +85,7 @@ export default function DatabaseEnvironmentSwitcher() {
           mr: 2, 
           cursor: isLoading ? 'default' : 'pointer',
           '&:hover': !isLoading ? {
-            backgroundColor: isTest ? 'success.light' : 'warning.light',
+            backgroundColor: isTest ? 'grey.100' : 'warning.light',
             opacity: 0.8
           } : {}
         }}
