@@ -8,9 +8,25 @@ import axios from 'axios';
 // Base URL for the API - defaults to localhost:3010
 const BE_URL = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
 
+// Global database environment state (will be set by interceptor)
+let globalDatabaseEnvironment = 'test';
+
+// Function to set the global database environment
+export function setGlobalDatabaseEnvironment(environment) {
+  globalDatabaseEnvironment = environment;
+}
+
 // Create a configured axios instance
 const apiClient = axios.create({
   baseURL: BE_URL,
+  timeout: 30000, // 30 seconds
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Create internal axios instance for local API routes
+const localApiClient = axios.create({
   timeout: 30000, // 30 seconds
   headers: {
     'Content-Type': 'application/json',
@@ -25,6 +41,20 @@ apiClient.interceptors.request.use(
   },
   error => {
     console.error('API Request Error:', error);
+    return Promise.reject(error);
+  }
+);
+
+// Add interceptors for local API client to include database environment
+localApiClient.interceptors.request.use(
+  config => {
+    // Add database environment header for local API routes
+    config.headers['x-db-environment'] = globalDatabaseEnvironment;
+    console.log(`Local API Request: ${config.method.toUpperCase()} ${config.url} [DB: ${globalDatabaseEnvironment}]`);
+    return config;
+  },
+  error => {
+    console.error('Local API Request Error:', error);
     return Promise.reject(error);
   }
 );
@@ -191,7 +221,7 @@ export const usersApi = {
       // Create request promise
       const requestPromise = new Promise(async (resolve, reject) => {
         try {
-          const response = await axios.get(url);
+          const response = await localApiClient.get(url);
           
           // Update the rate limiter
           usersApi._rateLimiter.lastRequestTime = Date.now();

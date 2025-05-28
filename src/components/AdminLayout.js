@@ -15,6 +15,8 @@ import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Avatar from '@mui/material/Avatar';
 import { useAppContext } from '@/lib/AppContext';
+import DatabaseEnvironmentSwitcher from './DatabaseEnvironmentSwitcher';
+import DatabaseEnvironmentSync from './DatabaseEnvironmentSync';
 
 // Icons
 import MenuIcon from '@mui/icons-material/Menu';
@@ -127,6 +129,7 @@ export default function AdminLayout({ children }) {
 
   return (
     <Box sx={{ display: 'flex' }}>
+      <DatabaseEnvironmentSync />
       <AppBar
         position="fixed"
         sx={{
@@ -150,6 +153,8 @@ export default function AdminLayout({ children }) {
               Current Application: {currentApp.name} <AppsIcon sx={{ ml: 1 }} />
             </Box>
           </Typography>
+          
+          <DatabaseEnvironmentSwitcher />
           
           <Menu
             id="app-menu"
