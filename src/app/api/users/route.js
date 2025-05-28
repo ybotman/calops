@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
-import axios from 'axios';
+import { getApiDatabase } from '@/lib/api-database';
+import { getUserLoginsModel } from '@/lib/models';
 import firebaseAdmin from '@/lib/firebase-admin'; // Import the improved firebase admin object
-
-const BE_URL = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
 
 // Simple in-memory rate limiter
 const rateLimiter = {
@@ -222,22 +221,38 @@ export async function GET(request) {
       }
     }
     
-    // Fetch users from backend
+    // Fetch users directly from MongoDB
     try {
-      console.log('Fetching users with backend API at /api/userlogins/all');
+      console.log('Fetching users directly from MongoDB database');
       
-      // Add timeout to prevent hanging requests
-      const response = await axios.get(`${BE_URL}/api/userlogins/all?${queryString}`, {
-        timeout: 15000 // 15 second timeout
-      });
+      // Connect to environment-aware database
+      await getApiDatabase(request);
       
-      console.log(`Successfully fetched ${response.data?.users?.length || 0} users from backend`);
+      // Get UserLogins model and build query
+      const UserLogins = await getUserLoginsModel();
+      const query = { appId };
+      if (active !== undefined) {
+        query.active = active;
+      }
+      
+      // Fetch users with timeout
+      const users = await Promise.race([
+        UserLogins.find(query).sort({ createdAt: -1 }),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Database query timeout')), 15000)
+        )
+      ]);
+      
+      console.log(`Successfully fetched ${users.length} users from database`);
+      
+      // Format response to match original backend format
+      const responseData = { users };
       
       // Cache the response
-      responseCache.set(cacheKey, response.data);
+      responseCache.set(cacheKey, responseData);
       
       // Return the data directly with rate limit headers
-      return NextResponse.json(response.data, { 
+      return NextResponse.json(responseData, { 
         headers: {
           'X-Cache': 'MISS',
           'X-RateLimit-Limit': String(rateLimiter.maxRequests),
@@ -245,36 +260,23 @@ export async function GET(request) {
         }
       });
     } catch (error) {
-      console.error('Error fetching users from backend:', error);
+      console.error('Error fetching users from database:', error);
       
-      // Special handling for timeouts and rate limits
-      if (error.code === 'ECONNABORTED' || (error.response && error.response.status === 504)) {
+      // Special handling for timeouts
+      if (error.message === 'Database query timeout') {
         return NextResponse.json({ 
-          error: 'Backend request timed out, please try again later',
+          error: 'Database request timed out, please try again later',
           users: [], 
           pagination: { total: 0, page: 1, limit: 10 }
         }, { status: 504 });
-      }
-      
-      if (error.response && error.response.status === 429) {
-        return NextResponse.json({ 
-          error: 'Backend rate limited, please try again later',
-          users: [], 
-          pagination: { total: 0, page: 1, limit: 10 }
-        }, { 
-          status: 429,
-          headers: {
-            'Retry-After': error.response.headers['retry-after'] || '60'
-          }
-        });
       }
       
       // Return empty data structure with appropriate format
       return NextResponse.json({ 
         users: [], 
         pagination: { total: 0, page: 1, limit: 10 },
-        error: `Backend API error: ${error.message}`
-      }, { status: error.response?.status || 500 });
+        error: `Database error: ${error.message}`
+      }, { status: 500 });
     }
   } catch (error) {
     console.error('Error fetching users:', error);

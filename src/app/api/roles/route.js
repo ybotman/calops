@@ -1,19 +1,24 @@
 import { NextResponse } from 'next/server';
-import axios from 'axios';
-
-const BE_URL = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
+import { getApiDatabase } from '@/lib/api-database';
+import { getRolesModel } from '@/lib/models';
 
 // GET handler - Get all roles for an app
 export async function GET(request) {
   try {
+    // Connect to environment-aware database
+    await getApiDatabase(request);
+    
     // Parse query parameters
     const { searchParams } = new URL(request.url);
     const appId = searchParams.get('appId') || "1";
     
-    // Fetch roles from backend
-    const response = await axios.get(`${BE_URL}/api/roles?appId=${appId}`);
+    // Get roles model and fetch data directly from MongoDB
+    const Roles = await getRolesModel();
+    const roles = await Roles.find({ appId }).sort({ roleName: 1 });
     
-    return NextResponse.json(response.data);
+    console.log(`Successfully fetched ${roles.length} roles for appId: ${appId}`);
+    
+    return NextResponse.json({ roles });
   } catch (error) {
     console.error('Error fetching roles:', error);
     return NextResponse.json({ 
