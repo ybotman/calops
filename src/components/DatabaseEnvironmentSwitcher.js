@@ -12,16 +12,18 @@ import {
   Typography, 
   Alert,
   ToggleButtonGroup,
-  ToggleButton
+  ToggleButton,
+  CircularProgress
 } from '@mui/material';
 import { 
   Storage as DatabaseIcon,
-  Warning as WarningIcon 
+  Warning as WarningIcon,
+  Refresh as RefreshIcon
 } from '@mui/icons-material';
 import { useDatabaseContext } from '@/lib/DatabaseContext';
 
 export default function DatabaseEnvironmentSwitcher() {
-  const { environment, switchEnvironment, isTest, isProd } = useDatabaseContext();
+  const { environment, switchEnvironment, isTest, isProd, isLoading } = useDatabaseContext();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [pendingEnvironment, setPendingEnvironment] = useState(null);
 
@@ -39,8 +41,9 @@ export default function DatabaseEnvironmentSwitcher() {
     if (pendingEnvironment) {
       switchEnvironment(pendingEnvironment);
       setPendingEnvironment(null);
+      setDialogOpen(false);
+      // Dialog will stay open briefly to show loading, then page will refresh
     }
-    setDialogOpen(false);
   };
 
   const handleCancelSwitch = () => {
@@ -59,18 +62,19 @@ export default function DatabaseEnvironmentSwitcher() {
   return (
     <>
       <Chip
-        icon={<DatabaseIcon />}
-        label={`DB: ${getEnvironmentLabel()}`}
+        icon={isLoading ? <CircularProgress size={16} /> : <DatabaseIcon />}
+        label={isLoading ? 'Switching...' : `DB: ${getEnvironmentLabel()}`}
         color={getEnvironmentColor()}
         variant="outlined"
-        onClick={handleEnvironmentClick}
+        onClick={!isLoading ? handleEnvironmentClick : undefined}
+        disabled={isLoading}
         sx={{ 
           mr: 2, 
-          cursor: 'pointer',
-          '&:hover': {
+          cursor: isLoading ? 'default' : 'pointer',
+          '&:hover': !isLoading ? {
             backgroundColor: isTest ? 'success.light' : 'warning.light',
             opacity: 0.8
-          }
+          } : {}
         }}
       />
 
@@ -90,7 +94,7 @@ export default function DatabaseEnvironmentSwitcher() {
         <DialogContent>
           <Alert severity="info" sx={{ mb: 3 }}>
             You are currently connected to the <strong>{getEnvironmentLabel()}</strong> database.
-            Switching environments will change which database all operations connect to.
+            Switching environments will change which database all operations connect to and refresh the application.
           </Alert>
 
           {isProd && (

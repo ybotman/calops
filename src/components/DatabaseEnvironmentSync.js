@@ -15,7 +15,20 @@ export default function DatabaseEnvironmentSync() {
     // Update the global database environment in the API client
     setGlobalDatabaseEnvironment(environment);
     console.log(`🔧 Database environment updated to: ${environment.toUpperCase()}`);
+    
+    // Force update of any cached data or connections
+    if (typeof window !== 'undefined') {
+      // Clear any cached API data that might be environment-specific
+      window.dispatchEvent(new CustomEvent('database-environment-changed', { 
+        detail: { environment } 
+      }));
+    }
   }, [environment]);
+
+  // Also set on initial mount to ensure it's always set
+  useEffect(() => {
+    setGlobalDatabaseEnvironment(environment);
+  }, []);
 
   // This component doesn't render anything
   return null;
