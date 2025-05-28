@@ -190,32 +190,11 @@ const useUsers = (options = {}) => {
     }
   }, [appId, users, lastUpdated, processUsers, cacheOptions.maxAge]);
 
-  // Debounced fetchUsers implementation
-  const debouncedFetchUsers = useCallback(() => {
-    let timeoutId = null;
-    
-    return (forceRefresh = false) => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-      
-      // Return a promise that resolves when the fetch is complete
-      return new Promise((resolve) => {
-        timeoutId = setTimeout(async () => {
-          try {
-            const result = await fetchUsers(forceRefresh);
-            resolve(result);
-          } catch (error) {
-            console.error('Error in debounced fetchUsers:', error);
-            resolve([]);
-          }
-        }, 500); // 500ms debounce time
-      });
-    };
+  // Stable debounced fetch function to prevent useEffect loops
+  const debouncedFetch = useCallback(async (forceRefresh = false) => {
+    // Simple debounce - just call fetchUsers directly since we have caching
+    return await fetchUsers(forceRefresh);
   }, [fetchUsers]);
-  
-  // Use the debounced function
-  const debouncedFetch = useMemo(() => debouncedFetchUsers(), [debouncedFetchUsers]);
   
   // Fetch users when the hook is first mounted and when appId changes
   useEffect(() => {
@@ -224,11 +203,13 @@ const useUsers = (options = {}) => {
       // Check if the data in the cache is fresh enough
       const cacheAge = lastUpdated ? Date.now() - lastUpdated : Infinity;
       
-      if (cacheAge > cacheOptions.maxAge || users.length === 0) {
+      // Only fetch if cache is stale OR we have no data
+      // Remove users.length dependency to prevent infinite loops
+      if (cacheAge > cacheOptions.maxAge || !lastUpdated) {
         debouncedFetch();
       }
     }
-  }, [debouncedFetch, appId, rolesLoading, lastUpdated, users.length, cacheOptions.maxAge]);
+  }, [debouncedFetch, appId, rolesLoading, lastUpdated, cacheOptions.maxAge]);
 
   /**
    * Filter users based on search term and current tab with improved error handling
