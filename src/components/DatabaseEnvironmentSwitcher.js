@@ -23,7 +23,7 @@ import {
 import { useDatabaseContext } from '@/lib/DatabaseContext';
 
 export default function DatabaseEnvironmentSwitcher() {
-  const { environment, switchEnvironment, isTest, isProd, isLoading } = useDatabaseContext();
+  const { environment, switchEnvironment, isTest, isProd, isLoading, isInitialized } = useDatabaseContext();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [pendingEnvironment, setPendingEnvironment] = useState(null);
 
@@ -58,6 +58,19 @@ export default function DatabaseEnvironmentSwitcher() {
   const getEnvironmentLabel = () => {
     return isTest ? 'TEST' : 'PROD';
   };
+
+  // Don't render until initialized to avoid hydration mismatch
+  if (!isInitialized) {
+    return (
+      <Chip
+        icon={<CircularProgress size={16} />}
+        label="Loading..."
+        variant="outlined"
+        disabled
+        sx={{ mr: 2 }}
+      />
+    );
+  }
 
   return (
     <>

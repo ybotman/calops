@@ -7,23 +7,28 @@ const DatabaseContext = createContext();
 const DB_ENVIRONMENT_KEY = 'database-environment';
 
 export function DatabaseProvider({ children }) {
-  // Initialize from localStorage or default to TEST
-  const [environment, setEnvironment] = useState(() => {
+  // Always start with 'test' to avoid hydration mismatch
+  const [environment, setEnvironment] = useState('test');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Load from localStorage after component mounts (client-side only)
+  useEffect(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem(DB_ENVIRONMENT_KEY);
-      return stored && ['test', 'prod'].includes(stored) ? stored : 'test';
+      if (stored && ['test', 'prod'].includes(stored)) {
+        setEnvironment(stored);
+      }
+      setIsInitialized(true);
     }
-    return 'test';
-  });
-  
-  const [isLoading, setIsLoading] = useState(false);
+  }, []);
 
   // Persist environment changes to localStorage
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && isInitialized) {
       localStorage.setItem(DB_ENVIRONMENT_KEY, environment);
     }
-  }, [environment]);
+  }, [environment, isInitialized]);
 
   const switchEnvironment = useCallback((newEnvironment) => {
     if (!['test', 'prod'].includes(newEnvironment)) {
@@ -51,7 +56,8 @@ export function DatabaseProvider({ children }) {
       switchEnvironment,
       isTest: environment === 'test',
       isProd: environment === 'prod',
-      isLoading
+      isLoading,
+      isInitialized
     }}>
       {children}
     </DatabaseContext.Provider>
