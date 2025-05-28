@@ -2,7 +2,6 @@ import { Inter } from 'next/font/google';
 import { ThemeRegistry } from '@/components/ThemeRegistry';
 import { AuthProvider } from '@/lib/firebase-auth';
 import { AppProvider } from '@/lib/AppContext';
-import { DatabaseProvider } from '@/lib/DatabaseContext';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -23,9 +22,7 @@ export default function RootLayout({ children }) {
         <ThemeRegistry>
           <AuthProvider>
             <AppProvider>
-              <DatabaseProvider>
-                {children}
-              </DatabaseProvider>
+              {children}
             </AppProvider>
           </AuthProvider>
         </ThemeRegistry>

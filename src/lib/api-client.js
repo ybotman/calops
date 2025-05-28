@@ -8,13 +8,7 @@ import axios from 'axios';
 // Base URL for the API - defaults to localhost:3010
 const BE_URL = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
 
-// Global database environment state (will be set by interceptor)
-let globalDatabaseEnvironment = 'test';
-
-// Function to set the global database environment
-export function setGlobalDatabaseEnvironment(environment) {
-  globalDatabaseEnvironment = environment;
-}
+// API client configuration
 
 // Create a configured axios instance
 const apiClient = axios.create({
@@ -45,12 +39,10 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Add interceptors for local API client to include database environment
+// Add interceptors for local API client  
 localApiClient.interceptors.request.use(
   config => {
-    // Add database environment header for local API routes
-    config.headers['x-db-environment'] = globalDatabaseEnvironment;
-    console.log(`Local API Request: ${config.method.toUpperCase()} ${config.url} [DB: ${globalDatabaseEnvironment}]`);
+    console.log(`Local API Request: ${config.method.toUpperCase()} ${config.url}`);
     return config;
   },
   error => {
