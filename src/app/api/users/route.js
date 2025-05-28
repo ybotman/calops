@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { getApiDatabase } from '@/lib/api-database';
-import { getUserLoginsModel } from '@/lib/models';
+import axios from 'axios';
 import firebaseAdmin from '@/lib/firebase-admin'; // Import the improved firebase admin object
+
+const BE_URL = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
 
 // Simple in-memory rate limiter
 const rateLimiter = {
@@ -152,7 +153,7 @@ const responseCache = {
   },
   
   /**
-   * Clean up old entries
+   * Clean up old cache entries
    * @private
    */
   _cleanup() {
@@ -165,7 +166,6 @@ const responseCache = {
   }
 };
 
-// GET handler - Get all users or filter by parameters
 export async function GET(request) {
   try {
     // Get client IP for rate limiting
@@ -221,38 +221,22 @@ export async function GET(request) {
       }
     }
     
-    // Fetch users directly from MongoDB
+    // Fetch users from backend
     try {
-      console.log('Fetching users directly from MongoDB database');
+      console.log('Fetching users with backend API at /api/userlogins/all');
       
-      // Connect to environment-aware database
-      await getApiDatabase(request);
+      // Add timeout to prevent hanging requests
+      const response = await axios.get(`${BE_URL}/api/userlogins/all?${queryString}`, {
+        timeout: 15000 // 15 second timeout
+      });
       
-      // Get UserLogins model and build query
-      const UserLogins = await getUserLoginsModel();
-      const query = { appId };
-      if (active !== undefined) {
-        query.active = active;
-      }
-      
-      // Fetch users with timeout
-      const users = await Promise.race([
-        UserLogins.find(query).sort({ createdAt: -1 }),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Database query timeout')), 15000)
-        )
-      ]);
-      
-      console.log(`Successfully fetched ${users.length} users from database`);
-      
-      // Format response to match original backend format
-      const responseData = { users };
+      console.log(`Successfully fetched ${response.data?.users?.length || 0} users from backend`);
       
       // Cache the response
-      responseCache.set(cacheKey, responseData);
+      responseCache.set(cacheKey, response.data);
       
       // Return the data directly with rate limit headers
-      return NextResponse.json(responseData, { 
+      return NextResponse.json(response.data, { 
         headers: {
           'X-Cache': 'MISS',
           'X-RateLimit-Limit': String(rateLimiter.maxRequests),
@@ -260,23 +244,36 @@ export async function GET(request) {
         }
       });
     } catch (error) {
-      console.error('Error fetching users from database:', error);
+      console.error('Error fetching users from backend:', error);
       
-      // Special handling for timeouts
-      if (error.message === 'Database query timeout') {
+      // Special handling for timeouts and rate limits
+      if (error.code === 'ECONNABORTED' || (error.response && error.response.status === 504)) {
         return NextResponse.json({ 
-          error: 'Database request timed out, please try again later',
+          error: 'Backend request timed out, please try again later',
           users: [], 
           pagination: { total: 0, page: 1, limit: 10 }
         }, { status: 504 });
+      }
+      
+      if (error.response && error.response.status === 429) {
+        return NextResponse.json({ 
+          error: 'Backend rate limited, please try again later',
+          users: [], 
+          pagination: { total: 0, page: 1, limit: 10 }
+        }, { 
+          status: 429,
+          headers: {
+            'Retry-After': error.response.headers['retry-after'] || '60'
+          }
+        });
       }
       
       // Return empty data structure with appropriate format
       return NextResponse.json({ 
         users: [], 
         pagination: { total: 0, page: 1, limit: 10 },
-        error: `Database error: ${error.message}`
-      }, { status: 500 });
+        error: `Backend API error: ${error.message}`
+      }, { status: error.response?.status || 500 });
     }
   } catch (error) {
     console.error('Error fetching users:', error);
@@ -286,136 +283,5 @@ export async function GET(request) {
       users: [], 
       pagination: { total: 0, page: 1, limit: 10 }
     }, { status: 500 });
-  }
-}
-
-// POST handler - Create a new user - with or without Firebase authentication
-export async function POST(request) {
-  try {
-    const { email, password, firstName, lastName, appId = '1', active = true } = await request.json();
-
-    // Validate required fields
-    if (!email || !firstName || !lastName) {
-      return NextResponse.json(
-        { success: false, message: 'Missing required fields' }, 
-        { status: 400 }
-      );
-    }
-
-    // Create user in Firebase - required for all users
-    let firebaseUserId;
-    
-    // Validate password is required
-    if (!password) {
-      return NextResponse.json(
-        { success: false, message: 'Password is required to create a user' }, 
-        { status: 400 }
-      );
-    }
-    
-    // Try to create user in Firebase
-    if (firebaseAdmin.isAvailable()) {
-      const auth = firebaseAdmin.getAuth();
-      
-      try {
-        const firebaseUser = await auth.createUser({
-          email,
-          password,
-          displayName: `${firstName} ${lastName}`,
-        });
-        firebaseUserId = firebaseUser.uid;
-        console.log(`Firebase user created: ${firebaseUserId}`);
-      } catch (firebaseError) {
-        console.error('Firebase user creation failed:', firebaseError);
-        return NextResponse.json(
-          { success: false, message: `Firebase user creation failed: ${firebaseError.message}` },
-          { status: 400 }
-        );
-      }
-    } else {
-      // Firebase not available, return error
-      console.error('Firebase is not available but is required for user creation');
-      return NextResponse.json(
-        { success: false, message: 'Firebase authentication is not available but is required for user creation' },
-        { status: 500 }
-      );
-    }
-    
-    console.log(`Creating user with ID: ${firebaseUserId}`);
-
-    // Prepare data for backend
-    const userLoginData = {
-      firebaseUserId,
-      appId,
-      active,
-      localUserInfo: {
-        firstName,
-        lastName,
-        isActive: true,
-        isApproved: true,
-        isEnabled: true,
-      },
-      roleIds: [], // Default to no roles
-      firebaseUserInfo: {
-        email,
-        displayName: `${firstName} ${lastName}`,
-      }
-    };
-
-    // Call backend API to create the user login
-    const response = await axios.post(`${BE_URL}/api/userlogins`, userLoginData);
-
-    return NextResponse.json(
-      { message: 'User created successfully', ...response.data },
-      { status: 201 }
-    );
-  } catch (error) {
-    console.error('Error creating user:', error);
-    
-    // Determine the appropriate error message and status
-    let errorMessage = 'Error creating user';
-    let statusCode = 500;
-    
-    if (error.code === 'auth/email-already-exists') {
-      errorMessage = 'Email address is already in use';
-      statusCode = 409; // Conflict
-    } else if (error.code === 'auth/invalid-email') {
-      errorMessage = 'Invalid email address';
-      statusCode = 400; // Bad Request
-    } else if (error.code === 'auth/weak-password') {
-      errorMessage = 'Password is too weak (minimum 6 characters)';
-      statusCode = 400; // Bad Request
-    } else if (error.response) {
-      // If it's an error response from the API call
-      errorMessage = error.response.data?.message || errorMessage;
-      statusCode = error.response.status || statusCode;
-    }
-    
-    return NextResponse.json(
-      { success: false, message: errorMessage },
-      { status: statusCode }
-    );
-  }
-}
-
-// PATCH handler - Update user
-export async function PATCH(request) {
-  try {
-    const data = await request.json();
-    const { firebaseUserId, appId = "1" } = data;
-    
-    // Forward request to backend
-    const response = await axios.put(`${BE_URL}/api/userlogins/updateUserInfo`, data);
-    
-    return NextResponse.json({
-      message: 'User updated successfully',
-      user: response.data.updatedUser
-    });
-  } catch (error) {
-    console.error('Error updating user:', error);
-    return NextResponse.json({ 
-      error: 'Failed to update user',
-      details: error.response?.data?.message || error.message 
-    }, { status: error.response?.status || 500 });
   }
 }

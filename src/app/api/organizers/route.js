@@ -1,17 +1,16 @@
 /**
- * Organizers API - Direct MongoDB access
- * This route provides direct access to organizers data using MongoDB
+ * Organizers API - Proxy to backend API
+ * This route proxies requests to the backend organizers API
  */
 
 import { NextResponse } from 'next/server';
-import { getApiDatabase } from '@/lib/api-database';
-import { getOrganizersModel } from '@/lib/models';
+import axios from 'axios';
+
+// Base URL for the API - defaults to localhost:3010
+const BE_URL = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
 
 export async function GET(request) {
   try {
-    // Connect to environment-aware database
-    await getApiDatabase(request);
-    
     const { searchParams } = new URL(request.url);
     const appId = searchParams.get('appId') || '1';
     
@@ -23,53 +22,61 @@ export async function GET(request) {
       );
     }
 
-    // Get organizers model and fetch data directly from MongoDB
-    const Organizers = await getOrganizersModel();
+    // Forward the request to the backend API with all query parameters
+    const queryParams = new URLSearchParams();
+    searchParams.forEach((value, key) => {
+      // Log each parameter being forwarded (helpful for debugging)
+      console.log(`Forwarding parameter: ${key}=${value}`);
+      queryParams.append(key, value);
+    });
     
-    // Build query based on search parameters
-    const query = { appId };
-    
-    // Add other filters from query parameters
-    if (searchParams.get('active') !== null) {
-      query.active = searchParams.get('active') === 'true';
-    }
-    
-    console.log(`Fetching organizers from database with query:`, query);
+    // Logging the API request
+    console.log(`Proxying organizers request to backend: ${BE_URL}/api/organizers?${queryParams.toString()}`);
     
     try {
-      // Fetch organizers with timeout
-      const organizers = await Promise.race([
-        Organizers.find(query).sort({ createdAt: -1 }),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Database query timeout')), 10000)
-        )
-      ]);
+      // Set a reasonable timeout for the backend request
+      const response = await axios.get(`${BE_URL}/api/organizers?${queryParams.toString()}`, {
+        timeout: 10000 // 10 seconds
+      });
       
-      console.log(`Successfully fetched ${organizers.length} organizers from database`);
-      
-      // Return data in expected format
-      return NextResponse.json({ organizers });
-    } catch (dbError) {
-      console.error('Database error:', dbError.message);
+      // Check if the response is as expected
+      if (response.data) {
+        return NextResponse.json(response.data);
+      } else {
+        throw new Error('Invalid response format from backend API');
+      }
+    } catch (backendError) {
+      console.error('Backend API error:', backendError.message);
       
       // Check if this is a timeout error
-      if (dbError.message === 'Database query timeout') {
+      if (backendError.code === 'ECONNABORTED') {
         return NextResponse.json(
           { 
-            error: 'Database request timed out',
-            details: 'The database query took too long to respond' 
+            error: 'Backend API request timed out',
+            details: 'The backend server took too long to respond' 
           },
           { status: 504 }
         );
       }
       
-      // Return database error
+      // Check if this is a connection error
+      if (backendError.code === 'ECONNREFUSED') {
+        return NextResponse.json(
+          { 
+            error: 'Could not connect to backend API',
+            details: 'Please ensure the backend server is running' 
+          },
+          { status: 502 }
+        );
+      }
+      
+      // Forward any other backend error
+      const status = backendError.response?.status || 500;
+      const message = backendError.response?.data?.message || backendError.message || 'Backend API error';
+      
       return NextResponse.json(
-        { 
-          error: 'Database error',
-          details: dbError.message || 'Unknown database error'
-        },
-        { status: 500 }
+        { error: message },
+        { status }
       );
     }
   } catch (error) {
@@ -88,9 +95,6 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    // Connect to environment-aware database
-    await getApiDatabase(request);
-    
     const body = await request.json();
     const appId = body.appId || '1';
     
@@ -109,59 +113,48 @@ export async function POST(request) {
       }, { status: 400 });
     }
     
-    // Prepare organizer data
-    const organizerData = { 
-      ...body, 
-      appId,
-      createdAt: new Date(),
-      active: true
-    };
+    // Ensure appId is included
+    const requestBody = { ...body, appId };
     
-    console.log(`Creating organizer in database:`, organizerData);
+    console.log(`Proxying POST organizer request to backend: ${BE_URL}/api/organizers`);
     
     try {
-      // Get organizers model and create new organizer
-      const Organizers = await getOrganizersModel();
-      const newOrganizer = new Organizers(organizerData);
-      const savedOrganizer = await newOrganizer.save();
+      const response = await axios.post(`${BE_URL}/api/organizers`, requestBody);
       
       console.log('Organizer created successfully');
       return NextResponse.json(
-        { message: 'Organizer created successfully', organizer: savedOrganizer },
+        { message: 'Organizer created successfully', organizer: response.data },
         { status: 201 }
       );
-    } catch (dbError) {
-      console.error('Database error during organizer creation:', dbError.message);
+    } catch (backendError) {
+      console.error('Backend API error during organizer creation:', backendError.message);
       
-      // Handle validation errors
-      if (dbError.name === 'ValidationError') {
+      // Check if this is a connection error
+      if (backendError.code === 'ECONNREFUSED') {
         return NextResponse.json(
           { 
-            error: 'Validation failed',
-            details: dbError.message 
+            error: 'Could not connect to backend API',
+            details: 'Please ensure the backend server is running' 
           },
+          { status: 502 }
+        );
+      }
+      
+      // Forward validation errors
+      if (backendError.response?.status === 400) {
+        return NextResponse.json(
+          backendError.response.data,
           { status: 400 }
         );
       }
       
-      // Handle duplicate key errors
-      if (dbError.code === 11000) {
-        return NextResponse.json(
-          { 
-            error: 'Organizer already exists',
-            details: 'An organizer with this information already exists'
-          },
-          { status: 409 }
-        );
-      }
+      // Forward any other backend error
+      const status = backendError.response?.status || 500;
+      const message = backendError.response?.data?.message || backendError.message || 'Error creating organizer';
       
-      // Return generic database error
       return NextResponse.json(
-        { 
-          error: 'Database error',
-          details: dbError.message || 'Error creating organizer'
-        },
-        { status: 500 }
+        { error: message },
+        { status }
       );
     }
   } catch (error) {
