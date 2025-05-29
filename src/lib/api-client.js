@@ -952,10 +952,10 @@ export const eventsApi = {
       );
       
       return {
-        total: allResponse.data?.count || 0,
-        active: activeResponse.data?.count || 0,
-        upcoming: upcomingResponse.data?.count || 0,
-        thisMonth: thisMonthResponse.data?.count || 0
+        total: allResponse.data?.pagination?.total || 0,
+        active: activeResponse.data?.pagination?.total || 0,
+        upcoming: upcomingResponse.data?.pagination?.total || 0,
+        thisMonth: thisMonthResponse.data?.pagination?.total || 0
       };
     } catch (error) {
       console.error('Error fetching event counts:', error);

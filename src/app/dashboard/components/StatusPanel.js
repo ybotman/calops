@@ -22,12 +22,14 @@ import WarningIcon from '@mui/icons-material/Warning';
 import HelpIcon from '@mui/icons-material/Help';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import SettingsIcon from '@mui/icons-material/Settings';
 
 export default function StatusPanel() {
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState(null);
   const [error, setError] = useState(null);
   const [expanded, setExpanded] = useState(false);
+  const [envExpanded, setEnvExpanded] = useState(false);
   
   const fetchStatus = async () => {
     try {
@@ -106,8 +108,43 @@ export default function StatusPanel() {
     return 'ok';
   };
   
+  // Mask environment variable values (show last 10 characters)
+  const maskEnvValue = (value) => {
+    if (!value || value.length <= 10) {
+      return value;
+    }
+    const visiblePart = value.slice(-10);
+    const maskedPart = '*'.repeat(Math.min(value.length - 10, 20)); // Limit mask length
+    return `${maskedPart}${visiblePart}`;
+  };
+  
   const toggleExpanded = () => {
     setExpanded(!expanded);
+  };
+  
+  const toggleEnvExpanded = () => {
+    setEnvExpanded(!envExpanded);
+  };
+  
+  // Get active environment variables (exclude legacy/unused ones)
+  const getActiveEnvVars = () => {
+    return [
+      {
+        name: 'NEXT_PUBLIC_BE_URL',
+        value: process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010',
+        description: 'Backend API URL'
+      },
+      {
+        name: 'NODE_ENV',
+        value: process.env.NODE_ENV || 'development',
+        description: 'Node.js environment'
+      },
+      {
+        name: 'VERCEL_ENV',
+        value: process.env.VERCEL_ENV || 'N/A',
+        description: 'Vercel deployment environment'
+      }
+    ];
   };
   
   return (
@@ -188,7 +225,7 @@ export default function StatusPanel() {
                 <Box>{getStatusChip(status.firebase.status)}</Box>
               </ListItem>
               
-              <ListItem>
+              <ListItem divider>
                 <ListItemIcon>
                   {getStatusIcon(status.backend.status)}
                 </ListItemIcon>
@@ -212,6 +249,68 @@ export default function StatusPanel() {
                 />
                 <Box>{getStatusChip(status.backend.status)}</Box>
               </ListItem>
+              
+              <ListItem>
+                <ListItemIcon>
+                  <SettingsIcon color="primary" />
+                </ListItemIcon>
+                <ListItemText 
+                  primary="Environment Configuration" 
+                  secondary={
+                    <>
+                      <div style={{ marginTop: 4 }}>
+                        <Typography variant="body2" component="div">
+                          <strong>Backend URL:</strong> {maskEnvValue(status.backend.url)}
+                        </Typography>
+                      </div>
+                      <div style={{ marginTop: 4 }}>
+                        <Typography variant="body2" component="div">
+                          <strong>App Version:</strong> {status.application?.version || 'N/A'}
+                        </Typography>
+                      </div>
+                      <div style={{ marginTop: 4 }}>
+                        <Typography variant="body2" component="div">
+                          <strong>Firebase:</strong> {status.firebase.initialized ? 'Configured' : 'Not configured'}
+                        </Typography>
+                      </div>
+                      <div style={{ marginTop: 8 }}>
+                        <Button 
+                          size="small"
+                          onClick={toggleEnvExpanded}
+                          endIcon={envExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                          sx={{ textTransform: 'none', fontSize: '0.75rem' }}
+                        >
+                          {envExpanded ? 'Hide' : 'Show'} All Environment Variables
+                        </Button>
+                      </div>
+                    </>
+                  }
+                />
+                <Chip 
+                  label="INFO" 
+                  color="info" 
+                  size="small" 
+                  sx={{ fontWeight: 'bold' }}
+                />
+              </ListItem>
+              
+              <Collapse in={envExpanded}>
+                <Box sx={{ px: 3, pb: 2 }}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Active Environment Variables:
+                  </Typography>
+                  {getActiveEnvVars().map((envVar, index) => (
+                    <Box key={index} sx={{ mb: 1, p: 1, bgcolor: 'grey.50', borderRadius: 1 }}>
+                      <Typography variant="body2" component="div">
+                        <strong>{envVar.name}:</strong> {maskEnvValue(envVar.value)}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {envVar.description}
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>
+              </Collapse>
             </List>
           ) : (
             <Box sx={{ p: 3 }}>
