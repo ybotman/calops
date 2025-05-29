@@ -116,6 +116,11 @@ const useRoles = (options = {}) => {
       return '';
     }
 
+    // If roles array is empty (still loading), return loading indicator
+    if (roles.length === 0) {
+      return '...';
+    }
+
     // Handle the case where roleIds contains objects with _id field
     const roleNameCodes = roleIds.map(roleId => {
       try {

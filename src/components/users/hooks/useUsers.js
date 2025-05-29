@@ -198,8 +198,9 @@ const useUsers = (options = {}) => {
   
   // Fetch users when the hook is first mounted and when appId changes
   useEffect(() => {
-    // Only fetch if roles are loaded (or loading failed)
-    if (!rolesLoading) {
+    // Only fetch if roles are loaded (or loading failed) AND roles array has data
+    // This prevents the race condition where processRoleIds runs with empty roles array
+    if (!rolesLoading && roles.length > 0) {
       // Check if the data in the cache is fresh enough
       const cacheAge = lastUpdated ? Date.now() - lastUpdated : Infinity;
       
@@ -209,7 +210,7 @@ const useUsers = (options = {}) => {
         debouncedFetch();
       }
     }
-  }, [debouncedFetch, appId, rolesLoading, lastUpdated, cacheOptions.maxAge]);
+  }, [debouncedFetch, appId, rolesLoading, roles.length, lastUpdated, cacheOptions.maxAge]);
 
   /**
    * Filter users based on search term and current tab with improved error handling
