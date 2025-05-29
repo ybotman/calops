@@ -19,11 +19,34 @@ All task assignments and workflow status updates go here._
 ## 🧭 SCOUT (Required)
 _Research, discoveries, risks, and open questions.  
 Document findings and recommendations here._  
-**Last updated:** 2025-01-30 12:10
+**Last updated:** 2025-01-30 14:00
 
-- Need to locate Users Grid component and identify why roles show "UNK"
-- Find backend API endpoint that provides cached role values (~10 roles)
-- Determine what "smallest coded value" means for role display
+**✅ ROOT CAUSE IDENTIFIED:**
+
+**Users Grid Component:**
+- **Location**: `/src/components/users/components/UserTable.js:38`
+- **Display**: Uses `{ field: 'roleNames', headerName: 'Roles', width: 120 }`
+- **Data Source**: `user.roleNames` populated by `useUsers` hook
+
+**Role Processing Chain:**
+1. **useUsers.js:63** calls `processRoleIds(user.roleIds)` 
+2. **useRoles.js:114-148** `processRoleIds()` function processes role IDs
+3. **Returns "UNK"** on lines 130, 136, 139 when role lookup fails
+
+**Backend API Structure:**
+- **Endpoint**: `/api/roles?appId=${appId}` (serverRoles.js)
+- **Response**: `{roles: [], pagination: {...}}`
+- **Role Model**: `{roleName, roleNameCode, description, appId, permissions}`
+- **Cached**: ~10 roles with roleNameCode (smallest coded value)
+
+**"Smallest Coded Value" Definition:**
+- ✅ **roleNameCode** field (e.g., 'SYA', 'RGA', 'RGO', 'USR')
+- Examples: SystemAdmin='SYA', RegionalAdmin='RGA', RegionalOrganizer='RGO'
+
+**Issue Analysis:**
+- ❌ **Timing Issue**: Roles array may be empty when processRoleIds runs
+- ❌ **Cache Miss**: roleId not found in roles array returns 'UNK'
+- ❌ **Async Loading**: useRoles loading state not properly synchronized
 
 ## 🏛️ ARCHITECT (Required)
 _User-approved decisions, technical recommendations, and rationale.  
@@ -70,11 +93,11 @@ Users Grid currently displays "UNK" for user roles instead of meaningful role na
 ## Tasks
 | Status         | Task                                | Last Updated  |
 |----------------|-------------------------------------|---------------|
-| ⏳ Pending      | Locate Users Grid component         | 2025-01-30    |
-| ⏳ Pending      | Find backend roles API endpoint     | 2025-01-30    |
-| ⏳ Pending      | Understand "smallest coded value"   | 2025-01-30    |
-| ⏳ Pending      | Implement API integration           | 2025-01-30    |
-| ⏳ Pending      | Update role display logic           | 2025-01-30    |
+| ✅ Completed    | Locate Users Grid component         | 2025-01-30    |
+| ✅ Completed    | Find backend roles API endpoint     | 2025-01-30    |
+| ✅ Completed    | Understand "smallest coded value"   | 2025-01-30    |
+| ⏳ Pending      | Design solution for timing issues   | 2025-01-30    |
+| ⏳ Pending      | Implement role loading fix          | 2025-01-30    |
 | ⏳ Pending      | Test role display in Users Grid     | 2025-01-30    |
 
 ## Requirements Detail
