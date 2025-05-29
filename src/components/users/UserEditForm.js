@@ -27,6 +27,7 @@ import {
 } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import MasteredLocationSelector from '@/components/common/MasteredLocationSelector';
 
 // Tab panel component
 function TabPanel(props) {
@@ -47,7 +48,7 @@ function TabPanel(props) {
 
 /**
  * Enhanced User Edit Form Component
- * Provides a tabbed interface for editing user details, roles, and status
+ * Provides a comprehensive tabbed interface for editing user details, roles, and permissions
  */
 const UserEditForm = ({ user, roles, onChange, onSubmit, loading = false }) => {
   const [tabValue, setTabValue] = useState(0);
@@ -78,7 +79,6 @@ const UserEditForm = ({ user, roles, onChange, onSubmit, loading = false }) => {
 
   // Handle toggle change
   const handleToggleChange = (fieldPath) => (event) => {
-    // Make sure onChange exists before calling it
     if (typeof onChange === 'function') {
       onChange(fieldPath, event.target.checked);
     } else {
@@ -132,34 +132,6 @@ const UserEditForm = ({ user, roles, onChange, onSubmit, loading = false }) => {
     setTabValue(newValue);
   };
 
-  // Configuration for status sections and fields
-  const statusSections = [
-    {
-      title: 'User Status',
-      fields: [
-        { path: 'localUserInfo.isApproved', label: 'Approved' },
-        { path: 'localUserInfo.isEnabled', label: 'Enabled' },
-      ],
-      activeField: 'localUserInfo.isActive'
-    },
-    {
-      title: 'Organizer Status',
-      fields: [
-        { path: 'regionalOrganizerInfo.isApproved', label: 'Approved' },
-        { path: 'regionalOrganizerInfo.isEnabled', label: 'Enabled' },
-      ],
-      activeField: 'regionalOrganizerInfo.isActive'
-    },
-    {
-      title: 'Admin Status',
-      fields: [
-        { path: 'localAdminInfo.isApproved', label: 'Approved' },
-        { path: 'localAdminInfo.isEnabled', label: 'Enabled' },
-      ],
-      activeField: 'localAdminInfo.isActive'
-    }
-  ];
-
   // Handle form submission
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -193,62 +165,16 @@ const UserEditForm = ({ user, roles, onChange, onSubmit, loading = false }) => {
 
       {/* Tabs for different sections */}
       <Tabs value={tabValue} onChange={handleTabChange} aria-label="user edit tabs">
-        <Tab label="Basic Info" id="user-edit-tab-0" />
-        <Tab label="Roles" id="user-edit-tab-1" />
-        <Tab label="User Status" id="user-edit-tab-2" />
-        <Tab label="Organizer Status" id="user-edit-tab-3" />
-        <Tab label="Admin Status" id="user-edit-tab-4" />
+        <Tab label="Roles" id="user-edit-tab-0" />
+        <Tab label="Firebase Info" id="user-edit-tab-1" />
+        <Tab label="Local User Info" id="user-edit-tab-2" />
+        <Tab label="Regional Organizer" id="user-edit-tab-3" />
+        <Tab label="Local Admin" id="user-edit-tab-4" />
         <Tab label="Advanced" id="user-edit-tab-5" />
       </Tabs>
 
-      {/* Basic Info Tab */}
-      <TabPanel value={tabValue} index={0}>
-        <Grid container spacing={2}>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              label="First Name"
-              name="localUserInfo.firstName"
-              value={firstName}
-              onChange={handleTextChange}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              label="Last Name"
-              name="localUserInfo.lastName"
-              value={lastName}
-              onChange={handleTextChange}
-            />
-          </Grid>
-          
-          <Grid item xs={12}>
-            <TextField
-              fullWidth
-              label="Firebase User ID"
-              value={firebaseUserId}
-              disabled
-            />
-          </Grid>
-          
-          <Grid item xs={12}>
-            <FormControlLabel
-              control={
-                <Switch 
-                  checked={user.active !== false}
-                  onChange={handleToggleChange('active')}
-                  color="primary"
-                />
-              }
-              label="User is Active"
-            />
-          </Grid>
-        </Grid>
-      </TabPanel>
-
       {/* Roles Tab */}
-      <TabPanel value={tabValue} index={1}>
+      <TabPanel value={tabValue} index={0}>
         <Accordion defaultExpanded>
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
             <Typography>Role Assignments</Typography>
@@ -293,150 +219,357 @@ const UserEditForm = ({ user, roles, onChange, onSubmit, loading = false }) => {
         </Accordion>
       </TabPanel>
 
-      {/* User Status Tab */}
+      {/* Firebase Info Tab */}
+      <TabPanel value={tabValue} index={1}>
+        <Paper sx={{ p: 2 }}>
+          <Typography variant="subtitle1" gutterBottom>Firebase User Information</Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Firebase User ID"
+                value={firebaseUserId}
+                disabled
+                helperText="Unique Firebase identifier (read-only)"
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Email"
+                name="firebaseUserInfo.email"
+                value={getNestedValue(user, 'firebaseUserInfo.email', '')}
+                onChange={handleTextChange}
+                helperText="User's email address from Firebase"
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Display Name"
+                name="firebaseUserInfo.displayName"
+                value={getNestedValue(user, 'firebaseUserInfo.displayName', '')}
+                onChange={handleTextChange}
+                helperText="User's display name from Firebase"
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Last Firebase Sync"
+                value={getNestedValue(user, 'firebaseUserInfo.lastSyncedAt') 
+                  ? new Date(user.firebaseUserInfo.lastSyncedAt).toLocaleString() 
+                  : 'Never synced'}
+                disabled
+                helperText="Last time Firebase data was synchronized"
+              />
+            </Grid>
+          </Grid>
+        </Paper>
+      </TabPanel>
+
+      {/* Local User Info Tab */}
       <TabPanel value={tabValue} index={2}>
         <Paper sx={{ p: 2 }}>
-          <Typography variant="subtitle1" gutterBottom>User Status</Typography>
-          <Divider sx={{ my: 1 }} />
-          
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <FormControlLabel
-              control={
-                <Switch 
-                  checked={getNestedValue(user, 'localUserInfo.isApproved', false)}
-                  onChange={handleToggleChange('localUserInfo.isApproved')}
-                  color="primary"
-                />
-              }
-              label="Approved"
-            />
-            
-            <FormControlLabel
-              control={
-                <Switch 
-                  checked={getNestedValue(user, 'localUserInfo.isEnabled', false)}
-                  onChange={handleToggleChange('localUserInfo.isEnabled')}
-                  color="primary"
-                />
-              }
-              label="Enabled"
-            />
-            
-            {/* Read-only Active status */}
-            <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-              <Typography variant="body2" sx={{ mr: 1 }}>Status:</Typography>
-              <Chip 
-                label={getNestedValue(user, 'localUserInfo.isActive', false) ? "Active" : "Inactive"} 
-                color={getNestedValue(user, 'localUserInfo.isActive', false) ? "success" : "default"}
-                size="small"
+          <Typography variant="subtitle1" gutterBottom>Local User Information</Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="First Name"
+                name="localUserInfo.firstName"
+                value={firstName}
+                onChange={handleTextChange}
               />
-              <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-                (auto-configured based on approval and enabled status)
-              </Typography>
-            </Box>
-          </Box>
-        </Paper>
-      </TabPanel>
-
-      {/* Organizer Status Tab */}
-      <TabPanel value={tabValue} index={3}>
-        <Paper sx={{ p: 2 }}>
-          <Typography variant="subtitle1" gutterBottom>Organizer Status</Typography>
-          <Divider sx={{ my: 1 }} />
-          
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <FormControlLabel
-              control={
-                <Switch 
-                  checked={getNestedValue(user, 'regionalOrganizerInfo.isApproved', false)}
-                  onChange={handleToggleChange('regionalOrganizerInfo.isApproved')}
-                  color="primary"
-                />
-              }
-              label="Approved as Organizer"
-            />
-            
-            <FormControlLabel
-              control={
-                <Switch 
-                  checked={getNestedValue(user, 'regionalOrganizerInfo.isEnabled', false)}
-                  onChange={handleToggleChange('regionalOrganizerInfo.isEnabled')}
-                  color="primary"
-                />
-              }
-              label="Enabled as Organizer"
-            />
-            
-            {/* Read-only Active status */}
-            <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-              <Typography variant="body2" sx={{ mr: 1 }}>Status:</Typography>
-              <Chip 
-                label={getNestedValue(user, 'regionalOrganizerInfo.isActive', false) ? "Active" : "Inactive"} 
-                color={getNestedValue(user, 'regionalOrganizerInfo.isActive', false) ? "success" : "default"}
-                size="small"
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Last Name"
+                name="localUserInfo.lastName"
+                value={lastName}
+                onChange={handleTextChange}
               />
-              <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-                (auto-configured based on approval and enabled status)
-              </Typography>
-            </Box>
-            
-            {/* Organizer ID display */}
-            {getNestedValue(user, 'regionalOrganizerInfo.organizerId') && (
-              <Box sx={{ mt: 2, p: 1.5, border: '1px solid #eee', borderRadius: 1 }}>
-                <Typography variant="subtitle2">Connected Organizer:</Typography>
-                <Typography variant="body2">
-                  <strong>ID:</strong> {typeof user.regionalOrganizerInfo.organizerId === 'object' 
-                    ? user.regionalOrganizerInfo.organizerId._id 
-                    : user.regionalOrganizerInfo.organizerId}
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Login User Name"
+                name="localUserInfo.loginUserName"
+                value={getNestedValue(user, 'localUserInfo.loginUserName', '')}
+                onChange={handleTextChange}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <Divider sx={{ my: 1 }} />
+              <Typography variant="subtitle2" gutterBottom>User Status</Typography>
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <FormControlLabel
+                control={
+                  <Switch 
+                    checked={getNestedValue(user, 'localUserInfo.isApproved', false)}
+                    onChange={handleToggleChange('localUserInfo.isApproved')}
+                    color="primary"
+                  />
+                }
+                label="Approved"
+              />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <FormControlLabel
+                control={
+                  <Switch 
+                    checked={getNestedValue(user, 'localUserInfo.isEnabled', false)}
+                    onChange={handleToggleChange('localUserInfo.isEnabled')}
+                    color="primary"
+                  />
+                }
+                label="Enabled"
+              />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <FormControlLabel
+                control={
+                  <Switch 
+                    checked={user.active !== false}
+                    onChange={handleToggleChange('active')}
+                    color="primary"
+                  />
+                }
+                label="User Active"
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+                <Typography variant="body2" sx={{ mr: 1 }}>Computed Status:</Typography>
+                <Chip 
+                  label={getNestedValue(user, 'localUserInfo.isActive', false) ? "Active" : "Inactive"} 
+                  color={getNestedValue(user, 'localUserInfo.isActive', false) ? "success" : "default"}
+                  size="small"
+                />
+                <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                  (auto-configured based on approval and enabled status)
                 </Typography>
               </Box>
-            )}
-          </Box>
+            </Grid>
+          </Grid>
         </Paper>
       </TabPanel>
 
-      {/* Admin Status Tab */}
-      <TabPanel value={tabValue} index={4}>
+      {/* Regional Organizer Tab */}
+      <TabPanel value={tabValue} index={3}>
         <Paper sx={{ p: 2 }}>
-          <Typography variant="subtitle1" gutterBottom>Admin Status</Typography>
-          <Divider sx={{ my: 1 }} />
-          
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <FormControlLabel
-              control={
-                <Switch 
-                  checked={getNestedValue(user, 'localAdminInfo.isApproved', false)}
-                  onChange={handleToggleChange('localAdminInfo.isApproved')}
-                  color="primary"
+          <Typography variant="subtitle1" gutterBottom>Regional Organizer Information</Typography>
+          <Grid container spacing={2}>
+            {/* Organizer Status Flags */}
+            <Grid item xs={12}>
+              <Typography variant="subtitle2" gutterBottom>Organizer Status</Typography>
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <FormControlLabel
+                control={
+                  <Switch 
+                    checked={getNestedValue(user, 'regionalOrganizerInfo.isApproved', false)}
+                    onChange={handleToggleChange('regionalOrganizerInfo.isApproved')}
+                    color="primary"
+                  />
+                }
+                label="Approved"
+              />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <FormControlLabel
+                control={
+                  <Switch 
+                    checked={getNestedValue(user, 'regionalOrganizerInfo.isEnabled', false)}
+                    onChange={handleToggleChange('regionalOrganizerInfo.isEnabled')}
+                    color="primary"
+                  />
+                }
+                label="Enabled"
+              />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Typography variant="body2" sx={{ mr: 1 }}>Status:</Typography>
+                <Chip 
+                  label={getNestedValue(user, 'regionalOrganizerInfo.isActive', false) ? "Active" : "Inactive"} 
+                  color={getNestedValue(user, 'regionalOrganizerInfo.isActive', false) ? "success" : "default"}
+                  size="small"
                 />
-              }
-              label="Approved as Admin"
-            />
+              </Box>
+            </Grid>
             
-            <FormControlLabel
-              control={
-                <Switch 
-                  checked={getNestedValue(user, 'localAdminInfo.isEnabled', false)}
-                  onChange={handleToggleChange('localAdminInfo.isEnabled')}
-                  color="primary"
-                />
-              }
-              label="Enabled as Admin"
-            />
+            {/* Connected Organizer ID */}
+            {getNestedValue(user, 'regionalOrganizerInfo.organizerId') && (
+              <Grid item xs={12}>
+                <Box sx={{ mt: 2, p: 1.5, border: '1px solid #eee', borderRadius: 1 }}>
+                  <Typography variant="subtitle2">Connected Organizer:</Typography>
+                  <Typography variant="body2">
+                    <strong>ID:</strong> {typeof user.regionalOrganizerInfo.organizerId === 'object' 
+                      ? user.regionalOrganizerInfo.organizerId._id 
+                      : user.regionalOrganizerInfo.organizerId}
+                  </Typography>
+                </Box>
+              </Grid>
+            )}
             
-            {/* Read-only Active status */}
-            <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-              <Typography variant="body2" sx={{ mr: 1 }}>Status:</Typography>
-              <Chip 
-                label={getNestedValue(user, 'localAdminInfo.isActive', false) ? "Active" : "Inactive"} 
-                color={getNestedValue(user, 'localAdminInfo.isActive', false) ? "success" : "default"}
+            {/* Allowed Mastered Locations */}
+            <Grid item xs={12}>
+              <Divider sx={{ my: 2 }} />
+              <Typography variant="subtitle2" gutterBottom>Allowed Mastered Locations</Typography>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <MasteredLocationSelector
+                level="regions"
+                selectedIds={getNestedValue(user, 'regionalOrganizerInfo.allowedMasteredRegionIds', []).map(id => 
+                  typeof id === 'object' ? id._id : id
+                )}
+                onChange={(newIds) => {
+                  if (typeof onChange === 'function') {
+                    onChange('regionalOrganizerInfo.allowedMasteredRegionIds', newIds);
+                  }
+                }}
+                label="Allowed Regions"
+                appId={user.appId || '1'}
                 size="small"
               />
-              <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-                (auto-configured based on approval and enabled status)
-              </Typography>
-            </Box>
-          </Box>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <MasteredLocationSelector
+                level="divisions"
+                selectedIds={getNestedValue(user, 'regionalOrganizerInfo.allowedMasteredDivisionIds', []).map(id => 
+                  typeof id === 'object' ? id._id : id
+                )}
+                onChange={(newIds) => {
+                  if (typeof onChange === 'function') {
+                    onChange('regionalOrganizerInfo.allowedMasteredDivisionIds', newIds);
+                  }
+                }}
+                label="Allowed Divisions"
+                appId={user.appId || '1'}
+                size="small"
+              />
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <MasteredLocationSelector
+                level="cities"
+                selectedIds={getNestedValue(user, 'regionalOrganizerInfo.allowedMasteredCityIds', []).map(id => 
+                  typeof id === 'object' ? id._id : id
+                )}
+                onChange={(newIds) => {
+                  if (typeof onChange === 'function') {
+                    onChange('regionalOrganizerInfo.allowedMasteredCityIds', newIds);
+                  }
+                }}
+                label="Allowed Cities"
+                appId={user.appId || '1'}
+                size="small"
+              />
+            </Grid>
+          </Grid>
+        </Paper>
+      </TabPanel>
+
+      {/* Local Admin Tab */}
+      <TabPanel value={tabValue} index={4}>
+        <Paper sx={{ p: 2 }}>
+          <Typography variant="subtitle1" gutterBottom>Local Admin Information</Typography>
+          <Grid container spacing={2}>
+            {/* Admin Status Flags */}
+            <Grid item xs={12}>
+              <Typography variant="subtitle2" gutterBottom>Admin Status</Typography>
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <FormControlLabel
+                control={
+                  <Switch 
+                    checked={getNestedValue(user, 'localAdminInfo.isApproved', false)}
+                    onChange={handleToggleChange('localAdminInfo.isApproved')}
+                    color="primary"
+                  />
+                }
+                label="Approved"
+              />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <FormControlLabel
+                control={
+                  <Switch 
+                    checked={getNestedValue(user, 'localAdminInfo.isEnabled', false)}
+                    onChange={handleToggleChange('localAdminInfo.isEnabled')}
+                    color="primary"
+                  />
+                }
+                label="Enabled"
+              />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Typography variant="body2" sx={{ mr: 1 }}>Status:</Typography>
+                <Chip 
+                  label={getNestedValue(user, 'localAdminInfo.isActive', false) ? "Active" : "Inactive"} 
+                  color={getNestedValue(user, 'localAdminInfo.isActive', false) ? "success" : "default"}
+                  size="small"
+                />
+              </Box>
+            </Grid>
+            
+            {/* Allowed Admin Mastered Locations */}
+            <Grid item xs={12}>
+              <Divider sx={{ my: 2 }} />
+              <Typography variant="subtitle2" gutterBottom>Allowed Admin Mastered Locations</Typography>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <MasteredLocationSelector
+                level="regions"
+                selectedIds={getNestedValue(user, 'localAdminInfo.allowedAdminMasteredRegionIds', []).map(id => 
+                  typeof id === 'object' ? id._id : id
+                )}
+                onChange={(newIds) => {
+                  if (typeof onChange === 'function') {
+                    onChange('localAdminInfo.allowedAdminMasteredRegionIds', newIds);
+                  }
+                }}
+                label="Admin Regions"
+                appId={user.appId || '1'}
+                size="small"
+              />
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <MasteredLocationSelector
+                level="divisions"
+                selectedIds={getNestedValue(user, 'localAdminInfo.allowedAdminMasteredDivisionIds', []).map(id => 
+                  typeof id === 'object' ? id._id : id
+                )}
+                onChange={(newIds) => {
+                  if (typeof onChange === 'function') {
+                    onChange('localAdminInfo.allowedAdminMasteredDivisionIds', newIds);
+                  }
+                }}
+                label="Admin Divisions"
+                appId={user.appId || '1'}
+                size="small"
+              />
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <MasteredLocationSelector
+                level="cities"
+                selectedIds={getNestedValue(user, 'localAdminInfo.allowedAdminMasteredCityIds', []).map(id => 
+                  typeof id === 'object' ? id._id : id
+                )}
+                onChange={(newIds) => {
+                  if (typeof onChange === 'function') {
+                    onChange('localAdminInfo.allowedAdminMasteredCityIds', newIds);
+                  }
+                }}
+                label="Admin Cities"
+                appId={user.appId || '1'}
+                size="small"
+              />
+            </Grid>
+          </Grid>
         </Paper>
       </TabPanel>
 
@@ -528,12 +661,18 @@ UserEditForm.propTypes = {
       isApproved: PropTypes.bool,
       isEnabled: PropTypes.bool,
       isActive: PropTypes.bool,
-      organizerId: PropTypes.oneOfType([PropTypes.string, PropTypes.object])
+      organizerId: PropTypes.oneOfType([PropTypes.string, PropTypes.object]),
+      allowedMasteredRegionIds: PropTypes.array,
+      allowedMasteredDivisionIds: PropTypes.array,
+      allowedMasteredCityIds: PropTypes.array
     }),
     localAdminInfo: PropTypes.shape({
       isApproved: PropTypes.bool,
       isEnabled: PropTypes.bool,
-      isActive: PropTypes.bool
+      isActive: PropTypes.bool,
+      allowedAdminMasteredRegionIds: PropTypes.array,
+      allowedAdminMasteredDivisionIds: PropTypes.array,
+      allowedAdminMasteredCityIds: PropTypes.array
     })
   }).isRequired,
   
@@ -557,6 +696,5 @@ UserEditForm.propTypes = {
    */
   loading: PropTypes.bool
 };
-
 
 export default UserEditForm;
