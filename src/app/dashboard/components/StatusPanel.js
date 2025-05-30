@@ -89,19 +89,15 @@ export default function StatusPanel() {
     );
   };
   
-  // Get overall system status
+  // Get overall system status (simplified - only checks backend)
   const getOverallStatus = () => {
     if (!status) return 'unknown';
     
-    if (status.database.status === 'error' || 
-        status.firebase.status === 'error' || 
-        status.backend.status === 'error') {
+    if (status.backend?.status === 'error') {
       return 'error';
     }
     
-    if (status.database.status === 'warning' || 
-        status.firebase.status === 'warning' || 
-        status.backend.status === 'warning') {
+    if (status.backend?.status === 'warning') {
       return 'warning';
     }
     
@@ -205,49 +201,38 @@ export default function StatusPanel() {
             <List disablePadding>
               <ListItem divider>
                 <ListItemIcon>
-                  {getStatusIcon(status.database.status)}
+                  {getStatusIcon(status.application?.status || 'ok')}
                 </ListItemIcon>
                 <ListItemText 
-                  primary="MongoDB Database" 
-                  secondary={status.database.message} 
+                  primary="CalOps Application" 
+                  secondary={status.application?.message || `Version ${status.application?.version || '1.0.0'}`} 
                 />
-                <Box>{getStatusChip(status.database.status)}</Box>
+                <Box>{getStatusChip(status.application?.status || 'ok')}</Box>
               </ListItem>
               
               <ListItem divider>
                 <ListItemIcon>
-                  {getStatusIcon(status.firebase.status)}
-                </ListItemIcon>
-                <ListItemText 
-                  primary="Firebase Authentication" 
-                  secondary={status.firebase.message || (status.firebase.initialized ? 'Initialized' : 'Not initialized')} 
-                />
-                <Box>{getStatusChip(status.firebase.status)}</Box>
-              </ListItem>
-              
-              <ListItem divider>
-                <ListItemIcon>
-                  {getStatusIcon(status.backend.status)}
+                  {getStatusIcon(status.backend?.status || 'unknown')}
                 </ListItemIcon>
                 <ListItemText 
                   primary="Backend API" 
                   secondary={
                     <>
-                      {status.backend.message || status.backend.url}
-                      {status.backend.fallbackMessage && (
-                        <div style={{ marginTop: 4 }}>
+                      {status.backend?.message || status.backend?.url || 'Checking backend connection...'}
+                      {status.backend?.fallbackMessage && (
+                        <span style={{ display: 'block', marginTop: 4 }}>
                           <small>{status.backend.fallbackMessage}</small>
-                        </div>
+                        </span>
                       )}
-                      {status.backend.apiMessage && (
-                        <div style={{ marginTop: 4 }}>
+                      {status.backend?.apiMessage && (
+                        <span style={{ display: 'block', marginTop: 4 }}>
                           <small>{status.backend.apiMessage}</small>
-                        </div>
+                        </span>
                       )}
                     </>
                   }
                 />
-                <Box>{getStatusChip(status.backend.status)}</Box>
+                <Box>{getStatusChip(status.backend?.status || 'unknown')}</Box>
               </ListItem>
               
               <ListItem>
@@ -270,7 +255,7 @@ export default function StatusPanel() {
                       </div>
                       <div style={{ marginTop: 4 }}>
                         <Typography variant="body2" component="div">
-                          <strong>Firebase:</strong> {status.firebase.initialized ? 'Configured' : 'Not configured'}
+                          <strong>Authentication:</strong> Mock authentication (bypassed)
                         </Typography>
                       </div>
                       <div style={{ marginTop: 8 }}>
