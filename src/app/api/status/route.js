@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
 import axios from 'axios';
-import connectToDatabase from '@/lib/mongodb';
-import firebaseAdmin from '@/lib/firebase-admin';
 
 /**
  * Status endpoint that checks connectivity to various services
@@ -14,14 +12,7 @@ export async function GET() {
       status: 'ok',
       version: process.env.npm_package_version || '1.0.0',
       startTime: startTime.toISOString(),
-    },
-    database: {
-      status: 'unknown',
-      message: '',
-    },
-    firebase: {
-      status: 'unknown',
-      initialized: false,
+      message: 'CalOps dashboard running (Firebase/MongoDB dependencies removed)'
     },
     backend: {
       status: 'unknown',
@@ -29,31 +20,7 @@ export async function GET() {
     },
   };
 
-  // Check MongoDB connection
-  try {
-    await connectToDatabase();
-    services.database.status = 'ok';
-    services.database.message = 'MongoDB connected successfully';
-  } catch (error) {
-    services.database.status = 'error';
-    services.database.message = `MongoDB connection error: ${error.message}`;
-    console.error('MongoDB connection failed:', error);
-  }
-
-  // Check Firebase initialization
-  try {
-    if (firebaseAdmin.isAvailable()) {
-      services.firebase.status = 'ok';
-      services.firebase.initialized = true;
-    } else {
-      services.firebase.status = 'warning';
-      services.firebase.message = 'Firebase Admin SDK not initialized';
-    }
-  } catch (error) {
-    services.firebase.status = 'error';
-    services.firebase.message = `Firebase error: ${error.message}`;
-    console.error('Firebase check failed:', error);
-  }
+  // Firebase and MongoDB removed - CalOps now uses backend for all data operations
 
   // Check Backend API connectivity
   try {
@@ -103,6 +70,7 @@ export async function GET() {
     
     // Try connecting to localhost directly as a fallback
     try {
+      const backendUrl = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
       if (backendUrl !== 'http://localhost:3010') {
         console.log('Trying localhost fallback...');
         const fallbackResponse = await axios.head('http://localhost:3010', { 
@@ -123,14 +91,12 @@ export async function GET() {
   const endTime = new Date();
   const elapsedMs = endTime - startTime;
   
-  // Log a comprehensive startup message
-  console.log('=== CALENDAR ADMIN STATUS ===');
+  // Log a simplified startup message
+  console.log('=== CALOPS STATUS ===');
   console.log(`App Version: ${services.application.version}`);
-  console.log(`MongoDB: ${services.database.status.toUpperCase()} - ${services.database.message}`);
-  console.log(`Firebase: ${services.firebase.status.toUpperCase()} - ${services.firebase.initialized ? 'Initialized' : 'Not initialized'}`);
   console.log(`Backend API: ${services.backend.status.toUpperCase()} - ${services.backend.message}`);
   console.log(`Status check completed in ${elapsedMs}ms`);
-  console.log('============================');
+  console.log('==================');
 
   return NextResponse.json({
     ...services,
