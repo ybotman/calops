@@ -225,7 +225,6 @@ const UserTable = ({
           paginationMode="client"
           page={pagination?.page || 0}
           pageSize={pagination?.pageSize || 10}
-          rowCount={pagination?.totalCount || users.length}
           rowsPerPageOptions={[10, 25, 50, 100]}
           onPageChange={(page) => handlePaginationChange({ page })}
           onPageSizeChange={(pageSize) => handlePaginationChange({ page: 0, pageSize })}

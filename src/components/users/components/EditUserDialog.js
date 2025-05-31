@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import {
   Dialog,
@@ -23,9 +23,49 @@ const EditUserDialog = ({
   onSubmit, 
   loading 
 }) => {
+  const [editingUser, setEditingUser] = useState(user);
+
+  // Update local state when user prop changes
+  useEffect(() => {
+    setEditingUser(user);
+  }, [user]);
+
   // Handle dialog close
   const handleClose = () => {
     onClose();
+  };
+
+  // Handle field changes
+  const handleChange = (fieldPath, value) => {
+    setEditingUser(prevUser => {
+      const newUser = { ...prevUser };
+      
+      // Handle nested field paths like 'localUserInfo.firstName'
+      const keys = fieldPath.split('.');
+      let current = newUser;
+      
+      // Navigate to the parent object
+      for (let i = 0; i < keys.length - 1; i++) {
+        const key = keys[i];
+        if (!current[key]) {
+          current[key] = {};
+        }
+        current = current[key];
+      }
+      
+      // Set the final value
+      const finalKey = keys[keys.length - 1];
+      current[finalKey] = value;
+      
+      return newUser;
+    });
+  };
+
+  // Handle form submission
+  const handleSubmit = (updatedUser) => {
+    if (onSubmit) {
+      onSubmit(updatedUser);
+    }
   };
 
   return (
@@ -37,11 +77,12 @@ const EditUserDialog = ({
     >
       <DialogTitle>Edit User</DialogTitle>
       <DialogContent>
-        {user && roles.length > 0 && (
+        {editingUser && roles.length > 0 && (
           <UserEditForm
-            user={user}
+            user={editingUser}
             roles={roles}
-            onSubmit={onSubmit}
+            onChange={handleChange}
+            onSubmit={handleSubmit}
             loading={loading}
           />
         )}

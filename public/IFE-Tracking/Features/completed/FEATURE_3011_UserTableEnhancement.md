@@ -174,7 +174,7 @@ AI Guild - Scout/Builder roles
 |-----------|------------|
 | Created   | 2025-01-31 |
 | First Dev | 2025-01-31 |
-| Review    | TBD        |
-| Completed | TBD        |
+| Review    | 2025-01-31 |
+| Completed | 2025-01-31 |
 
 ---
