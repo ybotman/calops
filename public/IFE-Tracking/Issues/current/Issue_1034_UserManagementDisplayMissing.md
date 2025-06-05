@@ -38,22 +38,32 @@ All task assignments and status updates go here._
 ## 🧭 SCOUT (Required)
 _Investigation, findings, and risk notes.  
 Document what was discovered, suspected causes, and open questions._  
-**Last updated:** 2025-01-06 14:30
+**Last updated:** 2025-01-06 14:45
 
-- **Initial Observation:** Table displays "Unnamed User" and "No email" while edit form shows correct data
-- **Suspected Cause:** Possible API endpoint difference or data mapping issue between table fetch and edit fetch
-- **Data Points:** 
-  - Firebase ID: NkZKrURW5YXKd8DIHFwlHpR49ty2 shows correct name in edit
-  - Firebase ID: RAwXfWmN shows "Unnamed User" in table
-- **Question:** Are table and edit form using different API endpoints or data structures?
+- **Root Cause Identified:** `useUsers.js` hook at lines 67-70 creates fallback display values:
+  - `displayName: ${user.localUserInfo?.firstName || ''} ${user.localUserInfo?.lastName || ''}`.trim() || 'Unnamed User'
+  - `email: user.firebaseUserInfo?.email || 'No email'`
+- **Issue:** When `localUserInfo.firstName/lastName` or `firebaseUserInfo.email` are missing/null, fallbacks trigger
+- **Edit Form Difference:** UserEditForm reads directly from nested properties with `getNestedValue()` helper
+- **Data Flow:** 
+  - Table uses processed data from `useUsers` hook (with fallbacks)
+  - Edit form uses raw user data (shows actual values like `firebaseUserInfo.displayName`)
+- **Key Finding:** User data may have `firebaseUserInfo.displayName` but missing `localUserInfo.firstName/lastName`
 
-## 🛠️ BUILDER / PATCH / TINKER (Required)
+## 🛠️ PATCH (Required)
 _Fix details, implementation notes, and blockers.  
-This section may be labeled as **BUILDER**, **PATCH**, or **TINKER**—use whichever role is appropriate.  
 Document what was changed, how, and any technical notes._  
-**Last updated:** 2025-01-06 14:30
+**Last updated:** 2025-01-06 14:50
 
-- Pending investigation and fix implementation
+- **Fix Applied:** Updated `useUsers.js` processUsers function (lines 65-71)
+- **Changes Made:**
+  - Added priority-based displayName logic: `localUserInfo` names → `firebaseUserInfo.displayName` → fallback
+  - Improved email handling to properly access `firebaseUserInfo.email`
+- **Technical Notes:**
+  - `localName` checks `firstName` and `lastName` from `localUserInfo`
+  - `firebaseDisplayName` checks `displayName` from `firebaseUserInfo` 
+  - Final `displayName` uses first available non-empty value
+- **Files Modified:** `/src/components/users/hooks/useUsers.js`
 
 ---
 
