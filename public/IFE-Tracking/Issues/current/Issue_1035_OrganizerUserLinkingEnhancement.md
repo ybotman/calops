@@ -215,32 +215,139 @@ const getConnectionStatus = (organizer) => {
 - **Backwards Compatibility:** Maintain existing API structure with additions only
 - **User Experience:** Provide clear visual feedback for connection states
 
-## 🛠️ PATCH (Required)
-_Fix details, implementation notes, and blockers.  
-Document what was changed, how, and any technical notes._  
-**Last updated:** 2025-01-06 16:00
+## 🎛️ TINKER (Required)
+_Implementation planning, specifications, and preparation notes.  
+Document implementation approach and technical preparations._  
+**Last updated:** 2025-01-06 16:45
 
-**Required Changes:**
+### Implementation Plan Overview
 
-1. **Organizer Table Display Enhancement:**
-   - Replace line 106 binary logic with user name lookup
-   - Fetch linked user data and display `displayName` or `firebaseUserInfo.displayName`
-   - Handle case where user is deleted but organizer still references them
+**Git Branch:** `issue/1035-organizer-user-linking-enhancement` ✅ Created  
+**Initial Commit:** ✅ Issue documentation committed
 
-2. **Multi-Firebase User Support:**
-   - Add form fields for `alt1FirebaseUserId` and `alt2FirebaseUserId`
-   - Update connect user form to specify which Firebase field to populate
-   - Add visual indicators for primary vs alternative connections
+### Phase 1: Backend Enhancement (Priority 1)
 
-3. **Dropdown Enhancement:**
-   - Replace role chips (lines 154-161) with clear Firebase display name
-   - Show `firebaseUserInfo.displayName` or `localUserInfo.firstName + lastName`
-   - Remove confusing role information from user selection interface
+**File: `/be-info/routes/serverOrganizers.js`**
+- Modify GET `/api/organizers` endpoint to populate `linkedUserLogin` field
+- Add user data extraction logic for display names
+- Extend PATCH `/api/organizers/:id/connect-user` to accept `targetField` parameter
 
-4. **Backend API Updates:**
-   - Modify organizer connection endpoint to accept Firebase field specification
-   - Add validation for multiple Firebase user connections
-   - Ensure proper data consistency
+**Implementation Approach:**
+```javascript
+// In serverOrganizers.js - GET organizers endpoint
+.populate({
+  path: 'linkedUserLogin',
+  select: '_id firebaseUserId',
+  populate: {
+    path: 'firebaseUserId', // This will be handled differently - we need userlogins data
+    select: 'localUserInfo firebaseUserInfo'
+  }
+})
+```
+
+**Enhanced Response Structure:**
+```javascript
+{
+  _id: "organizer_id",
+  firebaseUserId: "firebase_id",
+  alt1FirebaseUserId: null,
+  alt2FirebaseUserId: null, 
+  linkedUserLogin: {
+    _id: "userlogin_id",
+    displayName: "John Doe", // computed field
+    email: "john@example.com", // from firebaseUserInfo
+    firebaseUserId: "firebase_id"
+  }
+}
+```
+
+### Phase 2: Frontend Display Updates (Priority 2)
+
+**File: `/src/app/dashboard/organizers/page.js`**
+- Line 106: Replace binary logic with user name extraction
+- Line 543: Update column header and display logic
+- Add helper function for connection status display
+
+**Implementation:**
+```javascript
+// New processing logic
+const processedOrganizers = organizersData.map(organizer => ({
+  ...organizer,
+  id: organizer._id,
+  displayName: organizer.fullName || organizer.name || 'Unnamed Organizer',
+  shortDisplayName: organizer.shortName || 'No short name',
+  status: organizer.isActive ? 'Active' : 'Inactive',
+  approved: organizer.isApproved ? 'Yes' : 'No',
+  enabled: organizer.isEnabled ? 'Yes' : 'No',
+  userConnected: getConnectionStatus(organizer), // New function
+}));
+
+const getConnectionStatus = (organizer) => {
+  if (organizer.linkedUserLogin?.displayName) {
+    return organizer.linkedUserLogin.displayName;
+  }
+  if (organizer.firebaseUserId || organizer.alt1FirebaseUserId || organizer.alt2FirebaseUserId) {
+    return "Connected (User Deleted)";
+  }
+  return "Not Connected";
+};
+```
+
+### Phase 3: Enhanced Connection Form (Priority 3)
+
+**File: `/src/components/organizers/OrganizerConnectUserForm.js`**
+- Remove role chips display (lines 154-161)
+- Add target field selection dropdown
+- Update form submission to include target field
+
+**UI Enhancement:**
+```javascript
+// Simplified user display (remove lines 154-161)
+<Typography variant="body1">
+  {option.firebaseUserInfo?.displayName || 
+   `${option.localUserInfo?.firstName || ''} ${option.localUserInfo?.lastName || ''}`.trim() ||
+   'Unnamed User'}
+</Typography>
+<Typography variant="caption" color="text.secondary">
+  {option.firebaseUserInfo?.email || 'No email'}
+</Typography>
+```
+
+### Technical Specifications
+
+**Backend API Changes:**
+1. **GET /api/organizers** - Enhanced response with user population
+2. **PATCH /api/organizers/:id/connect-user** - Accept `targetField` parameter
+3. **Validation** - Prevent duplicate Firebase IDs across all three fields
+
+**Frontend State Management:**
+1. **Organizer Table** - Handle enhanced organizer objects with user data
+2. **Connection Form** - Manage target field selection state
+3. **Error Handling** - Display appropriate messages for connection conflicts
+
+### Testing Strategy
+
+**Test Cases:**
+1. **User Name Display** - Verify correct names shown vs "Yes/No"
+2. **Deleted User Handling** - Test organizer with missing linked user
+3. **Multi-Field Connections** - Test all three Firebase field options
+4. **Conflict Prevention** - Ensure no duplicate Firebase IDs
+5. **UI Clarity** - Verify dropdown shows clear user identification
+
+### Confidence Assessment
+
+- **High Confidence:** Backend user population (similar patterns exist)
+- **High Confidence:** Frontend display logic updates (straightforward)
+- **Medium Confidence:** Multi-field form enhancement (new functionality)
+- **Potential Blockers:** UserLogins population logic may need refinement
+
+### Ready for Implementation
+
+✅ Architecture designed and documented  
+✅ Implementation plan detailed with specific file changes  
+✅ Git branch created and initial commit made  
+✅ Testing strategy defined  
+✅ Technical specifications documented
 
 ---
 
