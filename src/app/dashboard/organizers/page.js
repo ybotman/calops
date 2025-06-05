@@ -71,6 +71,17 @@ export default function OrganizersPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [connectDialogOpen, setConnectDialogOpen] = useState(false);
+
+  // Helper function to determine user connection status
+  const getConnectionStatus = (organizer) => {
+    if (organizer.linkedUserLogin?.displayName) {
+      return organizer.linkedUserLogin.displayName;
+    }
+    if (organizer.firebaseUserId || organizer.alt1FirebaseUserId || organizer.alt2FirebaseUserId) {
+      return "Connected (User Deleted)";
+    }
+    return "Not Connected";
+  };
   
 
   // Fetch organizers when tab or app changes
@@ -103,7 +114,7 @@ export default function OrganizersPage() {
           status: organizer.isActive ? 'Active' : 'Inactive',
           approved: organizer.isApproved ? 'Yes' : 'No',
           enabled: organizer.isEnabled ? 'Yes' : 'No',
-          userConnected: organizer.linkedUserLogin ? 'Yes' : 'No',
+          userConnected: getConnectionStatus(organizer),
         }));
         
         console.log(`Processed ${processedOrganizers.length} organizers successfully`);
@@ -186,7 +197,7 @@ export default function OrganizersPage() {
             status: org.isActive ? 'Active' : 'Inactive',
             approved: org.isApproved ? 'Yes' : 'No',
             enabled: org.isEnabled ? 'Yes' : 'No',
-            userConnected: org.linkedUserLogin ? 'Yes' : 'No',
+            userConnected: getConnectionStatus(org),
           }));
           
           console.log(`Refreshed ${processedOrganizers.length} organizers`);
@@ -209,7 +220,7 @@ export default function OrganizersPage() {
         status: org.isActive ? 'Active' : 'Inactive',
         approved: org.isApproved ? 'Yes' : 'No',
         enabled: org.isEnabled ? 'Yes' : 'No',
-        userConnected: org.linkedUserLogin ? 'Yes' : 'No',
+        userConnected: getConnectionStatus(org),
       }));
       
       console.log(`Refreshed ${processedOrganizers.length} organizers`);
@@ -412,7 +423,7 @@ export default function OrganizersPage() {
         status: organizer.isActive ? 'Active' : 'Inactive',
         approved: organizer.isApproved ? 'Yes' : 'No',
         enabled: organizer.isEnabled ? 'Yes' : 'No',
-        userConnected: organizer.linkedUserLogin ? 'Yes' : 'No',
+        userConnected: getConnectionStatus(organizer),
       }));
       
       setOrganizers(processedOrganizers);
@@ -515,7 +526,7 @@ export default function OrganizersPage() {
         status: organizer.isActive ? 'Active' : 'Inactive',
         approved: organizer.isApproved ? 'Yes' : 'No',
         enabled: organizer.isEnabled ? 'Yes' : 'No',
-        userConnected: organizer.linkedUserLogin ? 'Yes' : 'No',
+        userConnected: getConnectionStatus(organizer),
       }));
       
       setOrganizers(processedOrganizers);
@@ -540,7 +551,7 @@ export default function OrganizersPage() {
     { field: 'status', headerName: 'Status', width: 120 },
     { field: 'approved', headerName: 'Approved', width: 120 },
     { field: 'enabled', headerName: 'Enabled', width: 120 },
-    { field: 'userConnected', headerName: 'User Connected', width: 150 },
+    { field: 'userConnected', headerName: 'Connected User', width: 200 },
     { 
       field: 'actions', 
       headerName: 'Actions', 

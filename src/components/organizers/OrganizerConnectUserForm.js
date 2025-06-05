@@ -137,29 +137,23 @@ export default function OrganizerConnectUserForm({ organizer, onSubmit }) {
               onChange={handleUserChange}
               filterOptions={filterOptions}
               getOptionLabel={(option) => {
-                const name = `${option.localUserInfo?.firstName || ''} ${option.localUserInfo?.lastName || ''}`;
-                const email = option.firebaseUserInfo?.email || '';
-                return `${name.trim()} (${email})`;
+                const displayName = option.firebaseUserInfo?.displayName || 
+                                  `${option.localUserInfo?.firstName || ''} ${option.localUserInfo?.lastName || ''}`.trim() ||
+                                  'Unnamed User';
+                const email = option.firebaseUserInfo?.email || 'No email';
+                return `${displayName} (${email})`;
               }}
               renderOption={(props, option) => (
                 <li {...props}>
                   <Box>
                     <Typography variant="body1">
-                      {option.localUserInfo?.firstName || ''} {option.localUserInfo?.lastName || ''}
+                      {option.firebaseUserInfo?.displayName || 
+                       `${option.localUserInfo?.firstName || ''} ${option.localUserInfo?.lastName || ''}`.trim() ||
+                       'Unnamed User'}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {option.firebaseUserInfo?.email || ''}
+                      {option.firebaseUserInfo?.email || 'No email'}
                     </Typography>
-                    <Box sx={{ mt: 0.5 }}>
-                      {option.roles && option.roles.map((role) => (
-                        <Chip 
-                          key={role} 
-                          label={role} 
-                          size="small" 
-                          sx={{ mr: 0.5, mb: 0.5 }} 
-                        />
-                      ))}
-                    </Box>
                   </Box>
                 </li>
               )}
