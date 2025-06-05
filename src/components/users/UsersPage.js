@@ -8,9 +8,11 @@ import { Box } from '@mui/material';
 import UserHeader from './components/UserHeader';
 import UserTabNavigationBar from './components/UserTabNavigationBar';
 import UserTable from './components/UserTable';
+import FirebaseUsersTable from './components/FirebaseUsersTable';
 import AddUserDialog from './components/AddUserDialog';
 import EditUserDialog from './components/EditUserDialog';
 import TabPanel from '@/components/common/TabPanel';
+import useFirebaseUsers from './hooks/useFirebaseUsers';
 
 /**
  * UsersPage component
@@ -53,6 +55,11 @@ const UsersPage = ({
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  
+  // Firebase users hook - only fetch when Firebase tab is active
+  const firebaseUsersHook = useFirebaseUsers({
+    autoFetch: tabValue === 3 // Only auto-fetch when Firebase tab is active
+  });
   
   // Handlers
   const handleAddUser = () => setAddDialogOpen(true);
@@ -103,6 +110,27 @@ const UsersPage = ({
       pageSize
     });
   };
+
+  // Firebase handlers
+  const handleFirebaseViewDetails = (firebaseUser) => {
+    console.log('View Firebase user details:', firebaseUser);
+    // TODO: Implement Firebase user details dialog
+  };
+
+  const handleCreateUserLogin = (firebaseUser) => {
+    console.log('Create UserLogin for Firebase user:', firebaseUser);
+    // TODO: Implement UserLogin creation for unmatched Firebase users
+  };
+
+  // Fetch Firebase users when switching to Firebase tab
+  const handleTabChange = (newTabValue) => {
+    setTabValue(newTabValue);
+    
+    // Fetch Firebase users when switching to Firebase tab (index 3)
+    if (newTabValue === 3 && !firebaseUsersHook.lastUpdated) {
+      firebaseUsersHook.fetchFirebaseUsers();
+    }
+  };
   
   return (
     <Box sx={{ p: 3 }}>
@@ -113,7 +141,7 @@ const UsersPage = ({
       
       <UserTabNavigationBar
         value={tabValue}
-        onChange={setTabValue}
+        onChange={handleTabChange}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
       />
@@ -156,6 +184,19 @@ const UsersPage = ({
           onPaginationChange={handlePaginationChange}
           error={error}
           selectedUser={selectedUser}
+        />
+      </TabPanel>
+      
+      <TabPanel value={tabValue} index={3}>
+        <FirebaseUsersTable
+          firebaseUsers={firebaseUsersHook.firebaseUsers}
+          stats={firebaseUsersHook.stats}
+          loading={firebaseUsersHook.loading}
+          error={firebaseUsersHook.error}
+          onRefresh={firebaseUsersHook.refresh}
+          onViewDetails={handleFirebaseViewDetails}
+          onCreateUserLogin={handleCreateUserLogin}
+          filter="all"
         />
       </TabPanel>
       

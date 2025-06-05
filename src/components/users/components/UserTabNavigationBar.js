@@ -17,7 +17,8 @@ const UserTabNavigationBar = ({
   tabs = [
     { label: 'All Users', id: 'all-users' },
     { label: 'Organizers', id: 'organizers' },
-    { label: 'Admins', id: 'admins' }
+    { label: 'Admins', id: 'admins' },
+    { label: 'Firebase', id: 'firebase' }
   ]
 }) => {
   const handleTabChange = (_, newValue) => {

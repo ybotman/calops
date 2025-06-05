@@ -62,11 +62,19 @@ const useUsers = (options = {}) => {
       // Process role names for display
       const roleNamesStr = processRoleIds(user.roleIds);
       
+      // Construct display name with priority: localUserInfo names, then firebaseUserInfo.displayName, then fallback
+      const localName = `${user.localUserInfo?.firstName || ''} ${user.localUserInfo?.lastName || ''}`.trim();
+      const firebaseDisplayName = user.firebaseUserInfo?.displayName || '';
+      const displayName = localName || firebaseDisplayName || 'Unnamed User';
+      
+      // Get email with proper fallback
+      const email = user.firebaseUserInfo?.email || 'No email';
+
       return {
         ...user,
         id: user._id, // For DataGrid key
-        displayName: `${user.localUserInfo?.firstName || ''} ${user.localUserInfo?.lastName || ''}`.trim() || 'Unnamed User',
-        email: user.firebaseUserInfo?.email || 'No email',
+        displayName,
+        email,
         roleNames: roleNamesStr || '',
         isApproved: user.localUserInfo?.isApproved ? 'Yes' : 'No',
         isEnabled: user.localUserInfo?.isEnabled ? 'Yes' : 'No',
