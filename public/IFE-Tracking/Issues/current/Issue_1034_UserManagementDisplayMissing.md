@@ -77,9 +77,10 @@ Document what was changed, how, and any technical notes._
   - User data mapping/transformation logic
 
 ## Fix (if known or applied)
-- **Status:** ⏳ Pending
-- **Fix Description:** To be determined after investigation
-- **Testing:** Manual verification of table display showing correct names and emails
+- **Status:** ✅ Fixed
+- **Fix Description:** Updated displayName logic in `useUsers.js` to check both `localUserInfo` names and `firebaseUserInfo.displayName`
+- **Testing:** ✅ Build successful, ✅ Dev server running on port 3023
+- **Verification Needed:** Manual testing to confirm table shows correct names instead of "Unnamed User"
 
 ## Resolution Log
 - **Commit/Branch:** `issue/1034-user-management-display-missing`
