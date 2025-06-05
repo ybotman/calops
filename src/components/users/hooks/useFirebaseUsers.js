@@ -51,7 +51,7 @@ const useFirebaseUsers = (options = {}) => {
       });
       
       // Fetch from API
-      const response = await fetch(`/api/firebase-users?${queryParams}`, {
+      const response = await fetch(`/api/firebase/users?${queryParams}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
