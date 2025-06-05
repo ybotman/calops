@@ -50,8 +50,9 @@ const useFirebaseUsers = (options = {}) => {
         ...(forceRefresh && { forceRefresh: 'true' })
       });
       
-      // Fetch from API
-      const response = await fetch(`/api/firebase/users?${queryParams}`, {
+      // Fetch from backend API directly
+      const backendUrl = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
+      const response = await fetch(`${backendUrl}/api/firebase/users?${queryParams}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
