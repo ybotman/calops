@@ -41,6 +41,8 @@ import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import organizersApi from '@/lib/api-client/organizers';
 import { usersApi } from '@/lib/api-client';
 import OrganizerEditForm from '@/components/organizers/OrganizerEditForm';
@@ -63,8 +65,7 @@ export default function OrganizersPage() {
   const [connectDialogOpen, setConnectDialogOpen] = useState(false);
   
   // New filter states
-  const [filterNotApproved, setFilterNotApproved] = useState(false);
-  const [filterNotAuthorized, setFilterNotAuthorized] = useState(false);
+  const [filterEnabled, setFilterEnabled] = useState('all'); // 'all', 'enabled', 'disabled'
   const [selectedCityId, setSelectedCityId] = useState('');
   const [selectedDivisionId, setSelectedDivisionId] = useState('');
   const [cities, setCities] = useState([]);
@@ -121,30 +122,44 @@ export default function OrganizersPage() {
           try {
             // Fetch all users and filter by linked IDs
             const allUsers = await usersApi.getUsers(appId);
+            console.log(`Initial fetch: Got ${allUsers.length} users from UserLogins API`);
+            console.log(`Looking for ${linkedUserIds.length} linked users:`, linkedUserIds);
             
             allUsers.forEach(user => {
               if (user && user._id && linkedUserIds.includes(user._id)) {
                 // Build display name from available user info
                 let displayName = 'Unknown User';
                 
-                if (user.localUserInfo?.loginUserName) {
+                // Try different sources for the display name
+                if (user.localUserInfo?.loginUserName && user.localUserInfo.loginUserName.trim()) {
                   displayName = user.localUserInfo.loginUserName;
                 } else if (user.localUserInfo?.firstName || user.localUserInfo?.lastName) {
                   const firstName = user.localUserInfo?.firstName || '';
                   const lastName = user.localUserInfo?.lastName || '';
-                  displayName = `${firstName} ${lastName}`.trim();
-                } else if (user.firebaseUserInfo?.displayName) {
+                  const fullName = `${firstName} ${lastName}`.trim();
+                  if (fullName) {
+                    displayName = fullName;
+                  }
+                } else if (user.firebaseUserInfo?.displayName && user.firebaseUserInfo.displayName.trim()) {
                   displayName = user.firebaseUserInfo.displayName;
                 } else if (user.firebaseUserInfo?.email) {
                   displayName = user.firebaseUserInfo.email;
+                } else if (user.email) {
+                  displayName = user.email;
                 }
                 
-                firebaseUserMap[user._id] = displayName;
+                firebaseUserMap[user._id] = displayName || 'Unknown User';
               }
             });
           } catch (error) {
             console.warn('Error fetching user data:', error);
           }
+        }
+        
+        // Log any missing users
+        const missingUsers = linkedUserIds.filter(id => !firebaseUserMap[id]);
+        if (missingUsers.length > 0) {
+          console.warn(`Could not find ${missingUsers.length} linked users:`, missingUsers);
         }
         
         setFirebaseUsers(firebaseUserMap);
@@ -160,7 +175,8 @@ export default function OrganizersPage() {
           isRendered: organizer.isRendered ? 'Yes' : 'No',
           enabled: organizer.isEnabled ? 'Yes' : 'No',
           userConnected: organizer.linkedUserLogin ? 'Yes' : 'No',
-          userConnectedName: organizer.linkedUserLogin ? firebaseUserMap[organizer.linkedUserLogin] || 'Loading...' : '-',
+          linkedUserLogin: organizer.linkedUserLogin, // Store the ID for column renderer
+          userConnectedName: organizer.linkedUserLogin ? firebaseUserMap[organizer.linkedUserLogin] || null : '-',
         }));
         
         console.log(`Processed ${processedOrganizers.length} organizers successfully`);
@@ -178,6 +194,80 @@ export default function OrganizersPage() {
   }, [currentApp.id]);
 
 
+  // Refresh organizers data and update state
+  const refreshOrganizersData = async () => {
+    try {
+      // Fetch organizers with all fields
+      const organizersData = await organizersApi.getOrganizers(currentApp.id, undefined, true);
+      
+      // Fetch Firebase users for linked organizers
+      const linkedUserIds = organizersData
+        .filter(org => org.linkedUserLogin)
+        .map(org => org.linkedUserLogin);
+      
+      const firebaseUserMap = {};
+      if (linkedUserIds.length > 0) {
+        try {
+          const allUsers = await usersApi.getUsers(currentApp.id);
+          console.log(`Fetched ${allUsers.length} users from UserLogins API`);
+          
+          allUsers.forEach(user => {
+            if (user && user._id && linkedUserIds.includes(user._id)) {
+              let displayName = 'Unknown User';
+              
+              // Try different sources for the display name
+              if (user.localUserInfo?.loginUserName && user.localUserInfo.loginUserName.trim()) {
+                displayName = user.localUserInfo.loginUserName;
+              } else if (user.localUserInfo?.firstName || user.localUserInfo?.lastName) {
+                const firstName = user.localUserInfo?.firstName || '';
+                const lastName = user.localUserInfo?.lastName || '';
+                const fullName = `${firstName} ${lastName}`.trim();
+                if (fullName) {
+                  displayName = fullName;
+                }
+              } else if (user.firebaseUserInfo?.displayName && user.firebaseUserInfo.displayName.trim()) {
+                displayName = user.firebaseUserInfo.displayName;
+              } else if (user.firebaseUserInfo?.email) {
+                displayName = user.firebaseUserInfo.email;
+              } else if (user.email) {
+                displayName = user.email;
+              }
+              
+              firebaseUserMap[user._id] = displayName || 'Unknown User';
+            }
+          });
+        } catch (error) {
+          console.warn('Error fetching user data:', error);
+        }
+      }
+      
+      setFirebaseUsers(firebaseUserMap);
+      
+      // Process organizers data
+      const processedOrganizers = organizersData.map(organizer => ({
+        ...organizer,
+        id: organizer._id,
+        displayName: organizer.fullName || organizer.name || 'Unnamed Organizer',
+        shortDisplayName: organizer.shortName || 'No short name',
+        status: organizer.isActive ? 'Active' : 'Inactive',
+        wantRender: organizer.wantRender ? 'Yes' : 'No',
+        isRendered: organizer.isRendered ? 'Yes' : 'No',
+        enabled: organizer.isEnabled ? 'Yes' : 'No',
+        userConnected: organizer.linkedUserLogin ? 'Yes' : 'No',
+        linkedUserLogin: organizer.linkedUserLogin, // Store the ID for column renderer
+        userConnectedName: organizer.linkedUserLogin ? firebaseUserMap[organizer.linkedUserLogin] || null : '-',
+      }));
+      
+      setOrganizers(processedOrganizers);
+      setFilteredOrganizers(processedOrganizers);
+      
+      return processedOrganizers;
+    } catch (error) {
+      console.error('Error refreshing organizers:', error);
+      throw error;
+    }
+  };
+
   // Handle search input change
   const handleSearchChange = (event) => {
     const term = event.target.value;
@@ -187,7 +277,7 @@ export default function OrganizersPage() {
   // Apply filters whenever any filter changes
   useEffect(() => {
     filterOrganizers();
-  }, [searchTerm, filterNotApproved, filterNotAuthorized, selectedCityId, selectedDivisionId, organizers]);
+  }, [searchTerm, filterEnabled, selectedCityId, selectedDivisionId, organizers]);
 
   // Filter organizers based on all filters
   const filterOrganizers = () => {
@@ -202,15 +292,13 @@ export default function OrganizersPage() {
       );
     }
     
-    // Apply not approved filter
-    if (filterNotApproved) {
-      filtered = filtered.filter(organizer => !organizer.isApproved);
+    // Apply enabled filter
+    if (filterEnabled === 'enabled') {
+      filtered = filtered.filter(organizer => organizer.isEnabled === true);
+    } else if (filterEnabled === 'disabled') {
+      filtered = filtered.filter(organizer => organizer.isEnabled === false);
     }
-    
-    // Apply not authorized filter
-    if (filterNotAuthorized) {
-      filtered = filtered.filter(organizer => !organizer.isAuthorized);
-    }
+    // If filterEnabled is 'all', don't filter by isEnabled
     
     // Apply city filter
     if (selectedCityId) {
@@ -449,23 +537,8 @@ export default function OrganizersPage() {
       
       console.log('Update successful:', response);
       
-      // Refresh organizers list
-      const organizersData = await organizersApi.getOrganizers(currentApp.id);
-      
-      // Process organizers data
-      const processedOrganizers = organizersData.map(organizer => ({
-        ...organizer,
-        id: organizer._id,
-        displayName: organizer.name || 'Unnamed Organizer',
-        shortDisplayName: organizer.shortName || 'No short name',
-        status: organizer.isActive ? 'Active' : 'Inactive',
-        approved: organizer.isApproved ? 'Yes' : 'No',
-        enabled: organizer.isEnabled ? 'Yes' : 'No',
-        userConnected: organizer.linkedUserLogin ? 'Yes' : 'No',
-      }));
-      
-      setOrganizers(processedOrganizers);
-      filterOrganizers(searchTerm);
+      // Refresh all organizers data
+      await refreshOrganizersData();
       setDialogOpen(false);
       setEditingOrganizer(null);
       
@@ -505,23 +578,8 @@ export default function OrganizersPage() {
       
       console.log('Organizer created:', response.data);
       
-      // Refresh organizers list
-      const organizersData = await organizersApi.getOrganizers(currentApp.id);
-      
-      // Process organizers data
-      const processedOrganizers = organizersData.map(organizer => ({
-        ...organizer,
-        id: organizer._id,
-        displayName: organizer.fullName || organizer.name || 'Unnamed Organizer',
-        shortDisplayName: organizer.shortName || 'No short name',
-        status: organizer.isActive ? 'Active' : 'Inactive',
-        approved: organizer.isApproved ? 'Yes' : 'No',
-        enabled: organizer.isEnabled ? 'Yes' : 'No',
-        userConnected: organizer.linkedUserLogin ? 'Yes' : 'No',
-      }));
-      
-      setOrganizers(processedOrganizers);
-      filterOrganizers(searchTerm);
+      // Refresh all organizers data
+      await refreshOrganizersData();
       setCreateDialogOpen(false);
       setCreatingOrganizer(false);
       setLoading(false);
@@ -552,23 +610,8 @@ export default function OrganizersPage() {
       // Connect organizer to user
       await organizersApi.connectToUser(organizerId, firebaseUserId, currentApp.id);
       
-      // Refresh organizers list
-      const organizersData = await organizersApi.getOrganizers(currentApp.id);
-      
-      // Process organizers data
-      const processedOrganizers = organizersData.map(organizer => ({
-        ...organizer,
-        id: organizer._id,
-        displayName: organizer.name || 'Unnamed Organizer',
-        shortDisplayName: organizer.shortName || 'No short name',
-        status: organizer.isActive ? 'Active' : 'Inactive',
-        approved: organizer.isApproved ? 'Yes' : 'No',
-        enabled: organizer.isEnabled ? 'Yes' : 'No',
-        userConnected: organizer.linkedUserLogin ? 'Yes' : 'No',
-      }));
-      
-      setOrganizers(processedOrganizers);
-      filterOrganizers(searchTerm);
+      // Refresh all organizers data
+      await refreshOrganizersData();
       setConnectDialogOpen(false);
       setConnectingOrganizer(null);
       setLoading(false);
@@ -670,9 +713,26 @@ export default function OrganizersPage() {
       field: 'userConnectedName', 
       headerName: 'Connected User', 
       width: 150,
-      renderCell: (params) => (
-        <span>{params.value || '-'}</span>
-      )
+      renderCell: (params) => {
+        // No linked user
+        if (!params.row.linkedUserLogin) {
+          return <span>-</span>;
+        }
+        
+        // Try to get the name from the processed value first
+        if (params.value && params.value !== '-') {
+          return <span>{params.value}</span>;
+        }
+        
+        // If no processed value, try to find it in firebaseUsers state
+        const userName = firebaseUsers[params.row.linkedUserLogin];
+        if (userName) {
+          return <span>{userName}</span>;
+        }
+        
+        // Still loading
+        return <span style={{ color: 'gray', fontStyle: 'italic' }}>Not found</span>;
+      }
     },
     { 
       field: 'actions', 
@@ -746,25 +806,21 @@ export default function OrganizersPage() {
             }}
           />
           
-          <FormControlLabel
-            control={
-              <Checkbox 
-                checked={filterNotApproved} 
-                onChange={(e) => setFilterNotApproved(e.target.checked)}
-              />
-            }
-            label="Not Approved"
-          />
-          
-          <FormControlLabel
-            control={
-              <Checkbox 
-                checked={filterNotAuthorized} 
-                onChange={(e) => setFilterNotAuthorized(e.target.checked)}
-              />
-            }
-            label="Not Authorized"
-          />
+          <ToggleButtonGroup
+            value={filterEnabled}
+            exclusive
+            onChange={(event, newValue) => {
+              if (newValue !== null) {
+                setFilterEnabled(newValue);
+              }
+            }}
+            size="small"
+            sx={{ height: 40 }}
+          >
+            <ToggleButton value="all">All</ToggleButton>
+            <ToggleButton value="enabled">Enabled</ToggleButton>
+            <ToggleButton value="disabled">Disabled</ToggleButton>
+          </ToggleButtonGroup>
           
           <FormControl size="small" sx={{ minWidth: 150 }}>
             <InputLabel>City</InputLabel>
