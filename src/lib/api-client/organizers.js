@@ -72,9 +72,15 @@ const organizersApi = {
   async updateOrganizer(organizerId, organizerData) {
     const appId = organizerData.appId || '1';
     const backendUrl = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
+    const url = `${backendUrl}/api/organizers/${organizerId}?appId=${appId}`;
     
-    const response = await fetch(`${backendUrl}/api/organizers/${organizerId}?appId=${appId}`, {
-      method: 'PATCH',
+    console.log('Updating organizer with PUT request:');
+    console.log('URL:', url);
+    console.log('Method: PUT');
+    console.log('Data:', JSON.stringify(organizerData, null, 2));
+    
+    const response = await fetch(url, {
+      method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -82,7 +88,9 @@ const organizersApi = {
     });
     
     if (!response.ok) {
-      throw new Error(`Failed to update organizer: ${response.status}`);
+      const errorText = await response.text();
+      console.error('Update failed:', response.status, errorText);
+      throw new Error(`Failed to update organizer: ${response.status} - ${errorText}`);
     }
     
     return response.json();
