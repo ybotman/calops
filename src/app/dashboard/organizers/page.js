@@ -75,14 +75,16 @@ export default function OrganizersPage() {
   useEffect(() => {
     const fetchLocations = async () => {
       try {
-        // Fetch cities
-        const citiesResponse = await axios.get('/api/masteredLocations/cities', {
+        const backendUrl = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
+        
+        // Fetch cities from backend directly
+        const citiesResponse = await axios.get(`${backendUrl}/api/masteredLocations/cities`, {
           params: { appId: currentApp.id, isActive: true }
         });
         setCities(citiesResponse.data.cities || []);
         
-        // Fetch divisions
-        const divisionsResponse = await axios.get('/api/masteredLocations/divisions', {
+        // Fetch divisions from backend directly
+        const divisionsResponse = await axios.get(`${backendUrl}/api/masteredLocations/divisions`, {
           params: { appId: currentApp.id, isActive: true }
         });
         setDivisions(divisionsResponse.data.divisions || []);
@@ -121,14 +123,26 @@ export default function OrganizersPage() {
             
             allUsers.forEach(user => {
               if (user && user._id && linkedUserIds.includes(user._id)) {
-                firebaseUserMap[user._id] = user.localUserInfo?.loginUserName || 
-                                           user.firebaseUserInfo?.displayName || 
-                                           user.firebaseUserInfo?.email || 
-                                           'Unknown User';
+                // Build display name from available user info
+                let displayName = 'Unknown User';
+                
+                if (user.localUserInfo?.loginUserName) {
+                  displayName = user.localUserInfo.loginUserName;
+                } else if (user.localUserInfo?.firstName || user.localUserInfo?.lastName) {
+                  const firstName = user.localUserInfo?.firstName || '';
+                  const lastName = user.localUserInfo?.lastName || '';
+                  displayName = `${firstName} ${lastName}`.trim();
+                } else if (user.firebaseUserInfo?.displayName) {
+                  displayName = user.firebaseUserInfo.displayName;
+                } else if (user.firebaseUserInfo?.email) {
+                  displayName = user.firebaseUserInfo.email;
+                }
+                
+                firebaseUserMap[user._id] = displayName;
               }
             });
           } catch (error) {
-            console.warn('Error fetching Firebase users:', error);
+            console.warn('Error fetching user data:', error);
           }
         }
         
