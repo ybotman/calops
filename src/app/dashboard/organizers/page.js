@@ -11,8 +11,6 @@ import {
   Button,
   TextField,
   InputAdornment,
-  Tabs,
-  Tab,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -35,35 +33,26 @@ import EditIcon from '@mui/icons-material/Edit';
 import AddIcon from '@mui/icons-material/Add';
 import LinkIcon from '@mui/icons-material/Link';
 import DeleteIcon from '@mui/icons-material/Delete';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CancelIcon from '@mui/icons-material/Cancel';
+import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
+import IconButton from '@mui/material/IconButton';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
 import { organizersApi, usersApi } from '@/lib/api-client';
 import OrganizerEditForm from '@/components/organizers/OrganizerEditForm';
 import OrganizerCreateForm from '@/components/organizers/OrganizerCreateForm';
 import OrganizerConnectUserForm from '@/components/organizers/OrganizerConnectUserForm';
 import { useAppContext } from '@/lib/AppContext';
 
-// Tab panel component
-function TabPanel(props) {
-  const { children, value, index, ...other } = props;
-
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`simple-tabpanel-${index}`}
-      aria-labelledby={`simple-tab-${index}`}
-      {...other}
-    >
-      {value === index && <Box sx={{ pt: 2 }}>{children}</Box>}
-    </div>
-  );
-}
 
 export default function OrganizersPage() {
   const [loading, setLoading] = useState(true);
   const [organizers, setOrganizers] = useState([]);
   const [filteredOrganizers, setFilteredOrganizers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [tabValue, setTabValue] = useState(0);
   const { currentApp } = useAppContext();
   const [editingOrganizer, setEditingOrganizer] = useState(null);
   const [creatingOrganizer, setCreatingOrganizer] = useState(false);
@@ -72,27 +61,92 @@ export default function OrganizersPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [connectDialogOpen, setConnectDialogOpen] = useState(false);
   
+  // New filter states
+  const [filterNotApproved, setFilterNotApproved] = useState(false);
+  const [filterNotAuthorized, setFilterNotAuthorized] = useState(false);
+  const [selectedCityId, setSelectedCityId] = useState('');
+  const [selectedDivisionId, setSelectedDivisionId] = useState('');
+  const [cities, setCities] = useState([]);
+  const [divisions, setDivisions] = useState([]);
+  const [firebaseUsers, setFirebaseUsers] = useState({});
+  
 
-  // Fetch organizers when tab or app changes
+  // Fetch mastered locations when component mounts
+  useEffect(() => {
+    const fetchLocations = async () => {
+      try {
+        const backendUrl = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
+        
+        // Fetch cities from backend directly
+        const citiesResponse = await axios.get(`${backendUrl}/api/masteredLocations/cities`, {
+          params: { appId: currentApp.id, isActive: true }
+        });
+        setCities(citiesResponse.data.cities || []);
+        
+        // Fetch divisions from backend directly
+        const divisionsResponse = await axios.get(`${backendUrl}/api/masteredLocations/divisions`, {
+          params: { appId: currentApp.id, isActive: true }
+        });
+        setDivisions(divisionsResponse.data.divisions || []);
+      } catch (error) {
+        console.error('Error fetching mastered locations:', error);
+      }
+    };
+    
+    fetchLocations();
+  }, [currentApp.id]);
+
+  // Fetch organizers when app changes
   useEffect(() => {
     const fetchOrganizers = async () => {
       try {
         setLoading(true);
-        let organizersData;
         const appId = currentApp.id;
         
-        console.log(`Fetching organizers for AppId: ${appId}, Tab: ${tabValue}`);
+        console.log(`Fetching organizers for AppId: ${appId}`);
         
-        // Fetch based on tab
-        if (tabValue === 0) { // All
-          organizersData = await organizersApi.getOrganizers(appId);
-        } else if (tabValue === 1) { // Active
-          organizersData = await organizersApi.getOrganizers(appId, true);
-        } else if (tabValue === 2) { // Inactive
-          organizersData = await organizersApi.getOrganizers(appId, false);
-        }
+        // Fetch all organizers
+        const organizersData = await organizersApi.getOrganizers(appId);
         
         console.log(`Successfully fetched ${organizersData.length} organizers`);
+        
+        // Fetch Firebase users if needed
+        const linkedUserIds = organizersData
+          .filter(org => org.linkedUserLogin)
+          .map(org => org.linkedUserLogin);
+        
+        const firebaseUserMap = {};
+        if (linkedUserIds.length > 0) {
+          try {
+            // Fetch all users and filter by linked IDs
+            const allUsers = await usersApi.getUsers(appId);
+            
+            allUsers.forEach(user => {
+              if (user && user._id && linkedUserIds.includes(user._id)) {
+                // Build display name from available user info
+                let displayName = 'Unknown User';
+                
+                if (user.localUserInfo?.loginUserName) {
+                  displayName = user.localUserInfo.loginUserName;
+                } else if (user.localUserInfo?.firstName || user.localUserInfo?.lastName) {
+                  const firstName = user.localUserInfo?.firstName || '';
+                  const lastName = user.localUserInfo?.lastName || '';
+                  displayName = `${firstName} ${lastName}`.trim();
+                } else if (user.firebaseUserInfo?.displayName) {
+                  displayName = user.firebaseUserInfo.displayName;
+                } else if (user.firebaseUserInfo?.email) {
+                  displayName = user.firebaseUserInfo.email;
+                }
+                
+                firebaseUserMap[user._id] = displayName;
+              }
+            });
+          } catch (error) {
+            console.warn('Error fetching user data:', error);
+          }
+        }
+        
+        setFirebaseUsers(firebaseUserMap);
         
         // Process organizers data
         const processedOrganizers = organizersData.map(organizer => ({
@@ -102,8 +156,10 @@ export default function OrganizersPage() {
           shortDisplayName: organizer.shortName || 'No short name',
           status: organizer.isActive ? 'Active' : 'Inactive',
           approved: organizer.isApproved ? 'Yes' : 'No',
+          authorized: organizer.isAuthorized ? 'Yes' : 'No',
           enabled: organizer.isEnabled ? 'Yes' : 'No',
           userConnected: organizer.linkedUserLogin ? 'Yes' : 'No',
+          userConnectedName: organizer.linkedUserLogin ? firebaseUserMap[organizer.linkedUserLogin] || 'Loading...' : '-',
         }));
         
         console.log(`Processed ${processedOrganizers.length} organizers successfully`);
@@ -118,32 +174,56 @@ export default function OrganizersPage() {
     };
 
     fetchOrganizers();
-  }, [currentApp.id, tabValue]);
+  }, [currentApp.id]);
 
-  // Handle tab change
-  const handleTabChange = (event, newValue) => {
-    setTabValue(newValue);
-  };
 
   // Handle search input change
   const handleSearchChange = (event) => {
     const term = event.target.value;
     setSearchTerm(term);
-    filterOrganizers(term);
   };
+  
+  // Apply filters whenever any filter changes
+  useEffect(() => {
+    filterOrganizers();
+  }, [searchTerm, filterNotApproved, filterNotAuthorized, selectedCityId, selectedDivisionId, organizers]);
 
-  // Filter organizers based on search term
-  const filterOrganizers = (term) => {
-    if (!term) {
-      setFilteredOrganizers(organizers);
-      return;
+  // Filter organizers based on all filters
+  const filterOrganizers = () => {
+    let filtered = [...organizers];
+    
+    // Apply search term filter
+    if (searchTerm) {
+      const lowerTerm = searchTerm.toLowerCase();
+      filtered = filtered.filter(organizer =>
+        (organizer.displayName.toLowerCase().includes(lowerTerm)) ||
+        (organizer.shortDisplayName.toLowerCase().includes(lowerTerm))
+      );
     }
     
-    const lowerTerm = term.toLowerCase();
-    const filtered = organizers.filter(organizer =>
-      (organizer.displayName.toLowerCase().includes(lowerTerm)) ||
-      (organizer.shortDisplayName.toLowerCase().includes(lowerTerm))
-    );
+    // Apply not approved filter
+    if (filterNotApproved) {
+      filtered = filtered.filter(organizer => !organizer.isApproved);
+    }
+    
+    // Apply not authorized filter
+    if (filterNotAuthorized) {
+      filtered = filtered.filter(organizer => !organizer.isAuthorized);
+    }
+    
+    // Apply city filter
+    if (selectedCityId) {
+      filtered = filtered.filter(organizer => 
+        organizer.masteredCityId === selectedCityId
+      );
+    }
+    
+    // Apply division filter
+    if (selectedDivisionId) {
+      filtered = filtered.filter(organizer => 
+        organizer.masteredDivisionId === selectedDivisionId
+      );
+    }
     
     setFilteredOrganizers(filtered);
   };
@@ -535,47 +615,98 @@ export default function OrganizersPage() {
 
   // Define columns for DataGrid
   const columns = [
-    { field: 'displayName', headerName: 'Name', flex: 1 },
-    { field: 'shortDisplayName', headerName: 'Short Name', flex: 1 },
-    { field: 'status', headerName: 'Status', width: 120 },
-    { field: 'approved', headerName: 'Approved', width: 120 },
-    { field: 'enabled', headerName: 'Enabled', width: 120 },
-    { field: 'userConnected', headerName: 'User Connected', width: 150 },
+    { 
+      field: 'displayName', 
+      headerName: 'Name', 
+      width: 250,
+      renderCell: (params) => (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          <span style={{ 
+            overflow: 'hidden', 
+            textOverflow: 'ellipsis', 
+            whiteSpace: 'nowrap',
+            maxWidth: '220px' 
+          }}>
+            {params.value.substring(0, 30)}
+          </span>
+          <FiberManualRecordIcon 
+            sx={{ 
+              fontSize: 10, 
+              color: params.row.isActive ? 'success.main' : 'grey.400' 
+            }} 
+          />
+        </Box>
+      )
+    },
+    { 
+      field: 'shortDisplayName', 
+      headerName: 'Short Name', 
+      width: 150,
+      renderCell: (params) => (
+        <span>{params.value.substring(0, 15)}</span>
+      )
+    },
+    { 
+      field: 'approved', 
+      headerName: 'Appr', 
+      width: 60,
+      align: 'center',
+      headerAlign: 'center',
+      renderCell: (params) => 
+        params.row.isApproved ? 
+          <CheckCircleIcon sx={{ color: 'success.main', fontSize: 20 }} /> : 
+          <CancelIcon sx={{ color: 'error.main', fontSize: 20 }} />
+    },
+    { 
+      field: 'authorized', 
+      headerName: 'Auth', 
+      width: 60,
+      align: 'center',
+      headerAlign: 'center',
+      renderCell: (params) => 
+        params.row.isAuthorized ? 
+          <CheckCircleIcon sx={{ color: 'success.main', fontSize: 20 }} /> : 
+          <CancelIcon sx={{ color: 'error.main', fontSize: 20 }} />
+    },
+    { 
+      field: 'userConnectedName', 
+      headerName: 'Connected User', 
+      width: 200,
+      renderCell: (params) => (
+        <span>{params.value || '-'}</span>
+      )
+    },
     { 
       field: 'actions', 
       headerName: 'Actions', 
-      width: 300,
+      width: 180,
+      sortable: false,
       renderCell: (params) => (
         <Box>
-          <Button
-            variant="text"
+          <IconButton
             color="primary"
             onClick={() => handleEditOrganizer(params.row)}
-            startIcon={<EditIcon />}
-            sx={{ mr: 1 }}
             size="small"
+            title="Edit"
           >
-            Edit
-          </Button>
-          <Button
-            variant="text"
+            <EditIcon fontSize="small" />
+          </IconButton>
+          <IconButton
             color="secondary"
             onClick={() => handleConnectOrganizer(params.row)}
-            startIcon={<LinkIcon />}
-            sx={{ mr: 1 }}
             size="small"
+            title="Link User"
           >
-            Link
-          </Button>
-          <Button
-            variant="text"
+            <LinkIcon fontSize="small" />
+          </IconButton>
+          <IconButton
             color="error"
             onClick={() => handleDeleteOrganizer(params.row)}
-            startIcon={<DeleteIcon />}
             size="small"
+            title="Delete"
           >
-            Delete
-          </Button>
+            <DeleteIcon fontSize="small" />
+          </IconButton>
         </Box>
       ) 
     },
@@ -597,85 +728,96 @@ export default function OrganizersPage() {
         </Box>
       </Box>
       
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-        <Tabs value={tabValue} onChange={handleTabChange}>
-          <Tab label="All Organizers" />
-          <Tab label="Active" />
-          <Tab label="Inactive" />
-        </Tabs>
-        
-        <TextField
-          placeholder="Search organizers..."
-          value={searchTerm}
-          onChange={handleSearchChange}
-          variant="outlined"
-          size="small"
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon />
-              </InputAdornment>
-            ),
-          }}
-        />
+      <Box sx={{ mb: 2 }}>
+        <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+          <TextField
+            placeholder="Search organizers..."
+            value={searchTerm}
+            onChange={handleSearchChange}
+            variant="outlined"
+            size="small"
+            sx={{ minWidth: 250 }}
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+              }
+            }}
+          />
+          
+          <FormControlLabel
+            control={
+              <Checkbox 
+                checked={filterNotApproved} 
+                onChange={(e) => setFilterNotApproved(e.target.checked)}
+              />
+            }
+            label="Not Approved"
+          />
+          
+          <FormControlLabel
+            control={
+              <Checkbox 
+                checked={filterNotAuthorized} 
+                onChange={(e) => setFilterNotAuthorized(e.target.checked)}
+              />
+            }
+            label="Not Authorized"
+          />
+          
+          <FormControl size="small" sx={{ minWidth: 150 }}>
+            <InputLabel>City</InputLabel>
+            <Select 
+              value={selectedCityId} 
+              onChange={(e) => setSelectedCityId(e.target.value)}
+              label="City"
+            >
+              <MenuItem value="">All Cities</MenuItem>
+              {cities.map(city => (
+                <MenuItem key={city._id} value={city._id}>
+                  {city.cityName}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          
+          <FormControl size="small" sx={{ minWidth: 150 }}>
+            <InputLabel>Division</InputLabel>
+            <Select 
+              value={selectedDivisionId} 
+              onChange={(e) => setSelectedDivisionId(e.target.value)}
+              label="Division"
+            >
+              <MenuItem value="">All Divisions</MenuItem>
+              {divisions.map(division => (
+                <MenuItem key={division._id} value={division._id}>
+                  {division.divisionName}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
       </Box>
       
-      <TabPanel value={tabValue} index={0}>
-        <Paper sx={{ height: 600, width: '100%' }}>
-          {loading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-              <CircularProgress />
-            </Box>
-          ) : (
-            <DataGrid
-              rows={filteredOrganizers}
-              columns={columns}
-              pageSize={10}
-              rowsPerPageOptions={[10, 25, 50]}
-              disableSelectionOnClick
-              density="standard"
-            />
-          )}
-        </Paper>
-      </TabPanel>
-      
-      <TabPanel value={tabValue} index={1}>
-        <Paper sx={{ height: 600, width: '100%' }}>
-          {loading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-              <CircularProgress />
-            </Box>
-          ) : (
-            <DataGrid
-              rows={filteredOrganizers}
-              columns={columns}
-              pageSize={10}
-              rowsPerPageOptions={[10, 25, 50]}
-              disableSelectionOnClick
-              density="standard"
-            />
-          )}
-        </Paper>
-      </TabPanel>
-      
-      <TabPanel value={tabValue} index={2}>
-        <Paper sx={{ height: 600, width: '100%' }}>
-          {loading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-              <CircularProgress />
-            </Box>
-          ) : (
-            <DataGrid
-              rows={filteredOrganizers}
-              columns={columns}
-              pageSize={10}
-              rowsPerPageOptions={[10, 25, 50]}
-              disableSelectionOnClick
-              density="standard"
-            />
-          )}
-        </Paper>
-      </TabPanel>
+      <Paper sx={{ height: 600, width: '100%' }}>
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+            <CircularProgress />
+          </Box>
+        ) : (
+          <DataGrid
+            rows={filteredOrganizers}
+            columns={columns}
+            pageSize={10}
+            rowsPerPageOptions={[10, 25, 50]}
+            disableSelectionOnClick
+            density="standard"
+          />
+        )}
+      </Paper>
       
       {/* Organizer Edit Dialog */}
       <Dialog 
