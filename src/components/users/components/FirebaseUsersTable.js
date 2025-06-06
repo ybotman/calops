@@ -28,6 +28,7 @@ import LinkIcon from '@mui/icons-material/Link';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import UpdateIcon from '@mui/icons-material/Update';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import RefreshIcon from '@mui/icons-material/Refresh';
 
 /**
  * Get provider icon based on provider ID
@@ -271,44 +272,45 @@ const FirebaseUsersTable = ({
           <Typography variant="h6" gutterBottom>
             Firebase Users Summary
           </Typography>
-          <Grid container spacing={2}>
-            <Grid item xs={3}>
-              <Box sx={{ textAlign: 'center' }}>
-                <Typography variant="h4" color="primary">
+          <Grid container spacing={3}>
+            <Grid item xs={12} sm={6} md={3}>
+              <Box sx={{ textAlign: 'center', py: 2 }}>
+                <Typography variant="h3" color="primary" sx={{ fontWeight: 'bold' }}>
                   {stats.total || 0}
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="body1" color="text.secondary">
                   Total Users
                 </Typography>
               </Box>
             </Grid>
-            <Grid item xs={3}>
-              <Box sx={{ textAlign: 'center' }}>
-                <Typography variant="h4" color="success.main">
+            <Grid item xs={12} sm={6} md={3}>
+              <Box sx={{ textAlign: 'center', py: 2 }}>
+                <Typography variant="h3" color="success.main" sx={{ fontWeight: 'bold' }}>
                   {stats.matched || 0}
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="body1" color="text.secondary">
                   Matched
                 </Typography>
               </Box>
             </Grid>
-            <Grid item xs={3}>
-              <Box sx={{ textAlign: 'center' }}>
-                <Typography variant="h4" color="warning.main">
+            <Grid item xs={12} sm={6} md={3}>
+              <Box sx={{ textAlign: 'center', py: 2 }}>
+                <Typography variant="h3" color="warning.main" sx={{ fontWeight: 'bold' }}>
                   {stats.unmatched || 0}
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="body1" color="text.secondary">
                   Unmatched
                 </Typography>
               </Box>
             </Grid>
-            <Grid item xs={3}>
-              <Box sx={{ textAlign: 'center' }}>
+            <Grid item xs={12} sm={6} md={3}>
+              <Box sx={{ textAlign: 'center', py: 2, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
                 <Button
-                  variant="outlined"
+                  variant="contained"
                   onClick={onRefresh}
                   disabled={loading}
-                  size="small"
+                  size="large"
+                  startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <RefreshIcon />}
                 >
                   {loading ? 'Refreshing...' : 'Refresh'}
                 </Button>
