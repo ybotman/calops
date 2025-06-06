@@ -11,8 +11,8 @@ const organizersApi = {
    * @returns {Promise<Array>} Array of organizers
    */
   async getOrganizers(appId, isActive = undefined, includeAllFields = false) {
-    // Force backend URL to ensure we bypass local routes
-    const backendUrl = 'https://calendarbe-test-bpg5caaqg5chbndu.eastus-01.azurewebsites.net';
+    // Use environment variable for backend URL consistency
+    const backendUrl = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
     const params = new URLSearchParams({ appId });
     if (isActive !== undefined) {
       params.append('isActive', isActive);
