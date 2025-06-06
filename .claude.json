@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "jira": {
+      "command": "npx",
+      "args": ["-y", "jira-mcp"],
+      "env": {
+        "JIRA_HOST": "tobybalsley.atlassian.net",
+        "JIRA_USERNAME": "toby.balsley@gmail.com",
+        "JIRA_API_TOKEN": "ATATT3xFfGF0Y3Qh48P6WKxPPQjdhH8w1W0A3y0NM_Vlz1XA-Xk6Aueg8kqGRCLBcoQ5WP2lgTQcKrfuHKOad4VAd4TG4rlGQG_lWzS_tSeG1avoKD397LHdIFEbMjNJiBceNQEtz5sAjFvTNthL92HiLg9NmWtbKsEMvnPaT-nWBq6YyXBbaSY",
+        "JIRA_PROJECT_KEY": "CALOPS"
+      }
+    }
+  }
+}
