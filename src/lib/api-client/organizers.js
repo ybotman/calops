@@ -11,13 +11,25 @@ const organizersApi = {
    * @returns {Promise<Array>} Array of organizers
    */
   async getOrganizers(appId, isActive = undefined) {
-    const backendUrl = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
+    // Force backend URL to ensure we bypass local routes
+    const backendUrl = 'https://calendarbe-test-bpg5caaqg5chbndu.eastus-01.azurewebsites.net';
     const params = new URLSearchParams({ appId });
     if (isActive !== undefined) {
       params.append('isActive', isActive);
     }
     
-    const response = await fetch(`${backendUrl}/api/organizers?${params}`);
+    // Add cache-busting parameter
+    params.append('_t', Date.now());
+    
+    const url = `${backendUrl}/api/organizers?${params}`;
+    console.log('Fetching organizers from:', url);
+    
+    const response = await fetch(url, {
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache'
+      }
+    });
     if (!response.ok) {
       throw new Error(`Failed to fetch organizers: ${response.status}`);
     }

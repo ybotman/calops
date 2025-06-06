@@ -58,6 +58,7 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
   // Initialize form with organizer data
   useEffect(() => {
     if (organizer) {
+      console.log('OrganizerEditForm received organizer data:', organizer);
       setFormData({
         _id: organizer._id,
         appId: organizer.appId || '1',
@@ -91,7 +92,6 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
         // Keep these fields from the original but don't display
         organizerRegion: organizer.organizerRegion || "66c4d99042ec462ea22484bd",
         linkedUserLogin: organizer.linkedUserLogin || null,
-        wantRender: organizer.wantRender !== false,
         masteredRegionId: organizer.masteredRegionId,
         masteredDivisionId: organizer.masteredDivisionId,
         masteredCityId: organizer.masteredCityId,
