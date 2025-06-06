@@ -12,17 +12,22 @@ import {
   Alert,
   Card,
   CardContent,
-  Grid
+  Grid,
+  Avatar,
+  IconButton
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import { formatDistanceToNow } from 'date-fns';
 import GoogleIcon from '@mui/icons-material/Google';
+import FacebookIcon from '@mui/icons-material/Facebook';
 import EmailIcon from '@mui/icons-material/Email';
 import PhoneIcon from '@mui/icons-material/Phone';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import WarningIcon from '@mui/icons-material/Warning';
 import LinkIcon from '@mui/icons-material/Link';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import UpdateIcon from '@mui/icons-material/Update';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
 
 /**
  * Get provider icon based on provider ID
@@ -31,12 +36,42 @@ const getProviderIcon = (providerId) => {
   switch (providerId) {
     case 'google.com':
       return <GoogleIcon sx={{ fontSize: 16, color: '#DB4437' }} />;
+    case 'facebook.com':
+      return <FacebookIcon sx={{ fontSize: 16, color: '#1877F2' }} />;
     case 'phone':
       return <PhoneIcon sx={{ fontSize: 16, color: '#4285F4' }} />;
     case 'password':
     default:
       return <EmailIcon sx={{ fontSize: 16, color: '#34A853' }} />;
   }
+};
+
+/**
+ * Get user photo URL from provider data
+ */
+const getUserPhotoURL = (user) => {
+  // Check if providerData has a photo
+  if (user.providerData && user.providerData.length > 0) {
+    const photoURL = user.providerData[0].photoURL;
+    if (photoURL) return photoURL;
+  }
+  return null;
+};
+
+/**
+ * Get best available email from user data
+ */
+const getBestEmail = (user) => {
+  // Try top-level email first
+  if (user.email) return user.email;
+  
+  // Fallback to provider email
+  if (user.providerData && user.providerData.length > 0) {
+    const providerEmail = user.providerData[0].email;
+    if (providerEmail) return providerEmail;
+  }
+  
+  return null;
 };
 
 /**
@@ -64,6 +99,7 @@ const FirebaseUsersTable = ({
   onRefresh,
   onViewDetails,
   onCreateUserLogin,
+  onUpdateUserLogin,
   filter = 'all' // 'all', 'matched', 'unmatched'
 }) => {
   const [filteredUsers, setFilteredUsers] = useState([]);
