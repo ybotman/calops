@@ -10,12 +10,23 @@ const organizersApi = {
    * @param {boolean} isActive - Filter by active status (optional)
    * @returns {Promise<Array>} Array of organizers
    */
-  async getOrganizers(appId, isActive = undefined) {
+  async getOrganizers(appId, isActive = undefined, includeAllFields = false) {
     // Force backend URL to ensure we bypass local routes
     const backendUrl = 'https://calendarbe-test-bpg5caaqg5chbndu.eastus-01.azurewebsites.net';
     const params = new URLSearchParams({ appId });
     if (isActive !== undefined) {
       params.append('isActive', isActive);
+    }
+    
+    // If we need all fields (like for editing), don't use select
+    if (includeAllFields) {
+      // Request all fields by specifying them explicitly
+      const allFields = '_id appId fullName shortName description isActive isEnabled wantRender isRendered ' +
+                       'publicContactInfo organizerTypes images delegatedOrganizerIds ' +
+                       'organizerRegion masteredRegionId masteredDivisionId masteredCityId ' +
+                       'firebaseUserId linkedUserLogin organizerBannerImage organizerProfileImage ' +
+                       'organizerLandscapeImage organizerLogoImage btcNiceName updatedAt';
+      params.append('select', allFields);
     }
     
     // Add cache-busting parameter

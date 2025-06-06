@@ -106,8 +106,8 @@ export default function OrganizersPage() {
         
         console.log(`Fetching organizers for AppId: ${appId}`);
         
-        // Fetch all organizers
-        const organizersData = await organizersApi.getOrganizers(appId);
+        // Fetch all organizers with all fields for editing capability
+        const organizersData = await organizersApi.getOrganizers(appId, undefined, true);
         
         console.log(`Successfully fetched ${organizersData.length} organizers`);
         
@@ -231,6 +231,7 @@ export default function OrganizersPage() {
 
   // Handle edit organizer button click
   const handleEditOrganizer = (organizer) => {
+    console.log('handleEditOrganizer called with:', organizer);
     setEditingOrganizer(organizer);
     setDialogOpen(true);
   };
@@ -248,8 +249,8 @@ export default function OrganizersPage() {
       const timestamp = new Date().getTime();
       console.log(`Refreshing organizers at ${timestamp}...`);
       
-      // Use organizersApi to call backend directly
-      const organizersData = await organizersApi.getOrganizers(currentApp.id);
+      // Use organizersApi to call backend directly with all fields
+      const organizersData = await organizersApi.getOrganizers(currentApp.id, undefined, true);
       
       // Check if organizersData is an array
       if (!Array.isArray(organizersData)) {

@@ -24,6 +24,7 @@ import HeadphonesIcon from '@mui/icons-material/Headphones';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
 
 export default function OrganizerEditForm({ organizer, onSubmit }) {
+  console.log('OrganizerEditForm mounted with organizer prop:', organizer);
   const [formData, setFormData] = useState({
     name: '',
     shortName: '',
