@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import axios from 'axios';
 import { useAppContext } from '@/lib/AppContext';
+import masteredLocationsApi from '@/lib/api-client/mastered-locations';
 
 /**
  * Custom hook for managing geo hierarchy data (countries, regions, divisions, cities)
@@ -81,14 +81,14 @@ const useGeoHierarchy = (options = {}) => {
       // Fetch countries from API - ensure appId is valid and always use string
       const normalizedAppId = typeof appId === 'object' ? (appId?.id || '1') : (appId || '1');
       
-      // Add timestamp to prevent caching issues
-      const timestamp = Date.now();
-      
       // Fetch countries from API
-      const response = await axios.get(`/api/geo-hierarchy?type=countries&appId=${normalizedAppId}&_=${timestamp}`);
+      const response = await masteredLocationsApi.getCountries({ 
+        appId: normalizedAppId,
+        isActive: true 
+      });
       
       // Process response
-      const countriesData = response.data || [];
+      const countriesData = response?.countries || [];
       
       // Update state
       setCountries(countriesData);
@@ -130,10 +130,14 @@ const useGeoHierarchy = (options = {}) => {
       setError(null);
       
       // Fetch regions from API
-      const response = await axios.get(`/api/geo-hierarchy?type=regions&countryId=${countryId}&appId=${appId}`);
+      const response = await masteredLocationsApi.getRegions({
+        appId,
+        countryId,
+        isActive: true
+      });
       
       // Process response
-      const regionsData = response.data || [];
+      const regionsData = response?.regions || [];
       
       // Update state
       setRegions(regionsData);
@@ -175,10 +179,14 @@ const useGeoHierarchy = (options = {}) => {
       setError(null);
       
       // Fetch divisions from API
-      const response = await axios.get(`/api/geo-hierarchy?type=divisions&regionId=${regionId}&appId=${appId}`);
+      const response = await masteredLocationsApi.getDivisions({
+        appId,
+        regionId,
+        isActive: true
+      });
       
       // Process response
-      const divisionsData = response.data || [];
+      const divisionsData = response?.divisions || [];
       
       // Update state
       setDivisions(divisionsData);
@@ -220,10 +228,14 @@ const useGeoHierarchy = (options = {}) => {
       setError(null);
       
       // Fetch cities from API
-      const response = await axios.get(`/api/geo-hierarchy?type=cities&divisionId=${divisionId}&appId=${appId}`);
+      const response = await masteredLocationsApi.getCities({
+        appId,
+        divisionId,
+        isActive: true
+      });
       
       // Process response
-      const citiesData = response.data || [];
+      const citiesData = response?.cities || [];
       
       // Update state
       setCities(citiesData);

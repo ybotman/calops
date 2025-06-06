@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import masteredLocationsApi from '@/lib/api-client/mastered-locations';
 import {
   Box,
   Typography,
@@ -62,11 +62,15 @@ export default function GeoHierarchyPage() {
         
         // Fetch all geo hierarchy data in a single request - with population of parent references
         console.log('Fetching ALL geo hierarchy data with population');
-        const response = await axios.get(`/api/geo-hierarchy?type=all&populate=true`);
+        const response = await masteredLocationsApi.getAllGeoData({ 
+          appId: currentApp.id, 
+          populate: true,
+          isActive: undefined // Get both active and inactive
+        });
         
-        if (response.data) {
+        if (response) {
           // Process cities - city uses isActive, others use active
-          const processedCities = response.data.cities?.map(city => ({
+          const processedCities = response.cities?.map(city => ({
             ...city,
             id: city._id,
             type: 'city',
@@ -80,7 +84,7 @@ export default function GeoHierarchyPage() {
           })) || [];
           
           // Process divisions
-          const processedDivisions = response.data.divisions?.map(division => ({
+          const processedDivisions = response.divisions?.map(division => ({
             ...division,
             id: division._id,
             type: 'division',
@@ -91,7 +95,7 @@ export default function GeoHierarchyPage() {
           })) || [];
           
           // Process regions
-          const processedRegions = response.data.regions?.map(region => ({
+          const processedRegions = response.regions?.map(region => ({
             ...region,
             id: region._id,
             type: 'region',
