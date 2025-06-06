@@ -251,7 +251,7 @@ export default function StatusPanel() {
                 <ListItemText 
                   primary="Backend API" 
                   secondary={
-                    <Box component="span">
+                    <>
                       <Typography variant="body2" component="span" display="block">
                         {status.backend?.message || status.backend?.url || 'Checking backend connection...'}
                       </Typography>
@@ -265,7 +265,7 @@ export default function StatusPanel() {
                           {status.backend.apiMessage}
                         </Typography>
                       )}
-                    </Box>
+                    </>
                   }
                 />
                 <Box>{getStatusChip(status.backend?.status || 'unknown')}</Box>
@@ -278,7 +278,7 @@ export default function StatusPanel() {
                 <ListItemText 
                   primary="Environment Configuration" 
                   secondary={
-                    <Box component="span">
+                    <>
                       <Typography variant="body2" component="span" display="block" sx={{ mt: 0.5 }}>
                         <strong>Backend URL:</strong> {maskEnvValue(status.backend.url)}
                       </Typography>
@@ -288,7 +288,7 @@ export default function StatusPanel() {
                       <Typography variant="body2" component="span" display="block" sx={{ mt: 0.5 }}>
                         <strong>Authentication:</strong> Mock authentication (bypassed)
                       </Typography>
-                      <Box sx={{ mt: 1 }}>
+                      <Box component="span" sx={{ mt: 1, display: 'block' }}>
                         <Button 
                           size="small"
                           onClick={toggleEnvExpanded}
@@ -298,7 +298,7 @@ export default function StatusPanel() {
                           {envExpanded ? 'Hide' : 'Show'} All Environment Variables
                         </Button>
                       </Box>
-                    </Box>
+                    </>
                   }
                 />
                 <Chip 

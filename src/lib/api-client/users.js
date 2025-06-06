@@ -155,6 +155,25 @@ const usersApi = {
   },
   
   /**
+   * Update alternate Firebase IDs for a user
+   * @param {string} firebaseUserId - Primary Firebase user ID
+   * @param {Array<string>} alternateIds - Array of alternate Firebase IDs
+   * @returns {Promise<Object>} Updated user
+   */
+  updateAlternateFirebaseIds: async (firebaseUserId, alternateIds = []) => {
+    try {
+      const response = await axios.put(`${API_BASE_URL}/api/userlogins/${firebaseUserId}/alternate-ids`, {
+        alternateFirebaseUserIds: alternateIds
+      });
+      return processResponse(response);
+    } catch (error) {
+      return handleApiError(error, {
+        context: 'usersApi.updateAlternateFirebaseIds'
+      });
+    }
+  },
+  
+  /**
    * Create an organizer for a user
    * @param {string} userId - User ID
    * @param {Object} organizerData - Organizer data
