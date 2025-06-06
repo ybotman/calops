@@ -19,6 +19,7 @@ export default function OrganizerConnectUserForm({ organizer, onSubmit }) {
   const [users, setUsers] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
+  const [alternateUsers, setAlternateUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [userLoading, setUserLoading] = useState(true);
   const [error, setError] = useState('');
@@ -32,6 +33,19 @@ export default function OrganizerConnectUserForm({ organizer, onSubmit }) {
         // Get users from the backend
         const userData = await usersApi.getUsers(organizer.appId, true);
         setUsers(userData);
+        
+        // If organizer has a linked user, load their alternate Firebase IDs
+        if (organizer.linkedUserLogin) {
+          const linkedUser = userData.find(u => u._id === organizer.linkedUserLogin);
+          if (linkedUser && linkedUser.alternateFirebaseUserIds?.length > 0) {
+            // Find users matching the alternate Firebase IDs
+            const altUsers = userData.filter(u => 
+              linkedUser.alternateFirebaseUserIds.includes(u.firebaseUserId)
+            );
+            setAlternateUsers(altUsers);
+          }
+        }
+        
         setUserLoading(false);
       } catch (err) {
         console.error('Error fetching users:', err);
@@ -41,7 +55,7 @@ export default function OrganizerConnectUserForm({ organizer, onSubmit }) {
     };
 
     fetchUsers();
-  }, [organizer.appId]);
+  }, [organizer.appId, organizer.linkedUserLogin]);
 
   // Handle user selection
   const handleUserChange = (event, newValue) => {
@@ -53,12 +67,18 @@ export default function OrganizerConnectUserForm({ organizer, onSubmit }) {
   const filterOptions = (options, { inputValue }) => {
     const filterValue = inputValue.toLowerCase().trim();
     return options.filter((option) => {
-      const name = `${option.localUserInfo?.firstName || ''} ${option.localUserInfo?.lastName || ''}`.toLowerCase();
-      const email = (option.firebaseUserInfo?.email || '').toLowerCase();
+      const firstName = (option.localUserInfo?.firstName || '').toLowerCase();
+      const lastName = (option.localUserInfo?.lastName || '').toLowerCase();
+      const loginUserName = (option.localUserInfo?.loginUserName || '').toLowerCase();
+      const displayName = (option.firebaseUserInfo?.displayName || '').toLowerCase();
+      const email = (option.firebaseUserInfo?.email || option.email || '').toLowerCase();
       const userId = (option.firebaseUserId || '').toLowerCase();
       
       return (
-        name.includes(filterValue) ||
+        firstName.includes(filterValue) ||
+        lastName.includes(filterValue) ||
+        loginUserName.includes(filterValue) ||
+        displayName.includes(filterValue) ||
         email.includes(filterValue) ||
         userId.includes(filterValue)
       );
@@ -78,9 +98,26 @@ export default function OrganizerConnectUserForm({ organizer, onSubmit }) {
     setLoading(true);
     
     try {
+      // Submit the primary user connection
       await onSubmit(selectedUserId);
+      
+      // If we have a selected user and alternate users, update the alternate Firebase IDs
+      if (selectedUser && alternateUsers.length > 0) {
+        const alternateFirebaseIds = alternateUsers.map(u => u.firebaseUserId);
+        
+        try {
+          // Update the user's alternate Firebase IDs
+          await usersApi.updateAlternateFirebaseIds(selectedUser.firebaseUserId, alternateFirebaseIds);
+          console.log('Updated alternate Firebase IDs:', alternateFirebaseIds);
+        } catch (altError) {
+          console.error('Error updating alternate Firebase IDs:', altError);
+          // Don't fail the whole operation if alternate IDs fail
+        }
+      }
+      
       setSelectedUserId('');
       setSelectedUser(null);
+      setAlternateUsers([]);
     } catch (err) {
       setError('Failed to connect user to organizer. Please try again.');
       console.error('Error connecting user to organizer:', err);
@@ -137,32 +174,78 @@ export default function OrganizerConnectUserForm({ organizer, onSubmit }) {
               onChange={handleUserChange}
               filterOptions={filterOptions}
               getOptionLabel={(option) => {
-                const name = `${option.localUserInfo?.firstName || ''} ${option.localUserInfo?.lastName || ''}`;
-                const email = option.firebaseUserInfo?.email || '';
-                return `${name.trim()} (${email})`;
+                let displayName = '';
+                
+                // Build display name from available sources
+                if (option.localUserInfo?.loginUserName && option.localUserInfo.loginUserName.trim()) {
+                  displayName = option.localUserInfo.loginUserName;
+                } else if (option.localUserInfo?.firstName || option.localUserInfo?.lastName) {
+                  const firstName = option.localUserInfo?.firstName || '';
+                  const lastName = option.localUserInfo?.lastName || '';
+                  const fullName = `${firstName} ${lastName}`.trim();
+                  if (fullName) {
+                    displayName = fullName;
+                  }
+                } else if (option.firebaseUserInfo?.displayName && option.firebaseUserInfo.displayName.trim()) {
+                  displayName = option.firebaseUserInfo.displayName;
+                }
+                
+                const email = option.firebaseUserInfo?.email || option.email || '';
+                
+                if (!displayName && email) {
+                  return email;
+                } else if (displayName && email) {
+                  return `${displayName} (${email})`;
+                } else if (displayName) {
+                  return displayName;
+                } else {
+                  return 'Unknown User';
+                }
               }}
-              renderOption={(props, option) => (
-                <li {...props}>
-                  <Box>
-                    <Typography variant="body1">
-                      {option.localUserInfo?.firstName || ''} {option.localUserInfo?.lastName || ''}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {option.firebaseUserInfo?.email || ''}
-                    </Typography>
-                    <Box sx={{ mt: 0.5 }}>
-                      {option.roles && option.roles.map((role) => (
-                        <Chip 
-                          key={role} 
-                          label={role} 
-                          size="small" 
-                          sx={{ mr: 0.5, mb: 0.5 }} 
-                        />
-                      ))}
+              renderOption={(props, option) => {
+                let displayName = '';
+                
+                // Build display name from available sources
+                if (option.localUserInfo?.loginUserName && option.localUserInfo.loginUserName.trim()) {
+                  displayName = option.localUserInfo.loginUserName;
+                } else if (option.localUserInfo?.firstName || option.localUserInfo?.lastName) {
+                  const firstName = option.localUserInfo?.firstName || '';
+                  const lastName = option.localUserInfo?.lastName || '';
+                  const fullName = `${firstName} ${lastName}`.trim();
+                  if (fullName) {
+                    displayName = fullName;
+                  }
+                } else if (option.firebaseUserInfo?.displayName && option.firebaseUserInfo.displayName.trim()) {
+                  displayName = option.firebaseUserInfo.displayName;
+                }
+                
+                const email = option.firebaseUserInfo?.email || option.email || '';
+                
+                return (
+                  <li {...props}>
+                    <Box>
+                      <Typography variant="body1">
+                        {displayName || email || 'Unknown User'}
+                      </Typography>
+                      {email && displayName && (
+                        <Typography variant="caption" color="text.secondary">
+                          {email}
+                        </Typography>
+                      )}
+                      <Box sx={{ mt: 0.5 }}>
+                        {option.roles && option.roles.map((role) => (
+                          <Chip 
+                            key={role} 
+                            label={role} 
+                            size="small" 
+                            sx={{ mr: 0.5, mb: 0.5 }} 
+                          />
+                        ))}
+                      </Box>
                     </Box>
-                  </Box>
-                </li>
-              )}
+                  </li>
+                );
+              }}
               renderInput={(params) => (
                 <TextField
                   {...params}
@@ -184,6 +267,101 @@ export default function OrganizerConnectUserForm({ organizer, onSubmit }) {
               )}
             />
           </Grid>
+          
+          {/* Multi-select for alternate users */}
+          {selectedUser && (
+            <Grid item xs={12}>
+              <Autocomplete
+                multiple
+                options={users.filter(u => u.firebaseUserId !== selectedUser.firebaseUserId)}
+                loading={userLoading}
+                value={alternateUsers}
+                onChange={(event, newValue) => setAlternateUsers(newValue)}
+                filterOptions={filterOptions}
+                getOptionLabel={(option) => {
+                  let displayName = '';
+                  
+                  // Build display name from available sources
+                  if (option.localUserInfo?.loginUserName && option.localUserInfo.loginUserName.trim()) {
+                    displayName = option.localUserInfo.loginUserName;
+                  } else if (option.localUserInfo?.firstName || option.localUserInfo?.lastName) {
+                    const firstName = option.localUserInfo?.firstName || '';
+                    const lastName = option.localUserInfo?.lastName || '';
+                    const fullName = `${firstName} ${lastName}`.trim();
+                    if (fullName) {
+                      displayName = fullName;
+                    }
+                  } else if (option.firebaseUserInfo?.displayName && option.firebaseUserInfo.displayName.trim()) {
+                    displayName = option.firebaseUserInfo.displayName;
+                  }
+                  
+                  const email = option.firebaseUserInfo?.email || option.email || '';
+                  
+                  if (!displayName && email) {
+                    return email;
+                  } else if (displayName && email) {
+                    return `${displayName} (${email})`;
+                  } else if (displayName) {
+                    return displayName;
+                  } else {
+                    return 'Unknown User';
+                  }
+                }}
+                renderOption={(props, option) => {
+                  let displayName = '';
+                  
+                  // Build display name from available sources
+                  if (option.localUserInfo?.loginUserName && option.localUserInfo.loginUserName.trim()) {
+                    displayName = option.localUserInfo.loginUserName;
+                  } else if (option.localUserInfo?.firstName || option.localUserInfo?.lastName) {
+                    const firstName = option.localUserInfo?.firstName || '';
+                    const lastName = option.localUserInfo?.lastName || '';
+                    const fullName = `${firstName} ${lastName}`.trim();
+                    if (fullName) {
+                      displayName = fullName;
+                    }
+                  } else if (option.firebaseUserInfo?.displayName && option.firebaseUserInfo.displayName.trim()) {
+                    displayName = option.firebaseUserInfo.displayName;
+                  }
+                  
+                  const email = option.firebaseUserInfo?.email || option.email || '';
+                  
+                  return (
+                    <li {...props}>
+                      <Box>
+                        <Typography variant="body1">
+                          {displayName || email || 'Unknown User'}
+                        </Typography>
+                        {email && displayName && (
+                          <Typography variant="caption" color="text.secondary">
+                            {email}
+                          </Typography>
+                        )}
+                      </Box>
+                    </li>
+                  );
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Alternate Users (Optional)"
+                    variant="outlined"
+                    fullWidth
+                    helperText="Select additional users who can manage this organizer"
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {userLoading ? <CircularProgress color="inherit" size={20} /> : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      ),
+                    }}
+                  />
+                )}
+              />
+            </Grid>
+          )}
         </Grid>
       </Box>
       
