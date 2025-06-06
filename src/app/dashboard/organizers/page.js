@@ -41,7 +41,8 @@ import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
-import { organizersApi, usersApi } from '@/lib/api-client';
+import organizersApi from '@/lib/api-client/organizers';
+import { usersApi } from '@/lib/api-client';
 import OrganizerEditForm from '@/components/organizers/OrganizerEditForm';
 import OrganizerCreateForm from '@/components/organizers/OrganizerCreateForm';
 import OrganizerConnectUserForm from '@/components/organizers/OrganizerConnectUserForm';
@@ -247,9 +248,8 @@ export default function OrganizersPage() {
       const timestamp = new Date().getTime();
       console.log(`Refreshing organizers at ${timestamp}...`);
       
-      // Use direct API call to bypass caching
-      const response = await axios.get(`/api/organizers?appId=${currentApp.id}&_=${timestamp}`);
-      const organizersData = response.data;
+      // Use organizersApi to call backend directly
+      const organizersData = await organizersApi.getOrganizers(currentApp.id);
       
       // Check if organizersData is an array
       if (!Array.isArray(organizersData)) {
@@ -350,8 +350,8 @@ export default function OrganizersPage() {
       
       try {
         // Delete the organizer using the API
-        const deleteResponse = await axios.delete(`/api/organizers/${organizer._id}?appId=${currentApp.id}`);
-        console.log('Delete response:', deleteResponse.data);
+        const deleteResponse = await organizersApi.deleteOrganizer(organizer._id, currentApp.id);
+        console.log('Delete response:', deleteResponse);
         
         // Force a delay before refreshing to allow server-side propagation
         await new Promise(resolve => setTimeout(resolve, 500));
