@@ -34,19 +34,53 @@ export default function StatusPanel() {
   const fetchStatus = async () => {
     try {
       setLoading(true);
-      const timestamp = new Date().getTime(); // Cache-busting
-      const response = await fetch(`/api/status?_=${timestamp}`);
+      const backendUrl = process.env.NEXT_PUBLIC_BE_URL || 'https://calendarbe-test-bpg5caaqg5chbndu.eastus-01.azurewebsites.net';
+      
+      // Fetch backend health status
+      const response = await fetch(`${backendUrl}/health`);
       
       if (!response.ok) {
-        throw new Error(`Status check failed: ${response.status} ${response.statusText}`);
+        throw new Error(`Backend health check failed: ${response.status} ${response.statusText}`);
       }
       
-      const data = await response.json();
-      setStatus(data);
+      const backendData = await response.json();
+      
+      // Format status data to match expected structure
+      const formattedStatus = {
+        application: {
+          status: 'ok',
+          version: '1.0.0',
+          message: 'CalOps application running'
+        },
+        backend: {
+          status: backendData.status === 'ok' ? 'ok' : 'error',
+          url: backendUrl,
+          message: `Backend ${backendData.status === 'ok' ? 'connected' : 'disconnected'}`,
+          apiMessage: `DB: ${backendData.dbConnected ? 'Connected' : 'Disconnected'}, Firebase: ${backendData.firebaseConnected ? 'Connected' : 'Disconnected'}`,
+          ...backendData
+        }
+      };
+      
+      setStatus(formattedStatus);
       setError(null);
     } catch (err) {
       console.error('Error fetching status:', err);
       setError(err.message);
+      
+      // Set error status
+      setStatus({
+        application: {
+          status: 'ok',
+          version: '1.0.0',
+          message: 'CalOps application running'
+        },
+        backend: {
+          status: 'error',
+          url: process.env.NEXT_PUBLIC_BE_URL || 'https://calendarbe-test-bpg5caaqg5chbndu.eastus-01.azurewebsites.net',
+          message: 'Backend connection failed',
+          fallbackMessage: err.message
+        }
+      });
     } finally {
       setLoading(false);
     }
@@ -217,19 +251,21 @@ export default function StatusPanel() {
                 <ListItemText 
                   primary="Backend API" 
                   secondary={
-                    <>
-                      {status.backend?.message || status.backend?.url || 'Checking backend connection...'}
+                    <Box component="span">
+                      <Typography variant="body2" component="span" display="block">
+                        {status.backend?.message || status.backend?.url || 'Checking backend connection...'}
+                      </Typography>
                       {status.backend?.fallbackMessage && (
-                        <span style={{ display: 'block', marginTop: 4 }}>
-                          <small>{status.backend.fallbackMessage}</small>
-                        </span>
+                        <Typography variant="caption" component="span" display="block" sx={{ mt: 0.5 }}>
+                          {status.backend.fallbackMessage}
+                        </Typography>
                       )}
                       {status.backend?.apiMessage && (
-                        <span style={{ display: 'block', marginTop: 4 }}>
-                          <small>{status.backend.apiMessage}</small>
-                        </span>
+                        <Typography variant="caption" component="span" display="block" sx={{ mt: 0.5 }}>
+                          {status.backend.apiMessage}
+                        </Typography>
                       )}
-                    </>
+                    </Box>
                   }
                 />
                 <Box>{getStatusChip(status.backend?.status || 'unknown')}</Box>
@@ -242,23 +278,17 @@ export default function StatusPanel() {
                 <ListItemText 
                   primary="Environment Configuration" 
                   secondary={
-                    <>
-                      <div style={{ marginTop: 4 }}>
-                        <Typography variant="body2" component="div">
-                          <strong>Backend URL:</strong> {maskEnvValue(status.backend.url)}
-                        </Typography>
-                      </div>
-                      <div style={{ marginTop: 4 }}>
-                        <Typography variant="body2" component="div">
-                          <strong>App Version:</strong> {status.application?.version || 'N/A'}
-                        </Typography>
-                      </div>
-                      <div style={{ marginTop: 4 }}>
-                        <Typography variant="body2" component="div">
-                          <strong>Authentication:</strong> Mock authentication (bypassed)
-                        </Typography>
-                      </div>
-                      <div style={{ marginTop: 8 }}>
+                    <Box component="span">
+                      <Typography variant="body2" component="span" display="block" sx={{ mt: 0.5 }}>
+                        <strong>Backend URL:</strong> {maskEnvValue(status.backend.url)}
+                      </Typography>
+                      <Typography variant="body2" component="span" display="block" sx={{ mt: 0.5 }}>
+                        <strong>App Version:</strong> {status.application?.version || 'N/A'}
+                      </Typography>
+                      <Typography variant="body2" component="span" display="block" sx={{ mt: 0.5 }}>
+                        <strong>Authentication:</strong> Mock authentication (bypassed)
+                      </Typography>
+                      <Box sx={{ mt: 1 }}>
                         <Button 
                           size="small"
                           onClick={toggleEnvExpanded}
@@ -267,8 +297,8 @@ export default function StatusPanel() {
                         >
                           {envExpanded ? 'Hide' : 'Show'} All Environment Variables
                         </Button>
-                      </div>
-                    </>
+                      </Box>
+                    </Box>
                   }
                 />
                 <Chip 

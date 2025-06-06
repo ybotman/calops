@@ -198,8 +198,8 @@ export const usersApi = {
     }
     
     try {
-      // Use the Next.js API route instead of direct backend access
-      let url = `/api/users?appId=${appId}`;
+      // Use the backend API directly
+      let url = `/api/userlogins/all?appId=${appId}`;
       if (active !== undefined) {
         url += `&active=${active}`;
       }
@@ -213,7 +213,7 @@ export const usersApi = {
       // Create request promise
       const requestPromise = new Promise(async (resolve, reject) => {
         try {
-          const response = await localApiClient.get(url);
+          const response = await apiClient.get(url);
           
           // Update the rate limiter
           usersApi._rateLimiter.lastRequestTime = Date.now();
