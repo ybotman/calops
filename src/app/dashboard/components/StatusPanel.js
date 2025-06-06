@@ -34,19 +34,53 @@ export default function StatusPanel() {
   const fetchStatus = async () => {
     try {
       setLoading(true);
-      const timestamp = new Date().getTime(); // Cache-busting
-      const response = await fetch(`/api/status?_=${timestamp}`);
+      const backendUrl = process.env.NEXT_PUBLIC_BE_URL || 'https://calendarbe-test-bpg5caaqg5chbndu.eastus-01.azurewebsites.net';
+      
+      // Fetch backend health status
+      const response = await fetch(`${backendUrl}/health`);
       
       if (!response.ok) {
-        throw new Error(`Status check failed: ${response.status} ${response.statusText}`);
+        throw new Error(`Backend health check failed: ${response.status} ${response.statusText}`);
       }
       
-      const data = await response.json();
-      setStatus(data);
+      const backendData = await response.json();
+      
+      // Format status data to match expected structure
+      const formattedStatus = {
+        application: {
+          status: 'ok',
+          version: '1.0.0',
+          message: 'CalOps application running'
+        },
+        backend: {
+          status: backendData.status === 'ok' ? 'ok' : 'error',
+          url: backendUrl,
+          message: `Backend ${backendData.status === 'ok' ? 'connected' : 'disconnected'}`,
+          apiMessage: `DB: ${backendData.dbConnected ? 'Connected' : 'Disconnected'}, Firebase: ${backendData.firebaseConnected ? 'Connected' : 'Disconnected'}`,
+          ...backendData
+        }
+      };
+      
+      setStatus(formattedStatus);
       setError(null);
     } catch (err) {
       console.error('Error fetching status:', err);
       setError(err.message);
+      
+      // Set error status
+      setStatus({
+        application: {
+          status: 'ok',
+          version: '1.0.0',
+          message: 'CalOps application running'
+        },
+        backend: {
+          status: 'error',
+          url: process.env.NEXT_PUBLIC_BE_URL || 'https://calendarbe-test-bpg5caaqg5chbndu.eastus-01.azurewebsites.net',
+          message: 'Backend connection failed',
+          fallbackMessage: err.message
+        }
+      });
     } finally {
       setLoading(false);
     }

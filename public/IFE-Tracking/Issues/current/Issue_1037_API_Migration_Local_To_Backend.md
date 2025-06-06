@@ -76,11 +76,17 @@ Need to identify and update:
 4. Test each page for proper functionality
 
 ### Progress
-- [ ] API client configuration updated
-- [ ] Users page fixed
-- [ ] Venues page fixed
-- [ ] Geo-hierarchy fixed
-- [ ] Events page fixed
+- [x] API client configuration updated
+- [x] Users page fixed - Updated to use /api/userlogins/all
+- [x] Venues page fixed - Already using correct backend URL
+- [x] Geo-hierarchy fixed - Updated to use /api/masteredLocations/*
+- [x] Events page fixed - Updated to use proper API clients
+
+### Implementation Details
+1. Users API: Changed from local /api/users to backend /api/userlogins/all
+2. Mastered Locations: Changed from /api/geo-hierarchy to /api/masteredLocations
+3. All API clients now use NEXT_PUBLIC_BE_URL environment variable
+4. Removed all direct axios calls in favor of centralized API clients
 
 ---
 
