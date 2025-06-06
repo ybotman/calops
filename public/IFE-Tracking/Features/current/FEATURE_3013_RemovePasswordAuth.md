@@ -4,7 +4,8 @@
 - **Created**: 2025-01-06
 - **Status**: ✅ Completed
 - **Type**: Security Enhancement
-- **Branch**: `feature/3013-remove-password-auth`
+- **Branch**: `feature/3013-remove-password-auth` (merged and deleted)
+- **Merged to DEVL**: 2025-01-06T1815
 
 ## Description
 Remove the temporary password-based authentication system to prepare for Firebase role-based access control (RBAC) implementation. This simplifies the codebase and removes the security risk of storing password hashes in the repository.
