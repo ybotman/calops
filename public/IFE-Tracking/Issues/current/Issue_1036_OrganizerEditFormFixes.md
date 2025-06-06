@@ -4,10 +4,11 @@
 - **Issue ID**: 1036
 - **Type**: Bug/Enhancement
 - **Priority**: High
-- **Status**: 🚧 In Progress
+- **Status**: ✅ Fixed
 - **Created**: 2025-01-06
+- **Completed**: 2025-01-06
 - **Reporter**: tobybalsley
-- **Assignee**: Claude (SCOUT)
+- **Assignee**: Claude (SCOUT/BUILDER)
 
 ## Description
 The Organizer Edit form has multiple issues that need to be addressed:
@@ -80,3 +81,23 @@ Completed the following changes in OrganizerEditForm.js:
 5. **Cleaned up payload**: Removed duplicate fields in API submission
 
 The form now correctly matches the backend Organizer model schema.
+
+## Resolution Summary (BUILDER - 2025-01-06)
+
+1. **Frontend Form Updates**:
+   - Removed non-existent fields (isApproved, isAuthorized)
+   - Added wantRender switch and isRendered read-only display
+   - Fixed field mapping to use fullName
+   - All fields now save correctly to backend
+
+2. **Backend Integration**:
+   - Bypassed local API routes to call backend directly
+   - Fixed backend field selection to return all fields for editing
+   - Added includeAllFields parameter to organizersApi
+
+3. **Table Updates**:
+   - Updated organizer table columns to match actual backend model
+   - Added organizerTypes column showing venue/teacher/etc roles
+   - Removed approved/authorized columns that don't exist
+
+All acceptance criteria have been met and verified.
