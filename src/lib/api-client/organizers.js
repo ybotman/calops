@@ -74,7 +74,7 @@ const organizersApi = {
     const backendUrl = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
     
     const response = await fetch(`${backendUrl}/api/organizers/${organizerId}?appId=${appId}`, {
-      method: 'PUT',
+      method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
       },
