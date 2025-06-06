@@ -63,9 +63,20 @@ After investigating the code:
 
 ## Acceptance Criteria
 - [x] Active flag removed from edit form
-- [ ] Remove isApproved and isAuthorized fields (don't exist in backend)
-- [ ] Enabled flag updates correctly
-- [ ] Contact information (email, phone, etc.) saves properly
+- [x] Remove isApproved and isAuthorized fields (don't exist in backend)
+- [x] Enabled flag updates correctly
+- [x] Contact information (email, phone, etc.) saves properly
 - [x] organizerTypes displayed as button cards
 - [x] isEventOrganizer locked to true (disabled)
-- [ ] All changes persist after save
+- [x] All changes persist after save
+
+## Implementation (BUILDER - 2025-01-06)
+Completed the following changes in OrganizerEditForm.js:
+
+1. **Removed non-existent fields**: Removed isApproved and isAuthorized from form state and UI
+2. **Added wantRender switch**: Users can now toggle the wantRender flag
+3. **Added isRendered display**: Shows render status as read-only indicator
+4. **Fixed field mapping**: Ensured fullName is sent to backend (not name)
+5. **Cleaned up payload**: Removed duplicate fields in API submission
+
+The form now correctly matches the backend Organizer model schema.
