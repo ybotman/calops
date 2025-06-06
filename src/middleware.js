@@ -24,10 +24,10 @@ export function middleware(request) {
   }
   
   // Check for auth cookie
-  const authToken = request.cookies.get('auth_token')?.value;
+  const authenticated = request.cookies.get('authenticated')?.value;
   
-  if (!authToken) {
-    // Redirect to login if no auth token
+  if (!authenticated) {
+    // Redirect to login if not authenticated
     return NextResponse.redirect(new URL('/login', request.url));
   }
   
