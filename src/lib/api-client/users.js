@@ -6,8 +6,8 @@
 import axios from 'axios';
 import { processResponse, handleApiError, buildQueryString } from './utils';
 
-// Base configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_NEXT_API_URL || '';
+// Base configuration - Use backend URL from environment
+const API_BASE_URL = process.env.NEXT_PUBLIC_BE_URL || 'https://calendarbe-test-bpg5caaqg5chbndu.eastus-01.azurewebsites.net';
 
 /**
  * Users API client for interacting with user endpoints
@@ -35,8 +35,8 @@ const usersApi = {
     };
     
     try {
-      // Build URL with query parameters
-      const url = `${API_BASE_URL}/api/users${buildQueryString(queryParams)}`;
+      // Build URL with query parameters - use userlogins/all endpoint
+      const url = `${API_BASE_URL}/api/userlogins/all${buildQueryString(queryParams)}`;
       
       // Make API request
       const response = await axios.get(url);
@@ -60,7 +60,7 @@ const usersApi = {
    */
   getUserById: async (firebaseUserId, appId = '1') => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/users/${firebaseUserId}?appId=${appId}`);
+      const response = await axios.get(`${API_BASE_URL}/api/userlogins/firebase/${firebaseUserId}?appId=${appId}`);
       return processResponse(response);
     } catch (error) {
       return handleApiError(error, {
@@ -76,7 +76,7 @@ const usersApi = {
    */
   createUser: async (userData) => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/users`, userData);
+      const response = await axios.post(`${API_BASE_URL}/api/userlogins`, userData);
       return processResponse(response);
     } catch (error) {
       return handleApiError(error, {
@@ -94,7 +94,11 @@ const usersApi = {
     try {
       const { firebaseUserId, appId = '1', ...data } = userData;
       
-      const response = await axios.put(`${API_BASE_URL}/api/users/${firebaseUserId}?appId=${appId}`, data);
+      const response = await axios.put(`${API_BASE_URL}/api/userlogins/updateUserInfo`, {
+        firebaseUserId,
+        appId,
+        ...data
+      });
       return processResponse(response);
     } catch (error) {
       return handleApiError(error, {
@@ -112,7 +116,7 @@ const usersApi = {
    */
   updateUserRoles: async (firebaseUserId, roleIds, appId = '1') => {
     try {
-      const response = await axios.put(`${API_BASE_URL}/api/users/${firebaseUserId}/roles?appId=${appId}`, {
+      const response = await axios.put(`${API_BASE_URL}/api/userlogins/${firebaseUserId}/roles`, {
         roleIds,
         appId
       });
@@ -133,14 +137,14 @@ const usersApi = {
   deleteUser: async (userId, appId = '1') => {
     try {
       // Try the main endpoint first
-      const response = await axios.delete(`${API_BASE_URL}/api/users/${userId}?appId=${appId}`);
+      const response = await axios.delete(`${API_BASE_URL}/api/userlogins/${userId}?appId=${appId}`);
       return processResponse(response);
     } catch (error) {
       console.error('First deletion attempt failed:', error.message);
       
       // Try the fallback endpoint if the first one fails
       try {
-        const fallbackResponse = await axios.delete(`${API_BASE_URL}/api/users/${userId}/delete?appId=${appId}`);
+        const fallbackResponse = await axios.delete(`${API_BASE_URL}/api/userlogins/${userId}/delete?appId=${appId}`);
         return processResponse(fallbackResponse);
       } catch (fallbackError) {
         return handleApiError(fallbackError, {
@@ -158,7 +162,7 @@ const usersApi = {
    */
   createUserOrganizer: async (userId, organizerData = {}) => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/users/${userId}/organizer`, organizerData);
+      const response = await axios.post(`${API_BASE_URL}/api/userlogins/${userId}/organizer`, organizerData);
       return processResponse(response);
     } catch (error) {
       return handleApiError(error, {
@@ -175,7 +179,7 @@ const usersApi = {
    */
   deleteUserOrganizer: async (userId, appId = '1') => {
     try {
-      const response = await axios.delete(`${API_BASE_URL}/api/users/${userId}/organizer?appId=${appId}`);
+      const response = await axios.delete(`${API_BASE_URL}/api/userlogins/${userId}/organizer?appId=${appId}`);
       return processResponse(response);
     } catch (error) {
       return handleApiError(error, {

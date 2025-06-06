@@ -41,7 +41,8 @@ import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
-import { organizersApi, usersApi } from '@/lib/api-client';
+import organizersApi from '@/lib/api-client/organizers';
+import { usersApi } from '@/lib/api-client';
 import OrganizerEditForm from '@/components/organizers/OrganizerEditForm';
 import OrganizerCreateForm from '@/components/organizers/OrganizerCreateForm';
 import OrganizerConnectUserForm from '@/components/organizers/OrganizerConnectUserForm';
@@ -105,8 +106,8 @@ export default function OrganizersPage() {
         
         console.log(`Fetching organizers for AppId: ${appId}`);
         
-        // Fetch all organizers
-        const organizersData = await organizersApi.getOrganizers(appId);
+        // Fetch all organizers with all fields for editing capability
+        const organizersData = await organizersApi.getOrganizers(appId, undefined, true);
         
         console.log(`Successfully fetched ${organizersData.length} organizers`);
         
@@ -155,8 +156,8 @@ export default function OrganizersPage() {
           displayName: organizer.fullName || organizer.name || 'Unnamed Organizer',
           shortDisplayName: organizer.shortName || 'No short name',
           status: organizer.isActive ? 'Active' : 'Inactive',
-          approved: organizer.isApproved ? 'Yes' : 'No',
-          authorized: organizer.isAuthorized ? 'Yes' : 'No',
+          wantRender: organizer.wantRender ? 'Yes' : 'No',
+          isRendered: organizer.isRendered ? 'Yes' : 'No',
           enabled: organizer.isEnabled ? 'Yes' : 'No',
           userConnected: organizer.linkedUserLogin ? 'Yes' : 'No',
           userConnectedName: organizer.linkedUserLogin ? firebaseUserMap[organizer.linkedUserLogin] || 'Loading...' : '-',
@@ -230,6 +231,7 @@ export default function OrganizersPage() {
 
   // Handle edit organizer button click
   const handleEditOrganizer = (organizer) => {
+    console.log('handleEditOrganizer called with:', organizer);
     setEditingOrganizer(organizer);
     setDialogOpen(true);
   };
@@ -247,9 +249,8 @@ export default function OrganizersPage() {
       const timestamp = new Date().getTime();
       console.log(`Refreshing organizers at ${timestamp}...`);
       
-      // Use direct API call to bypass caching
-      const response = await axios.get(`/api/organizers?appId=${currentApp.id}&_=${timestamp}`);
-      const organizersData = response.data;
+      // Use organizersApi to call backend directly with all fields
+      const organizersData = await organizersApi.getOrganizers(currentApp.id, undefined, true);
       
       // Check if organizersData is an array
       if (!Array.isArray(organizersData)) {
@@ -350,8 +351,8 @@ export default function OrganizersPage() {
       
       try {
         // Delete the organizer using the API
-        const deleteResponse = await axios.delete(`/api/organizers/${organizer._id}?appId=${currentApp.id}`);
-        console.log('Delete response:', deleteResponse.data);
+        const deleteResponse = await organizersApi.deleteOrganizer(organizer._id, currentApp.id);
+        console.log('Delete response:', deleteResponse);
         
         // Force a delay before refreshing to allow server-side propagation
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -440,45 +441,13 @@ export default function OrganizersPage() {
       
       console.log('Updating organizer:', updatedOrganizer);
       
-      // Make sure we have the appId in the updatedOrganizer and ensure boolean fields are properly set
-      const organizerWithAppId = {
-        ...updatedOrganizer,
-        appId: updatedOrganizer.appId || currentApp.id,
-        // Ensure both name fields are set consistently
-        name: updatedOrganizer.name,
-        fullName: updatedOrganizer.name,
-        shortName: updatedOrganizer.shortName || updatedOrganizer.name,
-        // Explicitly convert boolean fields with ternary to ensure true/false values
-        isApproved: updatedOrganizer.isApproved === true ? true : false,
-        isActive: updatedOrganizer.isActive === true ? true : false,
-        isEnabled: updatedOrganizer.isEnabled === true ? true : false
-      };
+      // Use the organizersApi to update
+      const response = await organizersApi.updateOrganizer(
+        updatedOrganizer._id, 
+        updatedOrganizer
+      );
       
-      console.log('Formatted organizer for update:', organizerWithAppId);
-      
-      // Try direct update via axios instead of the api-client
-      try {
-        // First log what we're attempting to do
-        console.log(`Directly updating organizer ${organizerWithAppId._id} with appId ${organizerWithAppId.appId}`);
-        
-        const response = await axios.patch(
-          `/api/organizers/${organizerWithAppId._id}?appId=${organizerWithAppId.appId}`, 
-          organizerWithAppId
-        );
-        
-        console.log('Update successful:', response.data);
-      } catch (axiosError) {
-        console.error('Direct PATCH failed:', axiosError);
-        console.log('Falling back to direct PUT to backend...');
-        
-        // If that fails, try to use the backend API directly
-        const directResponse = await axios.put(
-          `${process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010'}/api/organizers/${organizerWithAppId._id}?appId=${organizerWithAppId.appId}`,
-          organizerWithAppId
-        );
-        
-        console.log('Direct PUT to backend successful:', directResponse.data);
-      }
+      console.log('Update successful:', response);
       
       // Refresh organizers list
       const organizersData = await organizersApi.getOrganizers(currentApp.id);
@@ -647,31 +616,60 @@ export default function OrganizersPage() {
       )
     },
     { 
-      field: 'approved', 
-      headerName: 'Appr', 
-      width: 60,
+      field: 'enabled', 
+      headerName: 'Enabled', 
+      width: 80,
       align: 'center',
       headerAlign: 'center',
       renderCell: (params) => 
-        params.row.isApproved ? 
+        params.row.isEnabled ? 
           <CheckCircleIcon sx={{ color: 'success.main', fontSize: 20 }} /> : 
           <CancelIcon sx={{ color: 'error.main', fontSize: 20 }} />
     },
     { 
-      field: 'authorized', 
-      headerName: 'Auth', 
-      width: 60,
+      field: 'wantRender', 
+      headerName: 'Render', 
+      width: 80,
       align: 'center',
       headerAlign: 'center',
       renderCell: (params) => 
-        params.row.isAuthorized ? 
+        params.row.wantRender ? 
+          <CheckCircleIcon sx={{ color: 'info.main', fontSize: 20 }} /> : 
+          <CancelIcon sx={{ color: 'grey.400', fontSize: 20 }} />
+    },
+    { 
+      field: 'isRendered', 
+      headerName: 'Rendered', 
+      width: 80,
+      align: 'center',
+      headerAlign: 'center',
+      renderCell: (params) => 
+        params.row.isRendered ? 
           <CheckCircleIcon sx={{ color: 'success.main', fontSize: 20 }} /> : 
-          <CancelIcon sx={{ color: 'error.main', fontSize: 20 }} />
+          <CancelIcon sx={{ color: 'grey.400', fontSize: 20 }} />
+    },
+    { 
+      field: 'organizerTypes', 
+      headerName: 'Types', 
+      width: 150,
+      renderCell: (params) => {
+        const types = [];
+        if (params.row.organizerTypes?.isVenue) types.push('Venue');
+        if (params.row.organizerTypes?.isTeacher) types.push('Teacher');
+        if (params.row.organizerTypes?.isMaestro) types.push('Maestro');
+        if (params.row.organizerTypes?.isDJ) types.push('DJ');
+        if (params.row.organizerTypes?.isOrchestra) types.push('Orchestra');
+        return (
+          <span style={{ fontSize: '0.85em' }}>
+            {types.length > 0 ? types.join(', ') : 'Event Only'}
+          </span>
+        );
+      }
     },
     { 
       field: 'userConnectedName', 
       headerName: 'Connected User', 
-      width: 200,
+      width: 150,
       renderCell: (params) => (
         <span>{params.value || '-'}</span>
       )

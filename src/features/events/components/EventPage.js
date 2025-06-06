@@ -24,6 +24,8 @@ import FeaturedEventsTab from './tabs/FeaturedEventsTab';
 import useEventData from '../hooks/useEventData';
 import useEventFilters from '../hooks/useEventFilters';
 import { organizersApi, eventsApi } from '@/lib/api-client';
+import venuesApi from '@/lib/api-client/venues';
+import masteredLocationsApi from '@/lib/api-client/mastered-locations';
 import { useAppContext } from '@/lib/AppContext';
 
 const EventPage = () => {
@@ -73,10 +75,10 @@ const EventPage = () => {
           organizersApi.getOrganizers(appId, true),
           
           // Load geo hierarchy data - all regions, divisions, and cities
-          fetch(`/api/geo-hierarchy?type=all&appId=${appId}`).then(res => res.json()),
+          masteredLocationsApi.getAllGeoData({ appId, isActive: true }),
           
           // Load venues data
-          fetch(`/api/venues?appId=${appId}`).then(res => res.json())
+          venuesApi.getVenues({ appId })
         ]);
         
         // Process organizers
@@ -84,22 +86,10 @@ const EventPage = () => {
         
         // Process geo hierarchy data - regions, divisions, cities
         if (geoResponse) {
-          // Extract and process geo data according to models
-          
-          // Process regions
-          let regionsData = [];
-          if (geoResponse.regions && Array.isArray(geoResponse.regions)) {
-            regionsData = geoResponse.regions;
-          } else if (geoResponse.data && geoResponse.data.regions && Array.isArray(geoResponse.data.regions)) {
-            regionsData = geoResponse.data.regions;
-          } else if (Array.isArray(geoResponse)) {
-            // If it's a flat array, filter by model name or type field
-            regionsData = geoResponse.filter(item => 
-              item.type === 'region' || 
-              item.modelType === 'MasteredRegion' || 
-              (item.regionName && item.regionCode)
-            );
-          }
+          // Extract and process geo data - masteredLocationsApi returns {countries, regions, divisions, cities}
+          const regionsData = geoResponse.regions || [];
+          const divisionsData = geoResponse.divisions || [];
+          const citiesData = geoResponse.cities || [];
           
           // Process regions with detailed logging
           const processedRegions = regionsData.map(region => ({
@@ -113,21 +103,6 @@ const EventPage = () => {
           // Set regions silently
           setRegions(processedRegions);
           
-          // Process divisions
-          let divisionsData = [];
-          if (geoResponse.divisions && Array.isArray(geoResponse.divisions)) {
-            divisionsData = geoResponse.divisions;
-          } else if (geoResponse.data && geoResponse.data.divisions && Array.isArray(geoResponse.data.divisions)) {
-            divisionsData = geoResponse.data.divisions;
-          } else if (Array.isArray(geoResponse)) {
-            // If it's a flat array, filter by model name or type field
-            divisionsData = geoResponse.filter(item => 
-              item.type === 'division' || 
-              item.modelType === 'MasteredDivision' || 
-              (item.divisionName && item.divisionCode && item.masteredRegionId)
-            );
-          }
-          
           // Process divisions and set them without excessive logging
           const processedDivisions = divisionsData.map(division => ({
             id: division._id || division.id,
@@ -139,21 +114,6 @@ const EventPage = () => {
           }));
           
           setDivisions(processedDivisions);
-          
-          // Process cities
-          let citiesData = [];
-          if (geoResponse.cities && Array.isArray(geoResponse.cities)) {
-            citiesData = geoResponse.cities;
-          } else if (geoResponse.data && geoResponse.data.cities && Array.isArray(geoResponse.data.cities)) {
-            citiesData = geoResponse.data.cities;
-          } else if (Array.isArray(geoResponse)) {
-            // If it's a flat array, filter by model name or type field
-            citiesData = geoResponse.filter(item => 
-              item.type === 'city' || 
-              item.modelType === 'masteredCity' || 
-              (item.cityName && item.cityCode && item.masteredDivisionId)
-            );
-          }
           
           // Process cities and set them without excessive logging
           const processedCities = citiesData.map(city => ({
@@ -179,16 +139,9 @@ const EventPage = () => {
           setCities(processedCities);
         }
         
-        // Process venues data without excessive logging
+        // Process venues data - venuesApi returns array directly
         if (venuesResponse) {
-          let venuesList = [];
-          if (Array.isArray(venuesResponse)) {
-            venuesList = venuesResponse;
-          } else if (venuesResponse.venues && Array.isArray(venuesResponse.venues)) {
-            venuesList = venuesResponse.venues;
-          } else if (venuesResponse.data && Array.isArray(venuesResponse.data)) {
-            venuesList = venuesResponse.data;
-          }
+          const venuesList = Array.isArray(venuesResponse) ? venuesResponse : [];
           setVenues(venuesList);
           
           // Just log the count
