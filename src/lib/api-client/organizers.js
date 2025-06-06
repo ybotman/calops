@@ -21,7 +21,20 @@ const organizersApi = {
     if (!response.ok) {
       throw new Error(`Failed to fetch organizers: ${response.status}`);
     }
-    return response.json();
+    
+    const data = await response.json();
+    
+    // Handle both response formats:
+    // 1. Direct array (legacy)
+    // 2. Object with organizers array and pagination (new format)
+    if (Array.isArray(data)) {
+      return data;
+    } else if (data.organizers && Array.isArray(data.organizers)) {
+      return data.organizers;
+    } else {
+      console.error('Unexpected response format:', data);
+      return [];
+    }
   },
 
   /**
