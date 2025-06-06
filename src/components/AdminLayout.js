@@ -24,7 +24,6 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 import BusinessIcon from '@mui/icons-material/Business';
 import AppsIcon from '@mui/icons-material/Apps';
 import BuildIcon from '@mui/icons-material/Build';
-import ExitToAppIcon from '@mui/icons-material/ExitToApp';
 import EventIcon from '@mui/icons-material/Event';
 import SupervisorAccountIcon from '@mui/icons-material/SupervisorAccount';
 import PlaceIcon from '@mui/icons-material/Place';
@@ -113,12 +112,6 @@ export default function AdminLayout({ children }) {
           <ListItemButton component="a" href="/dashboard/maintenance">
             <ListItemIcon><BuildIcon /></ListItemIcon>
             <ListItemText primary="Maintenance" />
-          </ListItemButton>
-        </ListItem>
-        <ListItem disablePadding>
-          <ListItemButton component="a" href="/auth/logout">
-            <ListItemIcon><ExitToAppIcon /></ListItemIcon>
-            <ListItemText primary="Logout" />
           </ListItemButton>
         </ListItem>
       </List>
