@@ -156,8 +156,8 @@ export default function OrganizersPage() {
           displayName: organizer.fullName || organizer.name || 'Unnamed Organizer',
           shortDisplayName: organizer.shortName || 'No short name',
           status: organizer.isActive ? 'Active' : 'Inactive',
-          approved: organizer.isApproved ? 'Yes' : 'No',
-          authorized: organizer.isAuthorized ? 'Yes' : 'No',
+          wantRender: organizer.wantRender ? 'Yes' : 'No',
+          isRendered: organizer.isRendered ? 'Yes' : 'No',
           enabled: organizer.isEnabled ? 'Yes' : 'No',
           userConnected: organizer.linkedUserLogin ? 'Yes' : 'No',
           userConnectedName: organizer.linkedUserLogin ? firebaseUserMap[organizer.linkedUserLogin] || 'Loading...' : '-',
@@ -616,31 +616,60 @@ export default function OrganizersPage() {
       )
     },
     { 
-      field: 'approved', 
-      headerName: 'Appr', 
-      width: 60,
+      field: 'enabled', 
+      headerName: 'Enabled', 
+      width: 80,
       align: 'center',
       headerAlign: 'center',
       renderCell: (params) => 
-        params.row.isApproved ? 
+        params.row.isEnabled ? 
           <CheckCircleIcon sx={{ color: 'success.main', fontSize: 20 }} /> : 
           <CancelIcon sx={{ color: 'error.main', fontSize: 20 }} />
     },
     { 
-      field: 'authorized', 
-      headerName: 'Auth', 
-      width: 60,
+      field: 'wantRender', 
+      headerName: 'Render', 
+      width: 80,
       align: 'center',
       headerAlign: 'center',
       renderCell: (params) => 
-        params.row.isAuthorized ? 
+        params.row.wantRender ? 
+          <CheckCircleIcon sx={{ color: 'info.main', fontSize: 20 }} /> : 
+          <CancelIcon sx={{ color: 'grey.400', fontSize: 20 }} />
+    },
+    { 
+      field: 'isRendered', 
+      headerName: 'Rendered', 
+      width: 80,
+      align: 'center',
+      headerAlign: 'center',
+      renderCell: (params) => 
+        params.row.isRendered ? 
           <CheckCircleIcon sx={{ color: 'success.main', fontSize: 20 }} /> : 
-          <CancelIcon sx={{ color: 'error.main', fontSize: 20 }} />
+          <CancelIcon sx={{ color: 'grey.400', fontSize: 20 }} />
+    },
+    { 
+      field: 'organizerTypes', 
+      headerName: 'Types', 
+      width: 150,
+      renderCell: (params) => {
+        const types = [];
+        if (params.row.organizerTypes?.isVenue) types.push('Venue');
+        if (params.row.organizerTypes?.isTeacher) types.push('Teacher');
+        if (params.row.organizerTypes?.isMaestro) types.push('Maestro');
+        if (params.row.organizerTypes?.isDJ) types.push('DJ');
+        if (params.row.organizerTypes?.isOrchestra) types.push('Orchestra');
+        return (
+          <span style={{ fontSize: '0.85em' }}>
+            {types.length > 0 ? types.join(', ') : 'Event Only'}
+          </span>
+        );
+      }
     },
     { 
       field: 'userConnectedName', 
       headerName: 'Connected User', 
-      width: 200,
+      width: 150,
       renderCell: (params) => (
         <span>{params.value || '-'}</span>
       )
