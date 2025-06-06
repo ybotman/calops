@@ -2,10 +2,13 @@
 
 ## 🎫 Kanban
 - **Created**: 2025-01-06
-- **Status**: 🚧 In Progress
+- **Status**: ✅ Fixed
 - **Severity**: High
 - **Impact**: All application pages - blocking functionality
 - **Branch**: `issue/1037-api-migration`
+- **Commits**: 
+  - `6abaf8f` - Fix API endpoints to use backend instead of local API
+  - `4acd6d7` - Fix StatusPanel to use backend health endpoint
 
 ## Description
 After removing the local API in favor of using the backend directly, multiple pages are experiencing 404 errors when trying to call localhost:3003 endpoints. All API calls need to be updated to use the backend URL instead of the local API.
@@ -44,13 +47,14 @@ The application is still trying to call the removed local API at `http://localho
 - PROD: TBD
 
 ## Tasks
-- [ ] 🚧 Update API client configuration to use backend URL
-- [ ] ⏳ Update Users API endpoints
-- [ ] ⏳ Update Venues API endpoints  
-- [ ] ⏳ Update Geo-Hierarchy API endpoints
-- [ ] ⏳ Update Events API endpoints
-- [ ] ⏳ Test all pages to ensure proper data loading
-- [ ] ⏳ Update environment configuration for backend URLs
+- [x] ✅ Update API client configuration to use backend URL
+- [x] ✅ Update Users API endpoints
+- [x] ✅ Update Venues API endpoints  
+- [x] ✅ Update Geo-Hierarchy API endpoints
+- [x] ✅ Update Events API endpoints
+- [x] ✅ Update StatusPanel to use backend health endpoint
+- [x] ✅ Test all pages to ensure proper data loading
+- [x] ✅ Update environment configuration for backend URLs
 
 ---
 
@@ -87,6 +91,10 @@ Need to identify and update:
 2. Mastered Locations: Changed from /api/geo-hierarchy to /api/masteredLocations
 3. All API clients now use NEXT_PUBLIC_BE_URL environment variable
 4. Removed all direct axios calls in favor of centralized API clients
+5. StatusPanel: Changed from local /api/status to backend /health endpoint
+
+### Resolution
+All pages are now successfully connecting to the backend API. The application no longer attempts to call the removed local API at localhost:3003. All API requests are properly routed to the backend URL specified in NEXT_PUBLIC_BE_URL.
 
 ---
 
