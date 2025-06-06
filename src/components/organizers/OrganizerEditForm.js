@@ -10,29 +10,47 @@ import {
   Typography,
   Divider,
   Button,
+  Card,
+  CardContent,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
+import EventIcon from '@mui/icons-material/Event';
+import PlaceIcon from '@mui/icons-material/Place';
+import SchoolIcon from '@mui/icons-material/School';
+import StarIcon from '@mui/icons-material/Star';
+import HeadphonesIcon from '@mui/icons-material/Headphones';
+import MusicNoteIcon from '@mui/icons-material/MusicNote';
 
 export default function OrganizerEditForm({ organizer, onSubmit }) {
   const [formData, setFormData] = useState({
     name: '',
     shortName: '',
     description: '',
-    isActive: true,
     isApproved: false,
     isEnabled: false,
-    contactInfo: {
-      email: '',
+    isAuthorized: false,
+    publicContactInfo: {
+      Email: '',
       phone: '',
-      website: '',
+      url: '',
+      address: {
+        street1: '',
+        street2: '',
+        city: '',
+        state: '',
+        postalCode: '',
+      },
     },
-    address: {
-      street: '',
-      city: '',
-      state: '',
-      postalCode: '',
-      country: '',
-    },
+    organizerTypes: {
+      isEventOrganizer: true,
+      isVenue: false,
+      isTeacher: false,
+      isMaestro: false,
+      isDJ: false,
+      isOrchestra: false
+    }
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -42,64 +60,53 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
     if (organizer) {
       setFormData({
         _id: organizer._id,
-        appId: organizer.appId || '1', // Ensure appId is included
-        name: organizer.name || organizer.fullName || '', // Handle either name format
-        fullName: organizer.fullName || organizer.name || '', // Make sure fullName is set 
+        appId: organizer.appId || '1',
+        name: organizer.name || organizer.fullName || '',
+        fullName: organizer.fullName || organizer.name || '',
         shortName: organizer.shortName || '',
         description: organizer.description || '',
-        isActive: organizer.isActive === true ? true : false,
-        isApproved: organizer.isApproved === true ? true : false,
-        isEnabled: organizer.isEnabled === true ? true : false,
-        contactInfo: {
-          email: organizer.contactInfo?.email || '',
-          phone: organizer.contactInfo?.phone || '',
-          website: organizer.contactInfo?.website || '',
+        isApproved: organizer.isApproved === true,
+        isEnabled: organizer.isEnabled === true,
+        isAuthorized: organizer.isAuthorized === true,
+        publicContactInfo: {
+          Email: organizer.publicContactInfo?.Email || organizer.contactInfo?.email || '',
+          phone: organizer.publicContactInfo?.phone || organizer.contactInfo?.phone || '',
+          url: organizer.publicContactInfo?.url || organizer.contactInfo?.website || '',
+          address: {
+            street1: organizer.publicContactInfo?.address?.street1 || organizer.address?.street || '',
+            street2: organizer.publicContactInfo?.address?.street2 || '',
+            city: organizer.publicContactInfo?.address?.city || organizer.address?.city || '',
+            state: organizer.publicContactInfo?.address?.state || organizer.address?.state || '',
+            postalCode: organizer.publicContactInfo?.address?.postalCode || organizer.address?.postalCode || '',
+          },
         },
-        address: {
-          street: organizer.address?.street || '',
-          city: organizer.address?.city || '',
-          state: organizer.address?.state || '',
-          postalCode: organizer.address?.postalCode || '',
-          country: organizer.address?.country || '',
+        organizerTypes: {
+          isEventOrganizer: true, // Always true, cannot be changed
+          isVenue: organizer.organizerTypes?.isVenue || false,
+          isTeacher: organizer.organizerTypes?.isTeacher || false,
+          isMaestro: organizer.organizerTypes?.isMaestro || false,
+          isDJ: organizer.organizerTypes?.isDJ || false,
+          isOrchestra: organizer.organizerTypes?.isOrchestra || false
         },
-        // Add missing fields required by backend
-        organizerRegion: organizer.organizerRegion || "66c4d99042ec462ea22484bd", // Default US region
-        linkedUserLogin: organizer.linkedUserLogin || null, // Include the linked user if any
-        wantRender: organizer.wantRender !== false, // Default to true if not specified
-        organizerTypes: organizer.organizerTypes || {
-          isEventOrganizer: true,
-          isVenue: false,
-          isTeacher: false,
-          isMaestro: false,
-          isDJ: false,
-          isOrchestra: false
-        }
-      });
-      
-      console.log('Loaded organizer with:', {
-        name: organizer.name,
-        fullName: organizer.fullName,
-        shortName: organizer.shortName
-      });
-      
-      console.log('Initialized form data with:', {
-        _id: organizer._id,
-        appId: organizer.appId || '1',
-        organizerRegion: organizer.organizerRegion || "66c4d99042ec462ea22484bd"
+        // Keep these fields from the original but don't display
+        organizerRegion: organizer.organizerRegion || "66c4d99042ec462ea22484bd",
+        linkedUserLogin: organizer.linkedUserLogin || null,
+        wantRender: organizer.wantRender !== false,
+        masteredRegionId: organizer.masteredRegionId,
+        masteredDivisionId: organizer.masteredDivisionId,
+        masteredCityId: organizer.masteredCityId,
       });
     }
   }, [organizer]);
 
   // Validate shortName format
   const validateShortName = (value) => {
-    // Must be <= 10 chars, no spaces, uppercase only, and only allows !?-_
     const regex = /^[A-Z0-9!?\-_]{1,10}$/;
     return regex.test(value);
   };
 
   // Format shortName to match requirements
   const formatShortName = (value) => {
-    // Remove spaces, convert to uppercase
     return value.replace(/\s+/g, '').toUpperCase().substring(0, 10);
   };
 
@@ -107,7 +114,6 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
   const handleChange = (e) => {
     const { name, value, checked } = e.target;
     
-    // Special handling for shortName
     if (name === 'shortName') {
       const formattedValue = formatShortName(value);
       setFormData(prev => ({
@@ -119,14 +125,29 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
     
     // Handle nested fields
     if (name.includes('.')) {
-      const [parent, child] = name.split('.');
-      setFormData(prev => ({
-        ...prev,
-        [parent]: {
-          ...prev[parent],
-          [child]: e.target.type === 'checkbox' ? checked : value
-        }
-      }));
+      const parts = name.split('.');
+      if (parts.length === 2) {
+        const [parent, child] = parts;
+        setFormData(prev => ({
+          ...prev,
+          [parent]: {
+            ...prev[parent],
+            [child]: e.target.type === 'checkbox' ? checked : value
+          }
+        }));
+      } else if (parts.length === 3) {
+        const [parent, subParent, child] = parts;
+        setFormData(prev => ({
+          ...prev,
+          [parent]: {
+            ...prev[parent],
+            [subParent]: {
+              ...prev[parent][subParent],
+              [child]: value
+            }
+          }
+        }));
+      }
     } else {
       // Handle top-level fields
       setFormData(prev => ({
@@ -134,6 +155,20 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
         [name]: e.target.type === 'checkbox' ? checked : value
       }));
     }
+  };
+
+  // Handle organizer type toggles
+  const handleOrganizerTypeChange = (type) => {
+    // Don't allow changing isEventOrganizer
+    if (type === 'isEventOrganizer') return;
+    
+    setFormData(prev => ({
+      ...prev,
+      organizerTypes: {
+        ...prev.organizerTypes,
+        [type]: !prev.organizerTypes[type]
+      }
+    }));
   };
 
   // Handle form submission
@@ -150,23 +185,30 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
     setLoading(true);
     
     try {
-      // Ensure all fields are properly formatted before submission
+      // Prepare the update data with proper structure
       const updatedData = {
-        ...formData,
-        // MongoDB backend actually uses fullName (not name)
+        _id: formData._id,
+        appId: formData.appId,
         fullName: formData.name,
         name: formData.name,
-        // Make sure shortName exists and is formatted correctly
         shortName: formatShortName(formData.shortName || formData.name.substring(0, 10)),
-        // Ensure boolean fields are explicitly true or false
-        isApproved: formData.isApproved === true ? true : false,
-        isActive: formData.isActive === true ? true : false,
-        isEnabled: formData.isEnabled === true ? true : false
+        description: formData.description,
+        isApproved: formData.isApproved,
+        isEnabled: formData.isEnabled,
+        isAuthorized: formData.isAuthorized,
+        publicContactInfo: formData.publicContactInfo,
+        organizerTypes: formData.organizerTypes,
+        // Include hidden fields
+        organizerRegion: formData.organizerRegion,
+        linkedUserLogin: formData.linkedUserLogin,
+        wantRender: formData.wantRender,
+        masteredRegionId: formData.masteredRegionId,
+        masteredDivisionId: formData.masteredDivisionId,
+        masteredCityId: formData.masteredCityId,
       };
       
       console.log('Submitting organizer data:', updatedData);
       
-      // Call the onSubmit function passed as prop
       await onSubmit(updatedData);
     } catch (err) {
       setError('Failed to update organizer. Please try again.');
@@ -230,20 +272,6 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
           <FormControlLabel
             control={
               <Switch 
-                checked={formData.isActive} 
-                onChange={handleChange}
-                name="isActive"
-                color="primary"
-              />
-            }
-            label="Active"
-          />
-        </Grid>
-        
-        <Grid item xs={12} sm={4}>
-          <FormControlLabel
-            control={
-              <Switch 
                 checked={formData.isApproved} 
                 onChange={handleChange}
                 name="isApproved"
@@ -267,6 +295,136 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
             label="Enabled"
           />
         </Grid>
+        
+        <Grid item xs={12} sm={4}>
+          <FormControlLabel
+            control={
+              <Switch 
+                checked={formData.isAuthorized} 
+                onChange={handleChange}
+                name="isAuthorized"
+                color="primary"
+              />
+            }
+            label="Authorized"
+          />
+        </Grid>
+      </Grid>
+      
+      <Divider sx={{ my: 3 }} />
+      
+      {/* Organizer Types */}
+      <Typography variant="h6" gutterBottom>Organizer Types</Typography>
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid item xs={12} sm={6} md={4}>
+          <Card 
+            sx={{ 
+              cursor: 'not-allowed',
+              opacity: 0.8,
+              bgcolor: 'action.selected'
+            }}
+          >
+            <CardContent sx={{ textAlign: 'center' }}>
+              <EventIcon sx={{ fontSize: 40, color: 'primary.main', mb: 1 }} />
+              <Typography variant="body1" fontWeight="bold">
+                Event Organizer
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                (Always enabled)
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} sm={6} md={4}>
+          <Card 
+            sx={{ 
+              cursor: 'pointer',
+              bgcolor: formData.organizerTypes.isVenue ? 'primary.light' : 'background.paper',
+              '&:hover': { bgcolor: formData.organizerTypes.isVenue ? 'primary.main' : 'action.hover' }
+            }}
+            onClick={() => handleOrganizerTypeChange('isVenue')}
+          >
+            <CardContent sx={{ textAlign: 'center' }}>
+              <PlaceIcon sx={{ fontSize: 40, mb: 1 }} />
+              <Typography variant="body1" fontWeight="bold">
+                Venue
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} sm={6} md={4}>
+          <Card 
+            sx={{ 
+              cursor: 'pointer',
+              bgcolor: formData.organizerTypes.isTeacher ? 'primary.light' : 'background.paper',
+              '&:hover': { bgcolor: formData.organizerTypes.isTeacher ? 'primary.main' : 'action.hover' }
+            }}
+            onClick={() => handleOrganizerTypeChange('isTeacher')}
+          >
+            <CardContent sx={{ textAlign: 'center' }}>
+              <SchoolIcon sx={{ fontSize: 40, mb: 1 }} />
+              <Typography variant="body1" fontWeight="bold">
+                Teacher
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} sm={6} md={4}>
+          <Card 
+            sx={{ 
+              cursor: 'pointer',
+              bgcolor: formData.organizerTypes.isMaestro ? 'primary.light' : 'background.paper',
+              '&:hover': { bgcolor: formData.organizerTypes.isMaestro ? 'primary.main' : 'action.hover' }
+            }}
+            onClick={() => handleOrganizerTypeChange('isMaestro')}
+          >
+            <CardContent sx={{ textAlign: 'center' }}>
+              <StarIcon sx={{ fontSize: 40, mb: 1 }} />
+              <Typography variant="body1" fontWeight="bold">
+                Maestro
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} sm={6} md={4}>
+          <Card 
+            sx={{ 
+              cursor: 'pointer',
+              bgcolor: formData.organizerTypes.isDJ ? 'primary.light' : 'background.paper',
+              '&:hover': { bgcolor: formData.organizerTypes.isDJ ? 'primary.main' : 'action.hover' }
+            }}
+            onClick={() => handleOrganizerTypeChange('isDJ')}
+          >
+            <CardContent sx={{ textAlign: 'center' }}>
+              <HeadphonesIcon sx={{ fontSize: 40, mb: 1 }} />
+              <Typography variant="body1" fontWeight="bold">
+                DJ
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} sm={6} md={4}>
+          <Card 
+            sx={{ 
+              cursor: 'pointer',
+              bgcolor: formData.organizerTypes.isOrchestra ? 'primary.light' : 'background.paper',
+              '&:hover': { bgcolor: formData.organizerTypes.isOrchestra ? 'primary.main' : 'action.hover' }
+            }}
+            onClick={() => handleOrganizerTypeChange('isOrchestra')}
+          >
+            <CardContent sx={{ textAlign: 'center' }}>
+              <MusicNoteIcon sx={{ fontSize: 40, mb: 1 }} />
+              <Typography variant="body1" fontWeight="bold">
+                Orchestra
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
       </Grid>
       
       <Divider sx={{ my: 3 }} />
@@ -278,8 +436,8 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
           <TextField
             fullWidth
             label="Email"
-            name="contactInfo.email"
-            value={formData.contactInfo.email}
+            name="publicContactInfo.Email"
+            value={formData.publicContactInfo.Email}
             onChange={handleChange}
             type="email"
           />
@@ -289,8 +447,8 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
           <TextField
             fullWidth
             label="Phone"
-            name="contactInfo.phone"
-            value={formData.contactInfo.phone}
+            name="publicContactInfo.phone"
+            value={formData.publicContactInfo.phone}
             onChange={handleChange}
           />
         </Grid>
@@ -299,8 +457,8 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
           <TextField
             fullWidth
             label="Website"
-            name="contactInfo.website"
-            value={formData.contactInfo.website}
+            name="publicContactInfo.url"
+            value={formData.publicContactInfo.url}
             onChange={handleChange}
           />
         </Grid>
@@ -311,12 +469,22 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
       {/* Address Information */}
       <Typography variant="h6" gutterBottom>Address</Typography>
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={12}>
+        <Grid item xs={12} sm={6}>
           <TextField
             fullWidth
-            label="Street"
-            name="address.street"
-            value={formData.address.street}
+            label="Street Address 1"
+            name="publicContactInfo.address.street1"
+            value={formData.publicContactInfo.address.street1}
+            onChange={handleChange}
+          />
+        </Grid>
+        
+        <Grid item xs={12} sm={6}>
+          <TextField
+            fullWidth
+            label="Street Address 2"
+            name="publicContactInfo.address.street2"
+            value={formData.publicContactInfo.address.street2}
             onChange={handleChange}
           />
         </Grid>
@@ -325,8 +493,8 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
           <TextField
             fullWidth
             label="City"
-            name="address.city"
-            value={formData.address.city}
+            name="publicContactInfo.address.city"
+            value={formData.publicContactInfo.address.city}
             onChange={handleChange}
           />
         </Grid>
@@ -335,8 +503,8 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
           <TextField
             fullWidth
             label="State/Province"
-            name="address.state"
-            value={formData.address.state}
+            name="publicContactInfo.address.state"
+            value={formData.publicContactInfo.address.state}
             onChange={handleChange}
           />
         </Grid>
@@ -345,18 +513,8 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
           <TextField
             fullWidth
             label="Postal Code"
-            name="address.postalCode"
-            value={formData.address.postalCode}
-            onChange={handleChange}
-          />
-        </Grid>
-        
-        <Grid item xs={12}>
-          <TextField
-            fullWidth
-            label="Country"
-            name="address.country"
-            value={formData.address.country}
+            name="publicContactInfo.address.postalCode"
+            value={formData.publicContactInfo.address.postalCode}
             onChange={handleChange}
           />
         </Grid>

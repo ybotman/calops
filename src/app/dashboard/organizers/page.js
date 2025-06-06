@@ -440,45 +440,13 @@ export default function OrganizersPage() {
       
       console.log('Updating organizer:', updatedOrganizer);
       
-      // Make sure we have the appId in the updatedOrganizer and ensure boolean fields are properly set
-      const organizerWithAppId = {
-        ...updatedOrganizer,
-        appId: updatedOrganizer.appId || currentApp.id,
-        // Ensure both name fields are set consistently
-        name: updatedOrganizer.name,
-        fullName: updatedOrganizer.name,
-        shortName: updatedOrganizer.shortName || updatedOrganizer.name,
-        // Explicitly convert boolean fields with ternary to ensure true/false values
-        isApproved: updatedOrganizer.isApproved === true ? true : false,
-        isActive: updatedOrganizer.isActive === true ? true : false,
-        isEnabled: updatedOrganizer.isEnabled === true ? true : false
-      };
+      // Use the organizersApi to update
+      const response = await organizersApi.updateOrganizer(
+        updatedOrganizer._id, 
+        updatedOrganizer
+      );
       
-      console.log('Formatted organizer for update:', organizerWithAppId);
-      
-      // Try direct update via axios instead of the api-client
-      try {
-        // First log what we're attempting to do
-        console.log(`Directly updating organizer ${organizerWithAppId._id} with appId ${organizerWithAppId.appId}`);
-        
-        const response = await axios.patch(
-          `/api/organizers/${organizerWithAppId._id}?appId=${organizerWithAppId.appId}`, 
-          organizerWithAppId
-        );
-        
-        console.log('Update successful:', response.data);
-      } catch (axiosError) {
-        console.error('Direct PATCH failed:', axiosError);
-        console.log('Falling back to direct PUT to backend...');
-        
-        // If that fails, try to use the backend API directly
-        const directResponse = await axios.put(
-          `${process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010'}/api/organizers/${organizerWithAppId._id}?appId=${organizerWithAppId.appId}`,
-          organizerWithAppId
-        );
-        
-        console.log('Direct PUT to backend successful:', directResponse.data);
-      }
+      console.log('Update successful:', response);
       
       // Refresh organizers list
       const organizersData = await organizersApi.getOrganizers(currentApp.id);
