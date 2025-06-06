@@ -28,9 +28,9 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
     name: '',
     shortName: '',
     description: '',
-    isApproved: false,
     isEnabled: false,
-    isAuthorized: false,
+    wantRender: false,
+    isRendered: false,
     publicContactInfo: {
       Email: '',
       phone: '',
@@ -65,9 +65,9 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
         fullName: organizer.fullName || organizer.name || '',
         shortName: organizer.shortName || '',
         description: organizer.description || '',
-        isApproved: organizer.isApproved === true,
         isEnabled: organizer.isEnabled === true,
-        isAuthorized: organizer.isAuthorized === true,
+        wantRender: organizer.wantRender === true,
+        isRendered: organizer.isRendered === true,
         publicContactInfo: {
           Email: organizer.publicContactInfo?.Email || organizer.contactInfo?.email || '',
           phone: organizer.publicContactInfo?.phone || organizer.contactInfo?.phone || '',
@@ -190,18 +190,15 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
         _id: formData._id,
         appId: formData.appId,
         fullName: formData.name,
-        name: formData.name,
         shortName: formatShortName(formData.shortName || formData.name.substring(0, 10)),
         description: formData.description,
-        isApproved: formData.isApproved,
         isEnabled: formData.isEnabled,
-        isAuthorized: formData.isAuthorized,
+        wantRender: formData.wantRender,
         publicContactInfo: formData.publicContactInfo,
         organizerTypes: formData.organizerTypes,
         // Include hidden fields
         organizerRegion: formData.organizerRegion,
         linkedUserLogin: formData.linkedUserLogin,
-        wantRender: formData.wantRender,
         masteredRegionId: formData.masteredRegionId,
         masteredDivisionId: formData.masteredDivisionId,
         masteredCityId: formData.masteredCityId,
@@ -272,20 +269,6 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
           <FormControlLabel
             control={
               <Switch 
-                checked={formData.isApproved} 
-                onChange={handleChange}
-                name="isApproved"
-                color="primary"
-              />
-            }
-            label="Approved"
-          />
-        </Grid>
-        
-        <Grid item xs={12} sm={4}>
-          <FormControlLabel
-            control={
-              <Switch 
                 checked={formData.isEnabled} 
                 onChange={handleChange}
                 name="isEnabled"
@@ -300,13 +283,27 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
           <FormControlLabel
             control={
               <Switch 
-                checked={formData.isAuthorized} 
+                checked={formData.wantRender} 
                 onChange={handleChange}
-                name="isAuthorized"
+                name="wantRender"
                 color="primary"
               />
             }
-            label="Authorized"
+            label="Want Render"
+          />
+        </Grid>
+        
+        <Grid item xs={12} sm={4}>
+          <FormControlLabel
+            control={
+              <Switch 
+                checked={formData.isRendered} 
+                disabled
+                name="isRendered"
+                color="primary"
+              />
+            }
+            label={`Rendered: ${formData.isRendered ? 'Yes' : 'No'}`}
           />
         </Grid>
       </Grid>

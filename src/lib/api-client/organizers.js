@@ -3,8 +3,6 @@
  * Handles all organizer-related API calls
  */
 
-import { apiRequest } from './utils';
-
 const organizersApi = {
   /**
    * Get all organizers for an application
@@ -13,13 +11,17 @@ const organizersApi = {
    * @returns {Promise<Array>} Array of organizers
    */
   async getOrganizers(appId, isActive = undefined) {
+    const backendUrl = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
     const params = new URLSearchParams({ appId });
     if (isActive !== undefined) {
       params.append('isActive', isActive);
     }
     
-    const response = await apiRequest(`/api/organizers?${params}`);
-    return response;
+    const response = await fetch(`${backendUrl}/api/organizers?${params}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch organizers: ${response.status}`);
+    }
+    return response.json();
   },
 
   /**
@@ -29,8 +31,14 @@ const organizersApi = {
    * @returns {Promise<Object>} Organizer data
    */
   async getOrganizer(organizerId, appId) {
+    const backendUrl = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
     const params = new URLSearchParams({ appId });
-    return apiRequest(`/api/organizers/${organizerId}?${params}`);
+    
+    const response = await fetch(`${backendUrl}/api/organizers/${organizerId}?${params}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch organizer: ${response.status}`);
+    }
+    return response.json();
   },
 
   /**
@@ -39,14 +47,20 @@ const organizersApi = {
    * @returns {Promise<Object>} Created organizer
    */
   async createOrganizer(organizerData) {
-    const response = await apiRequest('/api/organizers', {
+    const backendUrl = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
+    
+    const response = await fetch(`${backendUrl}/api/organizers`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(organizerData),
     });
-    return response;
+    
+    if (!response.ok) {
+      throw new Error(`Failed to create organizer: ${response.status}`);
+    }
+    return response.json();
   },
 
   /**
@@ -57,16 +71,21 @@ const organizersApi = {
    */
   async updateOrganizer(organizerId, organizerData) {
     const appId = organizerData.appId || '1';
-    const params = new URLSearchParams({ appId });
+    const backendUrl = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
     
-    const response = await apiRequest(`/api/organizers/${organizerId}?${params}`, {
+    const response = await fetch(`${backendUrl}/api/organizers/${organizerId}?appId=${appId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(organizerData),
     });
-    return response;
+    
+    if (!response.ok) {
+      throw new Error(`Failed to update organizer: ${response.status}`);
+    }
+    
+    return response.json();
   },
 
   /**
@@ -76,10 +95,17 @@ const organizersApi = {
    * @returns {Promise<Object>} Deletion result
    */
   async deleteOrganizer(organizerId, appId) {
+    const backendUrl = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
     const params = new URLSearchParams({ appId });
-    return apiRequest(`/api/organizers/${organizerId}?${params}`, {
+    
+    const response = await fetch(`${backendUrl}/api/organizers/${organizerId}?${params}`, {
       method: 'DELETE',
     });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to delete organizer: ${response.status}`);
+    }
+    return response.json();
   },
 
   /**
@@ -90,14 +116,20 @@ const organizersApi = {
    * @returns {Promise<Object>} Connection result
    */
   async connectToUser(organizerId, firebaseUserId, appId) {
-    const response = await apiRequest(`/api/organizers/${organizerId}/connect-user`, {
+    const backendUrl = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
+    
+    const response = await fetch(`${backendUrl}/api/organizers/${organizerId}/connect-user`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ firebaseUserId, appId }),
     });
-    return response;
+    
+    if (!response.ok) {
+      throw new Error(`Failed to connect user: ${response.status}`);
+    }
+    return response.json();
   },
 
   /**
@@ -107,14 +139,20 @@ const organizersApi = {
    * @returns {Promise<Object>} Disconnection result
    */
   async disconnectFromUser(organizerId, appId) {
-    const response = await apiRequest(`/api/organizers/${organizerId}/disconnect-user`, {
+    const backendUrl = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
+    
+    const response = await fetch(`${backendUrl}/api/organizers/${organizerId}/disconnect-user`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ appId }),
     });
-    return response;
+    
+    if (!response.ok) {
+      throw new Error(`Failed to disconnect user: ${response.status}`);
+    }
+    return response.json();
   },
 };
 
