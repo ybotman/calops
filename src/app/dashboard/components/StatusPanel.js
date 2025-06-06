@@ -251,19 +251,21 @@ export default function StatusPanel() {
                 <ListItemText 
                   primary="Backend API" 
                   secondary={
-                    <>
-                      {status.backend?.message || status.backend?.url || 'Checking backend connection...'}
+                    <Box component="span">
+                      <Typography variant="body2" component="span" display="block">
+                        {status.backend?.message || status.backend?.url || 'Checking backend connection...'}
+                      </Typography>
                       {status.backend?.fallbackMessage && (
-                        <span style={{ display: 'block', marginTop: 4 }}>
-                          <small>{status.backend.fallbackMessage}</small>
-                        </span>
+                        <Typography variant="caption" component="span" display="block" sx={{ mt: 0.5 }}>
+                          {status.backend.fallbackMessage}
+                        </Typography>
                       )}
                       {status.backend?.apiMessage && (
-                        <span style={{ display: 'block', marginTop: 4 }}>
-                          <small>{status.backend.apiMessage}</small>
-                        </span>
+                        <Typography variant="caption" component="span" display="block" sx={{ mt: 0.5 }}>
+                          {status.backend.apiMessage}
+                        </Typography>
                       )}
-                    </>
+                    </Box>
                   }
                 />
                 <Box>{getStatusChip(status.backend?.status || 'unknown')}</Box>
@@ -276,23 +278,17 @@ export default function StatusPanel() {
                 <ListItemText 
                   primary="Environment Configuration" 
                   secondary={
-                    <>
-                      <div style={{ marginTop: 4 }}>
-                        <Typography variant="body2" component="div">
-                          <strong>Backend URL:</strong> {maskEnvValue(status.backend.url)}
-                        </Typography>
-                      </div>
-                      <div style={{ marginTop: 4 }}>
-                        <Typography variant="body2" component="div">
-                          <strong>App Version:</strong> {status.application?.version || 'N/A'}
-                        </Typography>
-                      </div>
-                      <div style={{ marginTop: 4 }}>
-                        <Typography variant="body2" component="div">
-                          <strong>Authentication:</strong> Mock authentication (bypassed)
-                        </Typography>
-                      </div>
-                      <div style={{ marginTop: 8 }}>
+                    <Box component="span">
+                      <Typography variant="body2" component="span" display="block" sx={{ mt: 0.5 }}>
+                        <strong>Backend URL:</strong> {maskEnvValue(status.backend.url)}
+                      </Typography>
+                      <Typography variant="body2" component="span" display="block" sx={{ mt: 0.5 }}>
+                        <strong>App Version:</strong> {status.application?.version || 'N/A'}
+                      </Typography>
+                      <Typography variant="body2" component="span" display="block" sx={{ mt: 0.5 }}>
+                        <strong>Authentication:</strong> Mock authentication (bypassed)
+                      </Typography>
+                      <Box sx={{ mt: 1 }}>
                         <Button 
                           size="small"
                           onClick={toggleEnvExpanded}
@@ -301,8 +297,8 @@ export default function StatusPanel() {
                         >
                           {envExpanded ? 'Hide' : 'Show'} All Environment Variables
                         </Button>
-                      </div>
-                    </>
+                      </Box>
+                    </Box>
                   }
                 />
                 <Chip 
