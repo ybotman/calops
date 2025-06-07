@@ -243,6 +243,7 @@ const EventFilterPanel = ({
                   getOptionLabel={(option) => {
                     return typeof option === 'string' ? option : (option.name || `Region ${option.id || '?'}`)
                   }}
+                  getOptionKey={(option) => option.id || option._id || option.name}
                   value={regions.find(r => r.name === localFilters.masteredRegionName) || null}
                   onChange={(_, newValue) => handleChange('masteredRegionName', newValue ? newValue.name : '')}
                   renderInput={(params) => (
@@ -291,13 +292,14 @@ const EventFilterPanel = ({
                           });
                           
                           console.log(`Found ${filteredDivisions.length} divisions for region ${selectedRegion.name}`);
-                          return filteredDivisions.length > 0 ? filteredDivisions : divisions;
+                          return filteredDivisions;
                         })()
-                      : divisions
+                      : []
                   }
                   getOptionLabel={(option) => {
                     return typeof option === 'string' ? option : (option.name || `Division ${option.id || '?'}`)
                   }}
+                  getOptionKey={(option) => option.id || option._id || option.name}
                   value={divisions.find(d => d.name === localFilters.masteredDivisionName) || null}
                   onChange={(_, newValue) => handleChange('masteredDivisionName', newValue ? newValue.name : '')}
                   renderInput={(params) => (
@@ -308,6 +310,7 @@ const EventFilterPanel = ({
                       disabled={!localFilters.masteredRegionName} // Disable if no region selected
                     />
                   )}
+                  disabled={!localFilters.masteredRegionName}
                   noOptionsText={localFilters.masteredRegionName ? "No divisions available for this region" : "Select a region first"}
                   renderOption={(props, option) => {
                     // Extract key from props and rest of props
@@ -352,43 +355,14 @@ const EventFilterPanel = ({
                           });
                           
                           // Found cities for the selected division
-                          return filteredCities.length > 0 ? filteredCities : cities;
+                          return filteredCities;
                         })()
-                      : // Otherwise filter by region if available
-                      localFilters.masteredRegionName
-                      ? (() => {
-                          const selectedRegion = regions.find(r => r.name === localFilters.masteredRegionName);
-                          console.log('Selected Region for filtering cities:', selectedRegion);
-                          
-                          // If no region selected, return all cities
-                          if (!selectedRegion) return cities;
-                          
-                          // Find all cities related to this region
-                          const filteredCities = cities.filter(city => {
-                            // Try different ways to match the region ID
-                            const regionMatches = [
-                              // Direct match
-                              city.regionId === selectedRegion.id,
-                              // String comparison
-                              String(city.regionId) === String(selectedRegion.id),
-                              // Try with masteredRegionId
-                              city.masteredRegionId === selectedRegion.id,
-                              String(city.masteredRegionId) === String(selectedRegion.id),
-                              // Check if IDs appear within the city object anywhere
-                              JSON.stringify(city).includes(selectedRegion.id)
-                            ];
-                            
-                            return regionMatches.some(match => match === true);
-                          });
-                          
-                          console.log(`Found ${filteredCities.length} cities for region ${selectedRegion.name}`);
-                          return filteredCities.length > 0 ? filteredCities : cities;
-                        })()
-                      : cities
+                      : []
                   }
                   getOptionLabel={(option) => {
                     return typeof option === 'string' ? option : (option.name || `City ${option.id || '?'}`)
                   }}
+                  getOptionKey={(option) => option.id || option._id || option.name}
                   value={cities.find(c => c.name === localFilters.masteredCityName) || null}
                   onChange={(_, newValue) => {
                     // Extract the city name and ensure it's properly handled
@@ -400,9 +374,10 @@ const EventFilterPanel = ({
                       {...params} 
                       label="Select City" 
                       size="small" 
-                      disabled={!localFilters.masteredRegionName} // Disable if no region or division selected
+                      disabled={!localFilters.masteredDivisionName}
                     />
                   )}
+                  disabled={!localFilters.masteredDivisionName}
                   noOptionsText={
                     !localFilters.masteredRegionName 
                       ? "Select a region first" 
@@ -413,9 +388,13 @@ const EventFilterPanel = ({
                   renderOption={(props, option) => {
                     // Extract key from props and rest of props
                     const { key, ...restProps } = props;
+                    // Add division info to distinguish cities with same name
+                    const cityDisplay = option.name || `City ${option.id || ''}`;
+                    const division = divisions.find(d => d.id === option.divisionId);
+                    const divisionDisplay = division ? ` (${division.name})` : '';
                     return (
                       <li key={key} {...restProps}>
-                        {option.name || `City ${option.id || ''}`}
+                        {cityDisplay}{divisionDisplay}
                       </li>
                     );
                   }}
@@ -443,13 +422,17 @@ const EventFilterPanel = ({
                   )}
                   noOptionsText="No categories available"
                   renderTags={(value, getTagProps) =>
-                    value.map((option, index) => (
-                      <Chip 
-                        label={typeof option === 'string' ? option : (option.name || option.categoryName || option.id || '')} 
-                        {...getTagProps({ index })} 
-                        size="small"
-                      />
-                    ))
+                    value.map((option, index) => {
+                      const { key, ...chipProps } = getTagProps({ index });
+                      return (
+                        <Chip 
+                          key={key}
+                          label={typeof option === 'string' ? option : (option.name || option.categoryName || option.id || '')} 
+                          {...chipProps} 
+                          size="small"
+                        />
+                      );
+                    })
                   }
                   renderOption={(props, option) => {
                     // Extract key from props and rest of props
@@ -465,25 +448,136 @@ const EventFilterPanel = ({
               <Box sx={{ mt: 2 }}>
                 <Typography variant="subtitle2" gutterBottom>Organizer</Typography>
                 <Autocomplete
-                  options={organizers}
-                  getOptionLabel={(option) => option.fullName || option.name || ''}
+                  options={
+                    // Filter organizers based on selected geo-location
+                    (() => {
+                      let filteredOrganizers = organizers;
+                      
+                      // Filter by city if selected
+                      if (localFilters.masteredCityName) {
+                        const selectedCity = cities.find(c => c.name === localFilters.masteredCityName);
+                        if (selectedCity) {
+                          filteredOrganizers = organizers.filter(org => 
+                            // Check mastered fields first, then legacy fields
+                            String(org.masteredCityId) === String(selectedCity.id) ||
+                            String(org.organizerCity) === String(selectedCity.id)
+                          );
+                        }
+                      }
+                      // Otherwise filter by division if selected
+                      else if (localFilters.masteredDivisionName) {
+                        const selectedDivision = divisions.find(d => d.name === localFilters.masteredDivisionName);
+                        if (selectedDivision) {
+                          filteredOrganizers = organizers.filter(org => 
+                            // Check mastered fields first, then legacy fields
+                            String(org.masteredDivisionId) === String(selectedDivision.id) ||
+                            String(org.organizerDivision) === String(selectedDivision.id)
+                          );
+                        }
+                      }
+                      // Otherwise filter by region if selected
+                      else if (localFilters.masteredRegionName) {
+                        const selectedRegion = regions.find(r => r.name === localFilters.masteredRegionName);
+                        if (selectedRegion) {
+                          filteredOrganizers = organizers.filter(org => 
+                            // Check mastered fields first, then legacy fields
+                            String(org.masteredRegionId) === String(selectedRegion.id) ||
+                            String(org.organizerRegion) === String(selectedRegion.id)
+                          );
+                        }
+                      }
+                      
+                      return filteredOrganizers;
+                    })()
+                  }
+                  getOptionLabel={(option) => {
+                    const name = option.fullName || option.name || '';
+                    // Add location context if not filtering by city
+                    if (!localFilters.masteredCityName) {
+                      // Find the city name for this organizer
+                      const orgCity = cities.find(c => 
+                        String(c.id) === String(option.masteredCityId) || 
+                        String(c.id) === String(option.organizerCity)
+                      );
+                      if (orgCity) {
+                        return `${name} (${orgCity.name})`;
+                      }
+                    }
+                    return name;
+                  }}
+                  getOptionKey={(option) => option._id || option.id}
                   value={organizers.find(o => o._id === localFilters.organizerId) || null}
                   onChange={(_, newValue) => handleChange('organizerId', newValue ? newValue._id : '')}
                   renderInput={(params) => (
                     <TextField {...params} label="Select Organizer" size="small" />
                   )}
+                  noOptionsText="No organizers available for selected location"
                 />
               </Box>
               <Box sx={{ mt: 2 }}>
                 <Typography variant="subtitle2" gutterBottom>Venue</Typography>
                 <Autocomplete
-                  options={venues}
-                  getOptionLabel={(option) => option.venueName || option.name || ''}
+                  options={
+                    // Filter venues based on selected geo-location
+                    (() => {
+                      let filteredVenues = venues;
+                      
+                      // Filter by city if selected
+                      if (localFilters.masteredCityName) {
+                        const selectedCity = cities.find(c => c.name === localFilters.masteredCityName);
+                        if (selectedCity) {
+                          filteredVenues = venues.filter(venue => 
+                            String(venue.masteredCityId) === String(selectedCity.id)
+                          );
+                        }
+                      }
+                      // Otherwise filter by division if selected
+                      else if (localFilters.masteredDivisionName) {
+                        const selectedDivision = divisions.find(d => d.name === localFilters.masteredDivisionName);
+                        if (selectedDivision) {
+                          filteredVenues = venues.filter(venue => 
+                            String(venue.masteredDivisionId) === String(selectedDivision.id)
+                          );
+                        }
+                      }
+                      // Otherwise filter by region if selected
+                      else if (localFilters.masteredRegionName) {
+                        const selectedRegion = regions.find(r => r.name === localFilters.masteredRegionName);
+                        if (selectedRegion) {
+                          filteredVenues = venues.filter(venue => 
+                            String(venue.masteredRegionId) === String(selectedRegion.id)
+                          );
+                        }
+                      }
+                      
+                      return filteredVenues;
+                    })()
+                  }
+                  getOptionLabel={(option) => {
+                    const name = option.venueName || option.name || '';
+                    // Add city context if not filtering by city
+                    if (!localFilters.masteredCityName) {
+                      // Find the city name for this venue
+                      const venueCity = cities.find(c => 
+                        String(c.id) === String(option.masteredCityId)
+                      );
+                      if (venueCity) {
+                        return `${name} (${venueCity.name})`;
+                      }
+                      // If no mastered city, use the city field
+                      else if (option.city) {
+                        return `${name} (${option.city})`;
+                      }
+                    }
+                    return name;
+                  }}
+                  getOptionKey={(option) => option._id || option.id}
                   value={venues.find(v => v._id === localFilters.venueId) || null}
                   onChange={(_, newValue) => handleChange('venueId', newValue ? newValue._id : '')}
                   renderInput={(params) => (
                     <TextField {...params} label="Select Venue" size="small" />
                   )}
+                  noOptionsText="No venues available for selected location"
                 />
               </Box>
             </Paper>

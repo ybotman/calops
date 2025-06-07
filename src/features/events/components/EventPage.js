@@ -150,8 +150,9 @@ const EventPage = () => {
         
         // Load event categories from the API
         try {
-          // Use /api/categories endpoint instead of /api/event-categories
-          const categoriesResponse = await fetch(`/api/categories?appId=${appId}`);
+          // Use backend API endpoint for categories
+          const BE_URL = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
+          const categoriesResponse = await fetch(`${BE_URL}/api/categories?appId=${appId}`);
           
           if (!categoriesResponse.ok) {
             throw new Error(`Failed to fetch categories: ${categoriesResponse.status} ${categoriesResponse.statusText}`);

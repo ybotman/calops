@@ -106,9 +106,14 @@ export default function OrganizerConnectUserForm({ organizer, onSubmit }) {
         const alternateFirebaseIds = alternateUsers.map(u => u.firebaseUserId);
         
         try {
-          // Update the user's alternate Firebase IDs
-          await usersApi.updateAlternateFirebaseIds(selectedUser.firebaseUserId, alternateFirebaseIds);
-          console.log('Updated alternate Firebase IDs:', alternateFirebaseIds);
+          // Check if the function exists before calling it
+          if (typeof usersApi.updateAlternateFirebaseIds === 'function') {
+            // Update the user's alternate Firebase IDs
+            await usersApi.updateAlternateFirebaseIds(selectedUser.firebaseUserId, alternateFirebaseIds);
+            console.log('Updated alternate Firebase IDs:', alternateFirebaseIds);
+          } else {
+            console.warn('updateAlternateFirebaseIds function not available - skipping alternate IDs update');
+          }
         } catch (altError) {
           console.error('Error updating alternate Firebase IDs:', altError);
           // Don't fail the whole operation if alternate IDs fail
