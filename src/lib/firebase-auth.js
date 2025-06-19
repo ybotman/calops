@@ -28,13 +28,10 @@ const AuthContext = createContext();
 
 // Auth provider component
 export function AuthProvider({ children }) {
-  // Temporarily bypass authentication by setting a mock user and no loading
-  const [user, setUser] = useState({ uid: 'temp-user-id', email: 'admin@example.com' });
-  const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Original authentication code is commented out
-  /*
   useEffect(() => {
     const app = initFirebase();
     if (!app) {
@@ -68,22 +65,7 @@ export function AuthProvider({ children }) {
     // Cleanup subscription
     return () => unsubscribe();
   }, []);
-  */
 
-  // Mock login function - bypass authentication
-  const login = async (email, password) => {
-    // Just set mock user without actual authentication
-    setUser({ uid: 'temp-user-id', email: email || 'admin@example.com' });
-    return { uid: 'temp-user-id', email: email || 'admin@example.com' };
-  };
-
-  // Mock logout function - bypass authentication
-  const logout = async () => {
-    // We'll keep the mock user for now
-    console.log('Logout requested but keeping mock user');
-  };
-  
-  /* Original authentication code - will be restored later
   // Login function
   const login = async (email, password) => {
     setLoading(true);
@@ -125,7 +107,6 @@ export function AuthProvider({ children }) {
       throw error;
     }
   };
-  */
 
   // Auth context value
   const value = {
