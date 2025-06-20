@@ -3,6 +3,8 @@
  * Handles all organizer-related API calls
  */
 
+import axios from 'axios';
+
 const organizersApi = {
   /**
    * Get all organizers for an application
@@ -13,9 +15,14 @@ const organizersApi = {
   async getOrganizers(appId, isActive = undefined, includeAllFields = false) {
     // Use environment variable for backend URL consistency
     const backendUrl = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
-    const params = new URLSearchParams({ appId });
+    
+    const params = {
+      appId,
+      _t: Date.now() // Cache-busting parameter
+    };
+    
     if (isActive !== undefined) {
-      params.append('isActive', isActive);
+      params.isActive = isActive;
     }
     
     // If we need all fields (like for editing), don't use select
@@ -26,37 +33,35 @@ const organizersApi = {
                        'organizerRegion masteredRegionId masteredDivisionId masteredCityId ' +
                        'firebaseUserId linkedUserLogin organizerBannerImage organizerProfileImage ' +
                        'organizerLandscapeImage organizerLogoImage btcNiceName updatedAt';
-      params.append('select', allFields);
+      params.select = allFields;
     }
     
-    // Add cache-busting parameter
-    params.append('_t', Date.now());
+    console.log('Fetching organizers with params:', params);
     
-    const url = `${backendUrl}/api/organizers?${params}`;
-    console.log('Fetching organizers from:', url);
-    
-    const response = await fetch(url, {
-      cache: 'no-store',
-      headers: {
-        'Cache-Control': 'no-cache'
+    try {
+      const response = await axios.get(`${backendUrl}/api/organizers`, {
+        params,
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
+      
+      const data = response.data;
+      
+      // Handle both response formats:
+      // 1. Direct array (legacy)
+      // 2. Object with organizers array and pagination (new format)
+      if (Array.isArray(data)) {
+        return data;
+      } else if (data.organizers && Array.isArray(data.organizers)) {
+        return data.organizers;
+      } else {
+        console.error('Unexpected response format:', data);
+        return [];
       }
-    });
-    if (!response.ok) {
-      throw new Error(`Failed to fetch organizers: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    
-    // Handle both response formats:
-    // 1. Direct array (legacy)
-    // 2. Object with organizers array and pagination (new format)
-    if (Array.isArray(data)) {
-      return data;
-    } else if (data.organizers && Array.isArray(data.organizers)) {
-      return data.organizers;
-    } else {
-      console.error('Unexpected response format:', data);
-      return [];
+    } catch (error) {
+      console.error('Error fetching organizers:', error);
+      throw error;
     }
   },
 
@@ -68,13 +73,16 @@ const organizersApi = {
    */
   async getOrganizer(organizerId, appId) {
     const backendUrl = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
-    const params = new URLSearchParams({ appId });
     
-    const response = await fetch(`${backendUrl}/api/organizers/${organizerId}?${params}`);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch organizer: ${response.status}`);
+    try {
+      const response = await axios.get(`${backendUrl}/api/organizers/${organizerId}`, {
+        params: { appId }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching organizer:', error);
+      throw error;
     }
-    return response.json();
   },
 
   /**
@@ -85,18 +93,26 @@ const organizersApi = {
   async createOrganizer(organizerData) {
     const backendUrl = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
     
-    const response = await fetch(`${backendUrl}/api/organizers`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(organizerData),
-    });
+    console.log('Creating organizer with data:', organizerData);
+    console.log('Backend URL:', backendUrl);
     
-    if (!response.ok) {
-      throw new Error(`Failed to create organizer: ${response.status}`);
+    try {
+      const response = await axios.post(`${backendUrl}/api/organizers`, organizerData);
+      
+      console.log('Organizer created successfully:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating organizer:', error);
+      
+      // Axios errors already have the response property structured correctly
+      if (error.response) {
+        console.error('Error response data:', error.response.data);
+        console.error('Error response status:', error.response.status);
+      }
+      
+      // Re-throw the error with axios structure intact
+      throw error;
     }
-    return response.json();
   },
 
   /**
@@ -108,28 +124,29 @@ const organizersApi = {
   async updateOrganizer(organizerId, organizerData) {
     const appId = organizerData.appId || '1';
     const backendUrl = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
-    const url = `${backendUrl}/api/organizers/${organizerId}?appId=${appId}`;
     
     console.log('Updating organizer with PUT request:');
-    console.log('URL:', url);
-    console.log('Method: PUT');
+    console.log('Organizer ID:', organizerId);
     console.log('Data:', JSON.stringify(organizerData, null, 2));
     
-    const response = await fetch(url, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(organizerData),
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Update failed:', response.status, errorText);
-      throw new Error(`Failed to update organizer: ${response.status} - ${errorText}`);
+    try {
+      const response = await axios.put(
+        `${backendUrl}/api/organizers/${organizerId}`,
+        organizerData,
+        {
+          params: { appId }
+        }
+      );
+      
+      return response.data;
+    } catch (error) {
+      console.error('Update failed:', error);
+      if (error.response) {
+        console.error('Error response:', error.response.data);
+        console.error('Error status:', error.response.status);
+      }
+      throw error;
     }
-    
-    return response.json();
   },
 
   /**
@@ -140,16 +157,16 @@ const organizersApi = {
    */
   async deleteOrganizer(organizerId, appId) {
     const backendUrl = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
-    const params = new URLSearchParams({ appId });
     
-    const response = await fetch(`${backendUrl}/api/organizers/${organizerId}?${params}`, {
-      method: 'DELETE',
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Failed to delete organizer: ${response.status}`);
+    try {
+      const response = await axios.delete(`${backendUrl}/api/organizers/${organizerId}`, {
+        params: { appId }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting organizer:', error);
+      throw error;
     }
-    return response.json();
   },
 
   /**
@@ -162,18 +179,16 @@ const organizersApi = {
   async connectToUser(organizerId, firebaseUserId, appId) {
     const backendUrl = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
     
-    const response = await fetch(`${backendUrl}/api/organizers/${organizerId}/connect-user`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ firebaseUserId, appId }),
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Failed to connect user: ${response.status}`);
+    try {
+      const response = await axios.patch(
+        `${backendUrl}/api/organizers/${organizerId}/connect-user`,
+        { firebaseUserId, appId }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error connecting user:', error);
+      throw error;
     }
-    return response.json();
   },
 
   /**
@@ -185,18 +200,16 @@ const organizersApi = {
   async disconnectFromUser(organizerId, appId) {
     const backendUrl = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
     
-    const response = await fetch(`${backendUrl}/api/organizers/${organizerId}/disconnect-user`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ appId }),
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Failed to disconnect user: ${response.status}`);
+    try {
+      const response = await axios.patch(
+        `${backendUrl}/api/organizers/${organizerId}/disconnect-user`,
+        { appId }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error disconnecting user:', error);
+      throw error;
     }
-    return response.json();
   },
 };
 

@@ -569,6 +569,7 @@ export default function OrganizersPage() {
       setLoading(true);
       
       console.log('Creating organizer:', newOrganizer);
+      console.log('Current app ID:', currentApp.id);
       
       // Use the organizers API for reliable organizer creation
       const response = await organizersApi.createOrganizer({
@@ -576,10 +577,13 @@ export default function OrganizersPage() {
         appId: currentApp.id
       });
       
-      console.log('Organizer created:', response.data);
+      console.log('Organizer created successfully, response:', response);
       
       // Refresh all organizers data
+      console.log('Refreshing organizers data...');
       await refreshOrganizersData();
+      console.log('Organizers data refreshed');
+      
       setCreateDialogOpen(false);
       setCreatingOrganizer(false);
       setLoading(false);
@@ -588,10 +592,12 @@ export default function OrganizersPage() {
       alert('Organizer created successfully!');
     } catch (error) {
       console.error('Error creating organizer:', error);
+      console.error('Error stack:', error.stack);
       let errorMessage = error.message;
       
       if (error.response && error.response.data) {
-        console.error('Error details:', error.response.data);
+        console.error('Error response data:', error.response.data);
+        console.error('Error response status:', error.response.status);
         errorMessage = error.response.data.details || error.response.data.error || error.message;
       }
       
