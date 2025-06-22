@@ -236,3 +236,137 @@ export function canManageEventsInLocation(userLogin, location) {
 
   return false;
 }
+
+/**
+ * Add masteredRegion permission to an organizer
+ * @param {Object} userLogin - UserLogin document to update
+ * @param {String} regionId - MasteredRegion ObjectId to add
+ * @returns {Object} - Updated regionalOrganizerInfo
+ */
+export function addOrganizerRegionPermission(userLogin, regionId) {
+  if (!userLogin.regionalOrganizerInfo) {
+    throw new Error('User does not have regionalOrganizerInfo');
+  }
+
+  const info = userLogin.regionalOrganizerInfo;
+  
+  // Initialize array if it doesn't exist
+  if (!info.allowedMasteredRegionIds) {
+    info.allowedMasteredRegionIds = [];
+  }
+
+  // Check if region already exists
+  const exists = info.allowedMasteredRegionIds.some(
+    id => id.toString() === regionId.toString()
+  );
+
+  if (!exists) {
+    info.allowedMasteredRegionIds.push(regionId);
+  }
+
+  return info;
+}
+
+/**
+ * Remove masteredRegion permission from an organizer
+ * @param {Object} userLogin - UserLogin document to update
+ * @param {String} regionId - MasteredRegion ObjectId to remove
+ * @returns {Object} - Updated regionalOrganizerInfo
+ */
+export function removeOrganizerRegionPermission(userLogin, regionId) {
+  if (!userLogin.regionalOrganizerInfo) {
+    throw new Error('User does not have regionalOrganizerInfo');
+  }
+
+  const info = userLogin.regionalOrganizerInfo;
+  
+  if (info.allowedMasteredRegionIds) {
+    info.allowedMasteredRegionIds = info.allowedMasteredRegionIds.filter(
+      id => id.toString() !== regionId.toString()
+    );
+  }
+
+  return info;
+}
+
+/**
+ * Add masteredRegion permission to an admin
+ * @param {Object} userLogin - UserLogin document to update
+ * @param {String} regionId - MasteredRegion ObjectId to add
+ * @returns {Object} - Updated localAdminInfo
+ */
+export function addAdminRegionPermission(userLogin, regionId) {
+  if (!userLogin.localAdminInfo) {
+    throw new Error('User does not have localAdminInfo');
+  }
+
+  const info = userLogin.localAdminInfo;
+  
+  // Initialize array if it doesn't exist
+  if (!info.allowedAdminMasteredRegionIds) {
+    info.allowedAdminMasteredRegionIds = [];
+  }
+
+  // Check if region already exists
+  const exists = info.allowedAdminMasteredRegionIds.some(
+    id => id.toString() === regionId.toString()
+  );
+
+  if (!exists) {
+    info.allowedAdminMasteredRegionIds.push(regionId);
+  }
+
+  return info;
+}
+
+/**
+ * Remove masteredRegion permission from an admin
+ * @param {Object} userLogin - UserLogin document to update
+ * @param {String} regionId - MasteredRegion ObjectId to remove
+ * @returns {Object} - Updated localAdminInfo
+ */
+export function removeAdminRegionPermission(userLogin, regionId) {
+  if (!userLogin.localAdminInfo) {
+    throw new Error('User does not have localAdminInfo');
+  }
+
+  const info = userLogin.localAdminInfo;
+  
+  if (info.allowedAdminMasteredRegionIds) {
+    info.allowedAdminMasteredRegionIds = info.allowedAdminMasteredRegionIds.filter(
+      id => id.toString() !== regionId.toString()
+    );
+  }
+
+  return info;
+}
+
+/**
+ * Set multiple region permissions at once for an organizer
+ * @param {Object} userLogin - UserLogin document to update
+ * @param {Array} regionIds - Array of MasteredRegion ObjectIds
+ * @returns {Object} - Updated regionalOrganizerInfo
+ */
+export function setOrganizerRegionPermissions(userLogin, regionIds) {
+  if (!userLogin.regionalOrganizerInfo) {
+    throw new Error('User does not have regionalOrganizerInfo');
+  }
+
+  userLogin.regionalOrganizerInfo.allowedMasteredRegionIds = regionIds;
+  return userLogin.regionalOrganizerInfo;
+}
+
+/**
+ * Set multiple region permissions at once for an admin
+ * @param {Object} userLogin - UserLogin document to update
+ * @param {Array} regionIds - Array of MasteredRegion ObjectIds
+ * @returns {Object} - Updated localAdminInfo
+ */
+export function setAdminRegionPermissions(userLogin, regionIds) {
+  if (!userLogin.localAdminInfo) {
+    throw new Error('User does not have localAdminInfo');
+  }
+
+  userLogin.localAdminInfo.allowedAdminMasteredRegionIds = regionIds;
+  return userLogin.localAdminInfo;
+}
