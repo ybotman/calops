@@ -22,6 +22,7 @@ export default function OrganizerCreateForm({ onSubmit, appId = '1' }) {
     isActive: true,
     isApproved: false,
     isEnabled: false,
+    // organizerRegion is now optional in backend
     contactInfo: {
       email: '',
       phone: '',
@@ -142,16 +143,18 @@ export default function OrganizerCreateForm({ onSubmit, appId = '1' }) {
       const submitData = {
         ...formData,
         // Make sure all name fields are consistent
-        name: formData.name,
-        fullName: formData.name || formData.fullName,
-        shortName: formData.shortName || formData.name,
+        name: formData.name.trim(),
+        fullName: formData.fullName.trim() || formData.name.trim(),
+        shortName: formData.shortName.trim(),
         // Ensure boolean fields are explicitly true or false
-        isApproved: formData.isApproved === true ? true : false,
-        isActive: formData.isActive === true ? true : false,
-        isEnabled: formData.isEnabled === true ? true : false
+        isApproved: formData.isApproved === true,
+        isActive: formData.isActive === true,
+        isEnabled: formData.isEnabled === true,
+        // Ensure appId is included
+        appId: formData.appId || appId
       };
       
-      console.log('Submitting organizer data:', submitData);
+      console.log('Submitting organizer data:', JSON.stringify(submitData, null, 2));
       
       // Call the onSubmit function passed as prop
       await onSubmit(submitData);
@@ -200,8 +203,17 @@ export default function OrganizerCreateForm({ onSubmit, appId = '1' }) {
         appId,
       });
     } catch (err) {
-      setError('Failed to create organizer. Please try again.');
       console.error('Error in organizer creation:', err);
+      
+      // Extract error message
+      let errorMessage = 'Failed to create organizer. Please try again.';
+      if (err.response && err.response.data) {
+        errorMessage = err.response.data.error || err.response.data.message || errorMessage;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

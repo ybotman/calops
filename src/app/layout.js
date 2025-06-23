@@ -3,6 +3,7 @@ import { ThemeRegistry } from '@/components/ThemeRegistry';
 import { AuthProvider } from '@/lib/firebase-auth';
 import { AppProvider } from '@/lib/AppContext';
 import './globals.css';
+import '@/styles/mobile-friendly.css';
 
 const inter = Inter({ subsets: ['latin'] });
 

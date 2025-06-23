@@ -1,0 +1,156 @@
+/* Mobile-Friendly Global Styles */
+
+/* Ensure proper touch targets (min 44px for iOS, 48px for Android) */
+.MuiIconButton-root {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.MuiTab-root {
+  min-height: 48px;
+  padding: 12px 16px;
+}
+
+/* Improve scrolling performance */
+.mobile-scroll-container {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
+}
+
+/* Prevent iOS bounce effect on fixed elements */
+.mobile-fixed-container {
+  position: fixed;
+  overflow: hidden;
+  -webkit-overflow-scrolling: auto;
+  overscroll-behavior: none;
+}
+
+/* Tab scrolling on mobile */
+.MuiTabs-scrollable {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* Swipeable tabs container */
+.swipeable-tabs {
+  touch-action: pan-y pinch-zoom;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Modal improvements */
+.mobile-modal {
+  touch-action: manipulation;
+}
+
+.mobile-modal-backdrop {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Drawer handle */
+.drawer-handle {
+  width: 40px;
+  height: 4px;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 2px;
+  margin: 8px auto;
+  cursor: grab;
+  touch-action: none;
+}
+
+.drawer-handle:active {
+  cursor: grabbing;
+  background-color: rgba(0, 0, 0, 0.4);
+}
+
+/* Prevent text selection during swipe */
+.no-select {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* Better touch feedback */
+.touch-ripple {
+  position: relative;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.touch-ripple:active::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: currentColor;
+  opacity: 0.1;
+  pointer-events: none;
+}
+
+/* Responsive table improvements */
+@media (max-width: 600px) {
+  .MuiDataGrid-root {
+    font-size: 0.875rem;
+  }
+  
+  .MuiDataGrid-cell {
+    padding: 8px;
+  }
+  
+  /* Make tables horizontally scrollable */
+  .MuiTableContainer-root {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+}
+
+/* Improve form inputs on mobile */
+@media (max-width: 600px) {
+  .MuiTextField-root {
+    width: 100%;
+  }
+  
+  .MuiInputBase-input {
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+  
+  .MuiButton-root {
+    min-height: 44px;
+    font-size: 1rem;
+  }
+}
+
+/* Safe area insets for modern phones */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0);
+}
+
+/* Improve dialog/modal scrolling */
+.MuiDialog-paper {
+  overscroll-behavior: contain;
+}
+
+.MuiDialog-paperScrollPaper {
+  max-height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+}
+
+/* Drawer improvements */
+.MuiDrawer-paper {
+  overscroll-behavior: contain;
+  touch-action: manipulation;
+}
+
+/* Prevent pull-to-refresh on specific elements */
+.prevent-pull-refresh {
+  overscroll-behavior-y: contain;
+}
