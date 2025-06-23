@@ -11,7 +11,9 @@ import UserTable from './components/UserTable';
 import FirebaseUsersTable from './components/FirebaseUsersTable';
 import AddUserDialog from './components/AddUserDialog';
 import EditUserDialog from './components/EditUserDialog';
+import FirebaseUserDetailsDialog from './components/FirebaseUserDetailsDialog';
 import TabPanel from '@/components/common/TabPanel';
+import SwipeableTabs from '@/components/common/SwipeableTabs';
 import useFirebaseUsers from './hooks/useFirebaseUsers';
 
 /**
@@ -55,6 +57,8 @@ const UsersPage = ({
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [firebaseDetailsOpen, setFirebaseDetailsOpen] = useState(false);
+  const [selectedFirebaseUser, setSelectedFirebaseUser] = useState(null);
   
   // Firebase users hook - only fetch when Firebase tab is active
   const firebaseUsersHook = useFirebaseUsers({
@@ -113,8 +117,8 @@ const UsersPage = ({
 
   // Firebase handlers
   const handleFirebaseViewDetails = (firebaseUser) => {
-    console.log('View Firebase user details:', firebaseUser);
-    // TODO: Implement Firebase user details dialog
+    setSelectedFirebaseUser(firebaseUser);
+    setFirebaseDetailsOpen(true);
   };
 
   const handleCreateUserLogin = (firebaseUser) => {
@@ -146,59 +150,61 @@ const UsersPage = ({
         onSearchChange={setSearchTerm}
       />
       
-      <TabPanel value={tabValue} index={0}>
-        <UserTable
-          users={filteredUsers}
-          loading={loading}
-          onEdit={handleEditUser}
-          onDelete={deleteUser}
-          pagination={pagination}
-          onPaginationChange={handlePaginationChange}
-          error={error}
-          selectedUser={selectedUser}
-        />
-      </TabPanel>
-      
-      <TabPanel value={tabValue} index={1}>
-        <UserTable
-          users={filteredUsers}
-          loading={loading || organizerLoading}
-          onEdit={handleEditUser}
-          onDelete={deleteUser}
-          onCreateOrganizer={createOrganizer}
-          onDeleteOrganizer={deleteOrganizer}
-          pagination={pagination}
-          onPaginationChange={handlePaginationChange}
-          error={error}
-          selectedUser={selectedUser}
-        />
-      </TabPanel>
-      
-      <TabPanel value={tabValue} index={2}>
-        <UserTable
-          users={filteredUsers}
-          loading={loading}
-          onEdit={handleEditUser}
-          onDelete={deleteUser}
-          pagination={pagination}
-          onPaginationChange={handlePaginationChange}
-          error={error}
-          selectedUser={selectedUser}
-        />
-      </TabPanel>
-      
-      <TabPanel value={tabValue} index={3}>
-        <FirebaseUsersTable
-          firebaseUsers={firebaseUsersHook.firebaseUsers}
-          stats={firebaseUsersHook.stats}
-          loading={firebaseUsersHook.loading}
-          error={firebaseUsersHook.error}
-          onRefresh={firebaseUsersHook.refresh}
-          onViewDetails={handleFirebaseViewDetails}
-          onCreateUserLogin={handleCreateUserLogin}
-          filter="all"
-        />
-      </TabPanel>
+      <SwipeableTabs value={tabValue} onChange={handleTabChange}>
+        <TabPanel value={tabValue} index={0}>
+          <UserTable
+            users={filteredUsers}
+            loading={loading}
+            onEdit={handleEditUser}
+            onDelete={deleteUser}
+            pagination={pagination}
+            onPaginationChange={handlePaginationChange}
+            error={error}
+            selectedUser={selectedUser}
+          />
+        </TabPanel>
+        
+        <TabPanel value={tabValue} index={1}>
+          <UserTable
+            users={filteredUsers}
+            loading={loading || organizerLoading}
+            onEdit={handleEditUser}
+            onDelete={deleteUser}
+            onCreateOrganizer={createOrganizer}
+            onDeleteOrganizer={deleteOrganizer}
+            pagination={pagination}
+            onPaginationChange={handlePaginationChange}
+            error={error}
+            selectedUser={selectedUser}
+          />
+        </TabPanel>
+        
+        <TabPanel value={tabValue} index={2}>
+          <UserTable
+            users={filteredUsers}
+            loading={loading}
+            onEdit={handleEditUser}
+            onDelete={deleteUser}
+            pagination={pagination}
+            onPaginationChange={handlePaginationChange}
+            error={error}
+            selectedUser={selectedUser}
+          />
+        </TabPanel>
+        
+        <TabPanel value={tabValue} index={3}>
+          <FirebaseUsersTable
+            firebaseUsers={firebaseUsersHook.firebaseUsers}
+            stats={firebaseUsersHook.stats}
+            loading={firebaseUsersHook.loading}
+            error={firebaseUsersHook.error}
+            onRefresh={firebaseUsersHook.refresh}
+            onViewDetails={handleFirebaseViewDetails}
+            onCreateUserLogin={handleCreateUserLogin}
+            filter="all"
+          />
+        </TabPanel>
+      </SwipeableTabs>
       
       <AddUserDialog
         open={addDialogOpen}
@@ -214,6 +220,12 @@ const UsersPage = ({
         roles={roles}
         onSubmit={handleUpdateUser}
         loading={loading}
+      />
+      
+      <FirebaseUserDetailsDialog
+        open={firebaseDetailsOpen}
+        onClose={() => setFirebaseDetailsOpen(false)}
+        user={selectedFirebaseUser}
       />
     </Box>
   );
