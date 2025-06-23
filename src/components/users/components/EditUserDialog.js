@@ -3,12 +3,12 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import {
-  Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   Button
 } from '@mui/material';
+import MobileDialog from '@/components/common/MobileDialog';
 import UserEditForm from '@/components/users/UserEditForm';
 
 /**
@@ -69,11 +69,11 @@ const EditUserDialog = ({
   };
 
   return (
-    <Dialog 
+    <MobileDialog 
       open={open} 
       onClose={handleClose} 
-      maxWidth="md" 
-      fullWidth
+      title="Edit User"
+      maxWidth="md"
     >
       <DialogTitle>Edit User</DialogTitle>
       <DialogContent>
@@ -92,7 +92,7 @@ const EditUserDialog = ({
           Cancel
         </Button>
       </DialogActions>
-    </Dialog>
+    </MobileDialog>
   );
 };
 

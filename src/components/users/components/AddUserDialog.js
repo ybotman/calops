@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import {
-  Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
@@ -17,6 +16,7 @@ import {
   Box,
   Alert
 } from '@mui/material';
+import MobileDialog from '@/components/common/MobileDialog';
 
 /**
  * AddUserDialog component
@@ -127,11 +127,11 @@ const AddUserDialog = ({ open, onClose, onSubmit, loading = false }) => {
   };
 
   return (
-    <Dialog
+    <MobileDialog
       open={open}
       onClose={handleClose}
+      title="Add New User"
       maxWidth="sm"
-      fullWidth
       PaperProps={{
         component: 'form',
         onSubmit: handleSubmit
@@ -236,7 +236,7 @@ const AddUserDialog = ({ open, onClose, onSubmit, loading = false }) => {
           {loading ? 'Creating...' : 'Create User'}
         </Button>
       </DialogActions>
-    </Dialog>
+    </MobileDialog>
   );
 };
 

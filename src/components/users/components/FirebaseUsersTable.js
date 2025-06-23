@@ -130,7 +130,7 @@ const FirebaseUsersTable = ({
         return (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Typography variant="body2">
-              {user.email || 'No email'}
+              {user.userLoginEmail || getBestEmail(user) || 'No email'}
             </Typography>
             {user.emailVerified && (
               <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main' }} />
