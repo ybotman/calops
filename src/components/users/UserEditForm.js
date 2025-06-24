@@ -477,6 +477,12 @@ const UserEditForm = ({ user, roles, onChange, onSubmit, loading = false }) => {
       <TabPanel value={tabValue} index={4}>
         <Paper sx={{ p: 2 }}>
           <Typography variant="subtitle1" gutterBottom>Local Admin Information</Typography>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            <Typography variant="body2">
+              <strong>Note:</strong> Local Admin settings are currently not being saved due to a backend limitation. 
+              The backend API needs to be updated to handle localAdminInfo updates.
+            </Typography>
+          </Alert>
           <Grid container spacing={2}>
             {/* Admin Status Flags */}
             <Grid item xs={12}>
