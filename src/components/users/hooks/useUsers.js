@@ -457,6 +457,12 @@ const useUsers = (options = {}) => {
         localAdminInfo: userData.localAdminInfo
       };
       
+      // Debug logging for localAdminInfo
+      console.log('Sending update to backend:', userUpdateData);
+      if (userData.localAdminInfo) {
+        console.log('LocalAdminInfo being sent:', JSON.stringify(userData.localAdminInfo, null, 2));
+      }
+      
       // Update user basic information
       await usersApi.updateUser(userUpdateData);
       
@@ -473,6 +479,12 @@ const useUsers = (options = {}) => {
       
       // Find and return the updated user
       const updatedUser = users.find(u => u.firebaseUserId === userData.firebaseUserId);
+      
+      // Debug logging for the returned user
+      if (updatedUser && updatedUser.localAdminInfo) {
+        console.log('LocalAdminInfo after update:', JSON.stringify(updatedUser.localAdminInfo, null, 2));
+      }
+      
       return updatedUser || userData;
     } catch (err) {
       setError(err);
