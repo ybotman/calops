@@ -14,7 +14,8 @@ import {
 } from '@mui/material';
 import LinkIcon from '@mui/icons-material/Link';
 import LinkOffIcon from '@mui/icons-material/LinkOff';
-import { usersApi, organizersApi } from '@/lib/api-client';
+import { usersApi } from '@/lib/api-client';
+import organizersApi from '@/lib/api-client/organizers';
 
 export default function OrganizerConnectUserForm({ organizer, onSubmit }) {
   const [users, setUsers] = useState([]);
