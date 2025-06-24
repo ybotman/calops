@@ -142,7 +142,7 @@ export default function OrganizerConnectUserForm({ organizer, onSubmit }) {
 
   // Handle disconnect
   const handleDisconnect = async () => {
-    if (!window.confirm('Are you sure you want to disconnect the user from this organizer? This will remove their organizer permissions.')) {
+    if (!window.confirm('Are you sure you want to disconnect the user from this organizer?')) {
       return;
     }
 
@@ -150,7 +150,12 @@ export default function OrganizerConnectUserForm({ organizer, onSubmit }) {
     setError('');
     
     try {
-      await organizersApi.disconnectFromUser(organizer._id, organizer.appId);
+      // Simply update the organizer to remove the linked user
+      await organizersApi.updateOrganizer(organizer._id, {
+        linkedUserLogin: null,
+        firebaseUserId: null
+      }, organizer.appId);
+      
       // Call the onSubmit with null to trigger parent refresh
       await onSubmit(null);
       
