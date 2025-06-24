@@ -22,8 +22,9 @@ import DashboardIcon from '@mui/icons-material/Dashboard';
 import PeopleIcon from '@mui/icons-material/People';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import BusinessIcon from '@mui/icons-material/Business';
-import AppsIcon from '@mui/icons-material/Apps';
 import BuildIcon from '@mui/icons-material/Build';
+import MenuBookIcon from '@mui/icons-material/MenuBook';
+import AppsIcon from '@mui/icons-material/Apps';
 import EventIcon from '@mui/icons-material/Event';
 import SupervisorAccountIcon from '@mui/icons-material/SupervisorAccount';
 import PlaceIcon from '@mui/icons-material/Place';
@@ -37,7 +38,7 @@ const mainNavItems = [
   { name: 'Venues', icon: <BusinessIcon />, href: '/dashboard/venues' },
   { name: 'Geo Hierarchy', icon: <LocationOnIcon />, href: '/dashboard/geo-hierarchy' },
   { name: 'Events', icon: <EventIcon />, href: '/dashboard/events' },
-  { name: 'Applications', icon: <AppsIcon />, href: '/dashboard/applications' },
+  { name: 'Admin Guide', icon: <MenuBookIcon />, href: '/dashboard/admin-guide' },
 ];
 
 const drawerWidth = 240;
