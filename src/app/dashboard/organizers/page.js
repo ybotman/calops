@@ -65,7 +65,7 @@ export default function OrganizersPage() {
   const [connectDialogOpen, setConnectDialogOpen] = useState(false);
   
   // New filter states
-  const [filterEnabled, setFilterEnabled] = useState('all'); // 'all', 'enabled', 'disabled'
+  const [filterEnabled, setFilterEnabled] = useState('enabled'); // 'all', 'enabled', 'disabled'
   const [selectedCityId, setSelectedCityId] = useState('');
   const [selectedDivisionId, setSelectedDivisionId] = useState('');
   const [cities, setCities] = useState([]);
