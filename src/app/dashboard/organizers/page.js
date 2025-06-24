@@ -65,7 +65,7 @@ export default function OrganizersPage() {
   const [connectDialogOpen, setConnectDialogOpen] = useState(false);
   
   // New filter states
-  const [filterEnabled, setFilterEnabled] = useState('all'); // 'all', 'enabled', 'disabled'
+  const [filterEnabled, setFilterEnabled] = useState('enabled'); // 'all', 'enabled', 'disabled'
   const [selectedCityId, setSelectedCityId] = useState('');
   const [selectedDivisionId, setSelectedDivisionId] = useState('');
   const [cities, setCities] = useState([]);
@@ -611,22 +611,36 @@ export default function OrganizersPage() {
     try {
       setLoading(true);
       
-      console.log('Connecting organizer to user:', { organizerId, firebaseUserId });
-      
-      // Connect organizer to user
-      await organizersApi.connectToUser(organizerId, firebaseUserId, currentApp.id);
-      
-      // Refresh all organizers data
-      await refreshOrganizersData();
-      setConnectDialogOpen(false);
-      setConnectingOrganizer(null);
-      setLoading(false);
-      
-      // Show success message
-      alert('Organizer connected to user successfully!');
+      // Check if this is a disconnect (null firebaseUserId)
+      if (firebaseUserId === null) {
+        console.log('Disconnecting user from organizer:', { organizerId });
+        // The disconnect is already handled by OrganizerConnectUserForm
+        // Just refresh the data
+        await refreshOrganizersData();
+        setConnectDialogOpen(false);
+        setConnectingOrganizer(null);
+        setLoading(false);
+        
+        // Show success message
+        alert('User disconnected from organizer successfully!');
+      } else {
+        console.log('Connecting organizer to user:', { organizerId, firebaseUserId });
+        
+        // Connect organizer to user
+        await organizersApi.connectToUser(organizerId, firebaseUserId, currentApp.id);
+        
+        // Refresh all organizers data
+        await refreshOrganizersData();
+        setConnectDialogOpen(false);
+        setConnectingOrganizer(null);
+        setLoading(false);
+        
+        // Show success message
+        alert('Organizer connected to user successfully!');
+      }
     } catch (error) {
-      console.error('Error connecting organizer to user:', error);
-      alert(`Error connecting organizer to user: ${error.message}`);
+      console.error('Error connecting/disconnecting organizer:', error);
+      alert(`Error: ${error.message}`);
       setLoading(false);
     }
   };

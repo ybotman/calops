@@ -80,6 +80,7 @@ const UserEditForm = ({ user, roles, onChange, onSubmit, loading = false }) => {
   // Handle toggle change
   const handleToggleChange = (fieldPath) => (event) => {
     if (typeof onChange === 'function') {
+      console.log(`Toggle change: ${fieldPath} = ${event.target.checked}`);
       onChange(fieldPath, event.target.checked);
     } else {
       console.error('onChange prop is not a function or is not provided');
@@ -92,6 +93,7 @@ const UserEditForm = ({ user, roles, onChange, onSubmit, loading = false }) => {
     const { name, value } = e.target;
     
     if (typeof onChange === 'function') {
+      console.log(`Text change: ${name} = ${value}`);
       onChange(name, value);
     } else {
       console.error('onChange prop is not a function or is not provided');
@@ -170,7 +172,6 @@ const UserEditForm = ({ user, roles, onChange, onSubmit, loading = false }) => {
         <Tab label="Local User Info" id="user-edit-tab-2" />
         <Tab label="Regional Organizer" id="user-edit-tab-3" />
         <Tab label="Local Admin" id="user-edit-tab-4" />
-        <Tab label="Advanced" id="user-edit-tab-5" />
       </Tabs>
 
       {/* Roles Tab */}
@@ -476,6 +477,12 @@ const UserEditForm = ({ user, roles, onChange, onSubmit, loading = false }) => {
       <TabPanel value={tabValue} index={4}>
         <Paper sx={{ p: 2 }}>
           <Typography variant="subtitle1" gutterBottom>Local Admin Information</Typography>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            <Typography variant="body2">
+              <strong>Note:</strong> Local Admin settings are currently not being saved due to a backend limitation. 
+              The backend API needs to be updated to handle localAdminInfo updates.
+            </Typography>
+          </Alert>
           <Grid container spacing={2}>
             {/* Admin Status Flags */}
             <Grid item xs={12}>
@@ -569,54 +576,59 @@ const UserEditForm = ({ user, roles, onChange, onSubmit, loading = false }) => {
                 size="small"
               />
             </Grid>
+            
+            {/* User Communication Settings */}
+            <Grid item xs={12}>
+              <Divider sx={{ my: 2 }} />
+              <Typography variant="subtitle2" gutterBottom>Communication Settings</Typography>
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <FormControlLabel
+                control={
+                  <Switch 
+                    checked={getNestedValue(user, 'localAdminInfo.userCommunicationSettings.wantFestivalMessages', false)}
+                    onChange={handleToggleChange('localAdminInfo.userCommunicationSettings.wantFestivalMessages')}
+                    color="primary"
+                  />
+                }
+                label="Want Festival Messages"
+              />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <FormControlLabel
+                control={
+                  <Switch 
+                    checked={getNestedValue(user, 'localAdminInfo.userCommunicationSettings.wantWorkshopMessages', false)}
+                    onChange={handleToggleChange('localAdminInfo.userCommunicationSettings.wantWorkshopMessages')}
+                    color="primary"
+                  />
+                }
+                label="Want Workshop Messages"
+              />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField
+                select
+                fullWidth
+                label="Message Primary Method"
+                name="localAdminInfo.userCommunicationSettings.messagePrimaryMethod"
+                value={getNestedValue(user, 'localAdminInfo.userCommunicationSettings.messagePrimaryMethod', 'app')}
+                onChange={handleTextChange}
+                SelectProps={{
+                  native: true,
+                }}
+                size="small"
+              >
+                <option value="app">App</option>
+                <option value="text">Text</option>
+                <option value="email">Email</option>
+                <option value="social">Social</option>
+              </TextField>
+            </Grid>
           </Grid>
         </Paper>
       </TabPanel>
 
-      {/* Advanced Tab */}
-      <TabPanel value={tabValue} index={5}>
-        <Paper sx={{ p: 2 }}>
-          <Typography variant="subtitle1" gutterBottom>Advanced Settings</Typography>
-          <Divider sx={{ my: 1 }} />
-          
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Box>
-              <Typography variant="subtitle2" gutterBottom>App ID</Typography>
-              <TextField
-                fullWidth
-                size="small"
-                name="appId"
-                value={user.appId || '1'}
-                onChange={handleTextChange}
-                disabled
-                helperText="Application identifier (read-only)"
-              />
-            </Box>
-            
-            <Box>
-              <Typography variant="subtitle2" gutterBottom>Creation Date</Typography>
-              <TextField
-                fullWidth
-                size="small"
-                value={user.createdAt ? new Date(user.createdAt).toLocaleString() : 'Unknown'}
-                disabled
-                helperText="Date when this user was created"
-              />
-            </Box>
-            
-            <Box>
-              <Typography variant="subtitle2" gutterBottom>Last Updated</Typography>
-              <TextField
-                fullWidth
-                size="small"
-                value={user.updatedAt ? new Date(user.updatedAt).toLocaleString() : 'Unknown'}
-                disabled
-                helperText="Date when this user was last updated"
-              />
-            </Box>
-          </Box>
-        </Paper>
-      </TabPanel>
 
       {/* Save button */}
       <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
