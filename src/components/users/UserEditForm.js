@@ -80,6 +80,7 @@ const UserEditForm = ({ user, roles, onChange, onSubmit, loading = false }) => {
   // Handle toggle change
   const handleToggleChange = (fieldPath) => (event) => {
     if (typeof onChange === 'function') {
+      console.log(`Toggle change: ${fieldPath} = ${event.target.checked}`);
       onChange(fieldPath, event.target.checked);
     } else {
       console.error('onChange prop is not a function or is not provided');
@@ -92,6 +93,7 @@ const UserEditForm = ({ user, roles, onChange, onSubmit, loading = false }) => {
     const { name, value } = e.target;
     
     if (typeof onChange === 'function') {
+      console.log(`Text change: ${name} = ${value}`);
       onChange(name, value);
     } else {
       console.error('onChange prop is not a function or is not provided');
