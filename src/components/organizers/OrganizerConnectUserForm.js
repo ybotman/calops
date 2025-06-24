@@ -13,7 +13,8 @@ import {
   Alert,
 } from '@mui/material';
 import LinkIcon from '@mui/icons-material/Link';
-import { usersApi } from '@/lib/api-client';
+import LinkOffIcon from '@mui/icons-material/LinkOff';
+import { usersApi, organizersApi } from '@/lib/api-client';
 
 export default function OrganizerConnectUserForm({ organizer, onSubmit }) {
   const [users, setUsers] = useState([]);
@@ -34,15 +35,22 @@ export default function OrganizerConnectUserForm({ organizer, onSubmit }) {
         const userData = await usersApi.getUsers(organizer.appId, true);
         setUsers(userData);
         
-        // If organizer has a linked user, load their alternate Firebase IDs
+        // If organizer has a linked user, load their alternate Firebase IDs and set as selected
         if (organizer.linkedUserLogin) {
           const linkedUser = userData.find(u => u._id === organizer.linkedUserLogin);
-          if (linkedUser && linkedUser.alternateFirebaseUserIds?.length > 0) {
-            // Find users matching the alternate Firebase IDs
-            const altUsers = userData.filter(u => 
-              linkedUser.alternateFirebaseUserIds.includes(u.firebaseUserId)
-            );
-            setAlternateUsers(altUsers);
+          if (linkedUser) {
+            // Set the linked user as selected
+            setSelectedUser(linkedUser);
+            setSelectedUserId(linkedUser.firebaseUserId);
+            
+            // Load alternate users if they exist
+            if (linkedUser.alternateFirebaseUserIds?.length > 0) {
+              // Find users matching the alternate Firebase IDs
+              const altUsers = userData.filter(u => 
+                linkedUser.alternateFirebaseUserIds.includes(u.firebaseUserId)
+              );
+              setAlternateUsers(altUsers);
+            }
           }
         }
         
@@ -126,6 +134,32 @@ export default function OrganizerConnectUserForm({ organizer, onSubmit }) {
     } catch (err) {
       setError('Failed to connect user to organizer. Please try again.');
       console.error('Error connecting user to organizer:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle disconnect
+  const handleDisconnect = async () => {
+    if (!window.confirm('Are you sure you want to disconnect the user from this organizer? This will remove their organizer permissions.')) {
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    
+    try {
+      await organizersApi.disconnectFromUser(organizer._id, organizer.appId);
+      // Call the onSubmit with null to trigger parent refresh
+      await onSubmit(null);
+      
+      // Clear the form
+      setSelectedUserId('');
+      setSelectedUser(null);
+      setAlternateUsers([]);
+    } catch (err) {
+      setError('Failed to disconnect user from organizer. Please try again.');
+      console.error('Error disconnecting user from organizer:', err);
     } finally {
       setLoading(false);
     }
@@ -370,16 +404,31 @@ export default function OrganizerConnectUserForm({ organizer, onSubmit }) {
         </Grid>
       </Box>
       
-      <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
-        <Button 
-          type="submit" 
-          variant="contained" 
-          color="primary" 
-          disabled={loading || !selectedUserId}
-          startIcon={<LinkIcon />}
-        >
-          {loading ? 'Connecting...' : 'Connect User'}
-        </Button>
+      <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between' }}>
+        {/* Show disconnect button if organizer already has a linked user */}
+        {organizer.linkedUserLogin && (
+          <Button 
+            variant="outlined" 
+            color="error" 
+            disabled={loading}
+            startIcon={<LinkOffIcon />}
+            onClick={handleDisconnect}
+          >
+            {loading ? 'Disconnecting...' : 'Disconnect User'}
+          </Button>
+        )}
+        
+        <Box sx={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
+          <Button 
+            type="submit" 
+            variant="contained" 
+            color="primary" 
+            disabled={loading || !selectedUserId}
+            startIcon={<LinkIcon />}
+          >
+            {loading ? 'Connecting...' : 'Connect User'}
+          </Button>
+        </Box>
       </Box>
     </Box>
   );
