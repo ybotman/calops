@@ -23,7 +23,7 @@ const ActionButtons = ({
   // Handler for delete with optional confirmation
   const handleDelete = () => {
     if (!showConfirmation || window.confirm(`Are you sure you want to delete ${user.displayName}?`)) {
-      onDelete(user);
+      onDelete(user._id || user.id);
     }
   };
   
