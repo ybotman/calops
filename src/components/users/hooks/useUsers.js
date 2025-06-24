@@ -454,6 +454,8 @@ const useUsers = (options = {}) => {
         active: userData.active,
         localUserInfo: userData.localUserInfo,
         regionalOrganizerInfo: userData.regionalOrganizerInfo,
+        // TODO: Backend doesn't handle localAdminInfo in updateUserInfo endpoint
+        // This is a known issue - the backend needs to be updated to process localAdminInfo
         localAdminInfo: userData.localAdminInfo
       };
       
