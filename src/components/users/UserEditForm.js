@@ -568,6 +568,55 @@ const UserEditForm = ({ user, roles, onChange, onSubmit, loading = false }) => {
                 size="small"
               />
             </Grid>
+            
+            {/* User Communication Settings */}
+            <Grid item xs={12}>
+              <Divider sx={{ my: 2 }} />
+              <Typography variant="subtitle2" gutterBottom>Communication Settings</Typography>
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <FormControlLabel
+                control={
+                  <Switch 
+                    checked={getNestedValue(user, 'localAdminInfo.userCommunicationSettings.wantFestivalMessages', false)}
+                    onChange={handleToggleChange('localAdminInfo.userCommunicationSettings.wantFestivalMessages')}
+                    color="primary"
+                  />
+                }
+                label="Want Festival Messages"
+              />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <FormControlLabel
+                control={
+                  <Switch 
+                    checked={getNestedValue(user, 'localAdminInfo.userCommunicationSettings.wantWorkshopMessages', false)}
+                    onChange={handleToggleChange('localAdminInfo.userCommunicationSettings.wantWorkshopMessages')}
+                    color="primary"
+                  />
+                }
+                label="Want Workshop Messages"
+              />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField
+                select
+                fullWidth
+                label="Message Primary Method"
+                name="localAdminInfo.userCommunicationSettings.messagePrimaryMethod"
+                value={getNestedValue(user, 'localAdminInfo.userCommunicationSettings.messagePrimaryMethod', 'app')}
+                onChange={handleTextChange}
+                SelectProps={{
+                  native: true,
+                }}
+                size="small"
+              >
+                <option value="app">App</option>
+                <option value="text">Text</option>
+                <option value="email">Email</option>
+                <option value="social">Social</option>
+              </TextField>
+            </Grid>
           </Grid>
         </Paper>
       </TabPanel>
