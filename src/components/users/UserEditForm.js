@@ -170,7 +170,6 @@ const UserEditForm = ({ user, roles, onChange, onSubmit, loading = false }) => {
         <Tab label="Local User Info" id="user-edit-tab-2" />
         <Tab label="Regional Organizer" id="user-edit-tab-3" />
         <Tab label="Local Admin" id="user-edit-tab-4" />
-        <Tab label="Advanced" id="user-edit-tab-5" />
       </Tabs>
 
       {/* Roles Tab */}
@@ -573,50 +572,6 @@ const UserEditForm = ({ user, roles, onChange, onSubmit, loading = false }) => {
         </Paper>
       </TabPanel>
 
-      {/* Advanced Tab */}
-      <TabPanel value={tabValue} index={5}>
-        <Paper sx={{ p: 2 }}>
-          <Typography variant="subtitle1" gutterBottom>Advanced Settings</Typography>
-          <Divider sx={{ my: 1 }} />
-          
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Box>
-              <Typography variant="subtitle2" gutterBottom>App ID</Typography>
-              <TextField
-                fullWidth
-                size="small"
-                name="appId"
-                value={user.appId || '1'}
-                onChange={handleTextChange}
-                disabled
-                helperText="Application identifier (read-only)"
-              />
-            </Box>
-            
-            <Box>
-              <Typography variant="subtitle2" gutterBottom>Creation Date</Typography>
-              <TextField
-                fullWidth
-                size="small"
-                value={user.createdAt ? new Date(user.createdAt).toLocaleString() : 'Unknown'}
-                disabled
-                helperText="Date when this user was created"
-              />
-            </Box>
-            
-            <Box>
-              <Typography variant="subtitle2" gutterBottom>Last Updated</Typography>
-              <TextField
-                fullWidth
-                size="small"
-                value={user.updatedAt ? new Date(user.updatedAt).toLocaleString() : 'Unknown'}
-                disabled
-                helperText="Date when this user was last updated"
-              />
-            </Box>
-          </Box>
-        </Paper>
-      </TabPanel>
 
       {/* Save button */}
       <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
