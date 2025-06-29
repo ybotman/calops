@@ -53,7 +53,7 @@ export default function VenuesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [pagination, setPagination] = useState({
     page: 0,
-    pageSize: 10,
+    pageSize: 25,
     total: 0,
   });
   const { currentApp } = useAppContext();
@@ -987,21 +987,24 @@ export default function VenuesPage() {
 
   // Define columns for DataGrid
   const columns = [
-    { field: 'name', headerName: 'Venue Name', flex: 1.5 },
+    { field: 'name', headerName: 'Venue Name', flex: 1.2, minWidth: 150 },
     { 
       field: 'address1', 
       headerName: 'Address', 
-      flex: 1.5
+      flex: 1.2,
+      minWidth: 150
     },
     {
       field: 'city',
       headerName: 'City',
-      flex: 1
+      flex: 0.8,
+      minWidth: 100
     },
     { 
       field: 'masteredCityName', 
       headerName: 'Mastered City', 
-      flex: 1,
+      flex: 0.8,
+      minWidth: 100,
       valueGetter: (params) => {
         // The masteredCityName field is already prepared in the row transformation
         return params.row?.masteredCityName || 'None';
@@ -1010,7 +1013,7 @@ export default function VenuesPage() {
     { 
       field: 'actions', 
       headerName: 'Actions', 
-      width: 200,
+      width: 150,
       renderCell: (params) => {
         // Make sure params.row is defined before using it
         if (!params.row) {
@@ -1018,13 +1021,12 @@ export default function VenuesPage() {
         }
         
         return (
-          <Box>
+          <Box sx={{ display: 'flex', gap: 0.5 }}>
             <Button
               variant="text"
               color="primary"
               onClick={() => handleEditVenue(params.row)}
-              startIcon={<EditIcon />}
-              sx={{ mr: 1 }}
+              sx={{ minWidth: 50, fontSize: '0.75rem', py: 0.25, px: 1 }}
               size="small"
             >
               Edit
@@ -1033,7 +1035,7 @@ export default function VenuesPage() {
               variant="text"
               color="error"
               onClick={() => handleDeleteVenue(params.row)}
-              startIcon={<DeleteIcon />}
+              sx={{ minWidth: 50, fontSize: '0.75rem', py: 0.25, px: 1 }}
               size="small"
             >
               Delete
@@ -1165,7 +1167,7 @@ export default function VenuesPage() {
         </Alert>
       )}
       
-      <Paper sx={{ height: 600, width: '100%' }}>
+      <Paper sx={{ height: 800, width: '100%' }}>
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
             <CircularProgress />
@@ -1240,12 +1242,21 @@ export default function VenuesPage() {
             page={pagination.page}
             onPageChange={handlePageChange}
             onPageSizeChange={handlePageSizeChange}
-            rowsPerPageOptions={[10, 25, 50]}
+            rowsPerPageOptions={[25, 50, 100]}
             disableSelectionOnClick
-            density="standard"
+            density="compact"
+            getRowHeight={() => 36}
+            sx={{
+              '& .MuiDataGrid-cell': {
+                py: 0.5,
+              },
+              '& .MuiDataGrid-row': {
+                minHeight: '36px !important',
+              },
+            }}
             initialState={{
               pagination: {
-                pageSize: pagination.pageSize,
+                pageSize: 25,
               },
             }}
           />
