@@ -36,6 +36,8 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import SearchIcon from '@mui/icons-material/Search';
@@ -74,6 +76,7 @@ export default function VenuesPage() {
     masteredRegionId: '',
     masteredCountryId: '',
     isActive: false,
+    isApproved: false,
   });
   const [editMode, setEditMode] = useState(false);
   const [selectedVenueId, setSelectedVenueId] = useState(null);
@@ -102,11 +105,23 @@ export default function VenuesPage() {
   const [importProgress, setImportProgress] = useState(0);
   const [importResults, setImportResults] = useState({ success: 0, error: 0, skipped: 0 });
   const [fetchingBTCVenues, setFetchingBTCVenues] = useState(false);
+  
+  // Tab state for approved/not approved
+  const [tabValue, setTabValue] = useState(0);
+  
+  // Venue filtering dropdowns
+  const [filterDivision, setFilterDivision] = useState('');
+  const [filterCity, setFilterCity] = useState('');
 
   // Fetch venues on component mount and when app changes
   useEffect(() => {
     fetchVenues();
-  }, [currentApp.id, pagination.page, pagination.pageSize, searchTerm]);
+  }, [currentApp.id, pagination.page, pagination.pageSize, searchTerm, filterDivision, filterCity, tabValue]);
+  
+  // Fetch geo hierarchy for filters on mount
+  useEffect(() => {
+    fetchGeoHierarchy();
+  }, [currentApp.id]);
 
   const fetchVenues = async () => {
     try {
@@ -122,14 +137,29 @@ export default function VenuesPage() {
         console.error('Error checking venues debug endpoint:', debugError);
       }
       
-      const response = await axios.get('/api/venues', {
-        params: {
-          appId: currentApp.id,
-          page: pagination.page + 1,
-          limit: pagination.pageSize,
-          search: searchTerm,
-        }
-      });
+      const params = {
+        appId: currentApp.id,
+        page: pagination.page + 1,
+        limit: pagination.pageSize,
+        search: searchTerm,
+      };
+      
+      // Add filters
+      if (filterDivision) {
+        params.masteredDivisionId = filterDivision;
+      }
+      if (filterCity) {
+        params.masteredCityId = filterCity;
+      }
+      
+      // Add approved filter based on tab
+      if (tabValue === 1) {
+        params.isApproved = true;
+      } else if (tabValue === 2) {
+        params.isApproved = false;
+      }
+      
+      const response = await axios.get('/api/venues', { params });
       
       if (response.data && response.data.data) {
         // Process venues to ensure masteredCityName is correctly populated
@@ -245,6 +275,7 @@ export default function VenuesPage() {
       masteredRegionId: '',
       masteredCountryId: '',
       isActive: false,
+      isApproved: false,
     });
     setNearestCities([]);
     setFormErrors({});
@@ -316,6 +347,7 @@ export default function VenuesPage() {
       masteredCountryId: 
         (typeof completeVenue.masteredCountryId === 'object' ? completeVenue.masteredCountryId?._id : completeVenue.masteredCountryId) || '',
       isActive: completeVenue.isActive || false,
+      isApproved: completeVenue.isApproved || false,
     };
     
     setVenueForm(formData);
@@ -976,25 +1008,6 @@ export default function VenuesPage() {
       }
     },
     { 
-      field: 'isActive', 
-      headerName: 'Status', 
-      width: 120,
-      type: 'boolean',
-      renderCell: (params) => {
-        // Simple boolean check avoiding params.value/row complexity
-        if (!params) return <Chip label="Unknown" size="small" />;
-        
-        const isActive = Boolean(params.row?.isActive);
-        return (
-          <Chip 
-            label={isActive ? 'Active' : 'Inactive'} 
-            color={isActive ? 'success' : 'default'}
-            size="small"
-          />
-        );
-      }
-    },
-    { 
       field: 'actions', 
       headerName: 'Actions', 
       width: 200,
@@ -1063,21 +1076,79 @@ export default function VenuesPage() {
         </Box>
       </Box>
       
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-        <TextField
-          placeholder="Search venues..."
-          value={searchTerm}
-          onChange={handleSearchChange}
-          variant="outlined"
-          size="small"
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon />
-              </InputAdornment>
-            ),
-          }}
-        />
+      <Box sx={{ mb: 2 }}>
+        <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)} sx={{ mb: 2 }}>
+          <Tab label="All Venues" />
+          <Tab label="Approved" />
+          <Tab label="Not Approved" />
+        </Tabs>
+        
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+          {/* Division Filter */}
+          <FormControl size="small" sx={{ minWidth: 200 }}>
+            <InputLabel>Filter by Division</InputLabel>
+            <Select
+              value={filterDivision}
+              onChange={(e) => {
+                setFilterDivision(e.target.value);
+                setFilterCity(''); // Reset city when division changes
+              }}
+              label="Filter by Division"
+            >
+              <MenuItem value="">
+                <em>All Divisions</em>
+              </MenuItem>
+              {divisions.map(division => (
+                <MenuItem key={division._id} value={division._id}>
+                  {division.divisionName}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          
+          {/* City Filter - only show if division is selected */}
+          {filterDivision && (
+            <FormControl size="small" sx={{ minWidth: 200 }}>
+              <InputLabel>Filter by City</InputLabel>
+              <Select
+                value={filterCity}
+                onChange={(e) => setFilterCity(e.target.value)}
+                label="Filter by City"
+              >
+                <MenuItem value="">
+                  <em>All Cities</em>
+                </MenuItem>
+                {cities
+                  .filter(city => 
+                    city.masteredDivisionId?._id === filterDivision ||
+                    city.masteredDivisionId === filterDivision
+                  )
+                  .map(city => (
+                    <MenuItem key={city._id} value={city._id}>
+                      {city.cityName}
+                    </MenuItem>
+                  ))}
+              </Select>
+            </FormControl>
+          )}
+          
+          {/* Search field */}
+          <TextField
+            placeholder="Search venues..."
+            value={searchTerm}
+            onChange={handleSearchChange}
+            variant="outlined"
+            size="small"
+            sx={{ flexGrow: 1, maxWidth: 300 }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            }}
+          />
+        </Box>
       </Box>
       
       {error && (
@@ -1156,6 +1227,7 @@ export default function VenuesPage() {
                 state: safeVenue.state || '',
                 zip: safeVenue.zip || '',
                 isActive: Boolean(safeVenue.isActive),
+                isApproved: Boolean(safeVenue.isApproved),
                 masteredCityId: safeVenue.masteredCityId || null,
                 masteredCityName: masteredCityName,
               };
@@ -1512,17 +1584,34 @@ export default function VenuesPage() {
               </Grid>
               
               <Grid item xs={12}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={venueForm.isActive}
-                      onChange={handleFormChange}
-                      name="isActive"
-                      color="primary"
-                    />
-                  }
-                  label="Active"
-                />
+                <Divider sx={{ my: 2 }} />
+                <Typography variant="subtitle1" gutterBottom>
+                  Venue Status
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 3 }}>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={venueForm.isActive}
+                        onChange={handleFormChange}
+                        name="isActive"
+                        color="primary"
+                      />
+                    }
+                    label="Active"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={venueForm.isApproved}
+                        onChange={handleFormChange}
+                        name="isApproved"
+                        color="primary"
+                      />
+                    }
+                    label="Approved"
+                  />
+                </Box>
               </Grid>
             </Grid>
           </Box>
