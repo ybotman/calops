@@ -278,11 +278,11 @@ const useGeoHierarchy = (options = {}) => {
           // Fetch the needed entity to get its parent IDs
           let parentResponse;
           if (params.cityId) {
-            parentResponse = await axios.get(`/api/mastered-locations/cities/${params.cityId}?appId=${appId}`);
+            parentResponse = await axios.get(`/api/masteredLocations/cities/${params.cityId}?appId=${appId}`);
           } else if (params.divisionId) {
-            parentResponse = await axios.get(`/api/mastered-locations/divisions/${params.divisionId}?appId=${appId}`);
+            parentResponse = await axios.get(`/api/masteredLocations/divisions/${params.divisionId}?appId=${appId}`);
           } else if (params.regionId) {
-            parentResponse = await axios.get(`/api/mastered-locations/regions/${params.regionId}?appId=${appId}`);
+            parentResponse = await axios.get(`/api/masteredLocations/regions/${params.regionId}?appId=${appId}`);
           }
           
           // Extract parent IDs from response
@@ -420,7 +420,7 @@ const useGeoHierarchy = (options = {}) => {
     if (!cityId) return null;
     
     try {
-      const response = await axios.get(`/api/mastered-locations/cities/${cityId}?appId=${appId}`);
+      const response = await axios.get(`/api/masteredLocations/cities/${cityId}?appId=${appId}`);
       
       if (response.data && response.data.coordinates) {
         return response.data.coordinates;
