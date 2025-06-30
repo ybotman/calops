@@ -123,10 +123,13 @@ const venuesApi = {
    * @returns {Promise<Object>} Created venue
    */
   createVenue: async (venueData) => {
+    console.log('[venuesApi] createVenue called with data:', venueData);
     try {
       const response = await axios.post(`/api/venues`, venueData);
+      console.log('[venuesApi] createVenue response:', response.data);
       return processResponse(response);
     } catch (error) {
+      console.error('[venuesApi] createVenue error:', error.response?.data || error.message);
       return handleApiError(error, {
         context: 'venuesApi.createVenue'
       });
@@ -140,6 +143,7 @@ const venuesApi = {
    * @returns {Promise<Object>} Updated venue
    */
   updateVenue: async (venueId, venueData) => {
+    console.log('[venuesApi] updateVenue called with id:', venueId, 'data:', venueData);
     try {
       // Extract appId and ensure it's included in the request
       const { appId = '1', ...data } = venueData;
@@ -150,9 +154,14 @@ const venuesApi = {
         appId
       };
       
+      console.log('[venuesApi] updateVenue request URL:', `/api/venues/${venueId}?appId=${appId}`);
+      console.log('[venuesApi] updateVenue payload:', payload);
+      
       const response = await axios.put(`/api/venues/${venueId}?appId=${appId}`, payload);
+      console.log('[venuesApi] updateVenue response:', response.data);
       return processResponse(response);
     } catch (error) {
+      console.error('[venuesApi] updateVenue error:', error.response?.data || error.message);
       return handleApiError(error, {
         context: 'venuesApi.updateVenue'
       });

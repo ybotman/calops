@@ -123,18 +123,22 @@ const VenuesPage = ({
   };
   
   const handleSaveVenue = async (venueData) => {
+    console.log('[VenuesPage] handleSaveVenue called with data:', venueData);
     try {
       if (editingVenue) {
         // Update existing venue
+        console.log('[VenuesPage] Updating venue:', editingVenue._id || editingVenue.id);
         await updateVenue(venueData);
       } else {
         // Create new venue
+        console.log('[VenuesPage] Creating new venue');
         await createVenue(venueData);
       }
+      console.log('[VenuesPage] Save successful, closing dialog');
       setDialogOpen(false);
       setEditingVenue(null);
     } catch (error) {
-      console.error('Error saving venue:', error);
+      console.error('[VenuesPage] Error saving venue:', error);
       alert(`Failed to save venue: ${error.message}`);
     }
   };

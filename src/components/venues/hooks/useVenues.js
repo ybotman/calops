@@ -312,6 +312,7 @@ const useVenues = (options = {}) => {
    * @returns {Promise<Object>} Created venue
    */
   const createVenue = useCallback(async (venueData) => {
+    console.log('[useVenues] createVenue called with data:', venueData);
     try {
       setLoading(true);
       setError(null);
@@ -322,14 +323,19 @@ const useVenues = (options = {}) => {
         appId: venueData.appId || appId
       };
       
+      console.log('[useVenues] Creating venue with appId:', venueDataWithAppId.appId);
+      
       // Create venue using API client
       const createdVenue = await venuesApi.createVenue(venueDataWithAppId);
+      
+      console.log('[useVenues] Venue created:', createdVenue);
       
       // Refresh venues list
       await fetchVenues(true);
       
       return createdVenue;
     } catch (err) {
+      console.error('[useVenues] createVenue error:', err);
       setError(err);
       throw err;
     } finally {
@@ -343,6 +349,7 @@ const useVenues = (options = {}) => {
    * @returns {Promise<Object>} Updated venue
    */
   const updateVenue = useCallback(async (venueData) => {
+    console.log('[useVenues] updateVenue called with data:', venueData);
     try {
       setLoading(true);
       setError(null);
@@ -354,17 +361,22 @@ const useVenues = (options = {}) => {
         throw new Error('Venue ID is required for update');
       }
       
+      console.log('[useVenues] Updating venue id:', venueId, 'with appId:', data.appId || appId);
+      
       // Update venue using API client
       const updatedVenue = await venuesApi.updateVenue(venueId, {
         ...data,
         appId: data.appId || appId
       });
       
+      console.log('[useVenues] Venue updated:', updatedVenue);
+      
       // Refresh venues list
       await fetchVenues(true);
       
       return updatedVenue;
     } catch (err) {
+      console.error('[useVenues] updateVenue error:', err);
       setError(err);
       throw err;
     } finally {
