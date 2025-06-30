@@ -111,7 +111,7 @@ export default function UserGuide() {
 
           <Box>
             <Typography variant="subtitle1" fontWeight="bold">
-              4. Local Admin Info
+              4. Regional Admin Info
             </Typography>
             <Typography variant="body2" color="text.secondary" paragraph>
               Administrative permissions:

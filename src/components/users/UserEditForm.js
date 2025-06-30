@@ -171,7 +171,7 @@ const UserEditForm = ({ user, roles, onChange, onSubmit, loading = false }) => {
         <Tab label="Firebase Info" id="user-edit-tab-1" />
         <Tab label="Local User Info" id="user-edit-tab-2" />
         <Tab label="Regional Organizer" id="user-edit-tab-3" />
-        <Tab label="Local Admin" id="user-edit-tab-4" />
+        <Tab label="Regional Admin" id="user-edit-tab-4" />
       </Tabs>
 
       {/* Roles Tab */}
@@ -473,16 +473,10 @@ const UserEditForm = ({ user, roles, onChange, onSubmit, loading = false }) => {
         </Paper>
       </TabPanel>
 
-      {/* Local Admin Tab */}
+      {/* Regional Admin Tab */}
       <TabPanel value={tabValue} index={4}>
         <Paper sx={{ p: 2 }}>
-          <Typography variant="subtitle1" gutterBottom>Local Admin Information</Typography>
-          <Alert severity="warning" sx={{ mb: 2 }}>
-            <Typography variant="body2">
-              <strong>Note:</strong> Local Admin settings are currently not being saved due to a backend limitation. 
-              The backend API needs to be updated to handle localAdminInfo updates.
-            </Typography>
-          </Alert>
+          <Typography variant="subtitle1" gutterBottom>Regional Admin Information</Typography>
           <Grid container spacing={2}>
             {/* Admin Status Flags */}
             <Grid item xs={12}>
@@ -492,8 +486,8 @@ const UserEditForm = ({ user, roles, onChange, onSubmit, loading = false }) => {
               <FormControlLabel
                 control={
                   <Switch 
-                    checked={getNestedValue(user, 'localAdminInfo.isApproved', false)}
-                    onChange={handleToggleChange('localAdminInfo.isApproved')}
+                    checked={getNestedValue(user, 'regionalAdminInfo.isApproved', false)}
+                    onChange={handleToggleChange('regionalAdminInfo.isApproved')}
                     color="primary"
                   />
                 }
@@ -504,8 +498,8 @@ const UserEditForm = ({ user, roles, onChange, onSubmit, loading = false }) => {
               <FormControlLabel
                 control={
                   <Switch 
-                    checked={getNestedValue(user, 'localAdminInfo.isEnabled', false)}
-                    onChange={handleToggleChange('localAdminInfo.isEnabled')}
+                    checked={getNestedValue(user, 'regionalAdminInfo.isEnabled', false)}
+                    onChange={handleToggleChange('regionalAdminInfo.isEnabled')}
                     color="primary"
                   />
                 }
@@ -516,8 +510,8 @@ const UserEditForm = ({ user, roles, onChange, onSubmit, loading = false }) => {
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 <Typography variant="body2" sx={{ mr: 1 }}>Status:</Typography>
                 <Chip 
-                  label={getNestedValue(user, 'localAdminInfo.isActive', false) ? "Active" : "Inactive"} 
-                  color={getNestedValue(user, 'localAdminInfo.isActive', false) ? "success" : "default"}
+                  label={getNestedValue(user, 'regionalAdminInfo.isActive', false) ? "Active" : "Inactive"} 
+                  color={getNestedValue(user, 'regionalAdminInfo.isActive', false) ? "success" : "default"}
                   size="small"
                 />
               </Box>
@@ -531,12 +525,12 @@ const UserEditForm = ({ user, roles, onChange, onSubmit, loading = false }) => {
             <Grid item xs={12} md={4}>
               <MasteredLocationSelector
                 level="regions"
-                selectedIds={getNestedValue(user, 'localAdminInfo.allowedAdminMasteredRegionIds', []).map(id => 
+                selectedIds={getNestedValue(user, 'regionalAdminInfo.allowedAdminMasteredRegionIds', []).map(id => 
                   typeof id === 'object' ? id._id : id
                 )}
                 onChange={(newIds) => {
                   if (typeof onChange === 'function') {
-                    onChange('localAdminInfo.allowedAdminMasteredRegionIds', newIds);
+                    onChange('regionalAdminInfo.allowedAdminMasteredRegionIds', newIds);
                   }
                 }}
                 label="Admin Regions"
@@ -547,12 +541,12 @@ const UserEditForm = ({ user, roles, onChange, onSubmit, loading = false }) => {
             <Grid item xs={12} md={4}>
               <MasteredLocationSelector
                 level="divisions"
-                selectedIds={getNestedValue(user, 'localAdminInfo.allowedAdminMasteredDivisionIds', []).map(id => 
+                selectedIds={getNestedValue(user, 'regionalAdminInfo.allowedAdminMasteredDivisionIds', []).map(id => 
                   typeof id === 'object' ? id._id : id
                 )}
                 onChange={(newIds) => {
                   if (typeof onChange === 'function') {
-                    onChange('localAdminInfo.allowedAdminMasteredDivisionIds', newIds);
+                    onChange('regionalAdminInfo.allowedAdminMasteredDivisionIds', newIds);
                   }
                 }}
                 label="Admin Divisions"
@@ -563,12 +557,12 @@ const UserEditForm = ({ user, roles, onChange, onSubmit, loading = false }) => {
             <Grid item xs={12} md={4}>
               <MasteredLocationSelector
                 level="cities"
-                selectedIds={getNestedValue(user, 'localAdminInfo.allowedAdminMasteredCityIds', []).map(id => 
+                selectedIds={getNestedValue(user, 'regionalAdminInfo.allowedAdminMasteredCityIds', []).map(id => 
                   typeof id === 'object' ? id._id : id
                 )}
                 onChange={(newIds) => {
                   if (typeof onChange === 'function') {
-                    onChange('localAdminInfo.allowedAdminMasteredCityIds', newIds);
+                    onChange('regionalAdminInfo.allowedAdminMasteredCityIds', newIds);
                   }
                 }}
                 label="Admin Cities"
@@ -586,8 +580,8 @@ const UserEditForm = ({ user, roles, onChange, onSubmit, loading = false }) => {
               <FormControlLabel
                 control={
                   <Switch 
-                    checked={getNestedValue(user, 'localAdminInfo.userCommunicationSettings.wantFestivalMessages', false)}
-                    onChange={handleToggleChange('localAdminInfo.userCommunicationSettings.wantFestivalMessages')}
+                    checked={getNestedValue(user, 'regionalAdminInfo.userCommunicationSettings.wantFestivalMessages', false)}
+                    onChange={handleToggleChange('regionalAdminInfo.userCommunicationSettings.wantFestivalMessages')}
                     color="primary"
                   />
                 }
@@ -598,8 +592,8 @@ const UserEditForm = ({ user, roles, onChange, onSubmit, loading = false }) => {
               <FormControlLabel
                 control={
                   <Switch 
-                    checked={getNestedValue(user, 'localAdminInfo.userCommunicationSettings.wantWorkshopMessages', false)}
-                    onChange={handleToggleChange('localAdminInfo.userCommunicationSettings.wantWorkshopMessages')}
+                    checked={getNestedValue(user, 'regionalAdminInfo.userCommunicationSettings.wantWorkshopMessages', false)}
+                    onChange={handleToggleChange('regionalAdminInfo.userCommunicationSettings.wantWorkshopMessages')}
                     color="primary"
                   />
                 }
@@ -611,8 +605,8 @@ const UserEditForm = ({ user, roles, onChange, onSubmit, loading = false }) => {
                 select
                 fullWidth
                 label="Message Primary Method"
-                name="localAdminInfo.userCommunicationSettings.messagePrimaryMethod"
-                value={getNestedValue(user, 'localAdminInfo.userCommunicationSettings.messagePrimaryMethod', 'app')}
+                name="regionalAdminInfo.userCommunicationSettings.messagePrimaryMethod"
+                value={getNestedValue(user, 'regionalAdminInfo.userCommunicationSettings.messagePrimaryMethod', 'app')}
                 onChange={handleTextChange}
                 SelectProps={{
                   native: true,
@@ -678,7 +672,7 @@ UserEditForm.propTypes = {
       allowedMasteredDivisionIds: PropTypes.array,
       allowedMasteredCityIds: PropTypes.array
     }),
-    localAdminInfo: PropTypes.shape({
+    regionalAdminInfo: PropTypes.shape({
       isApproved: PropTypes.bool,
       isEnabled: PropTypes.bool,
       isActive: PropTypes.bool,

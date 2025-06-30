@@ -19,7 +19,7 @@
 
 ### 2. User Management Local Admin (Fixed)
 ~~**Issue**: Local Admin settings not saving~~
-**Status**: ✅ RESOLVED - Backend now handles localAdminInfo updates correctly
+**Status**: ✅ RESOLVED - Backend now handles regionalAdminInfo updates correctly
 
 ## Future Enhancements
 

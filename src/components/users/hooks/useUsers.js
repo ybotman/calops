@@ -82,7 +82,7 @@ const useUsers = (options = {}) => {
         hasOrganizerId: !!user.regionalOrganizerInfo?.organizerId,
         localUserInfo: user.localUserInfo || {},
         regionalOrganizerInfo: user.regionalOrganizerInfo || {},
-        localAdminInfo: user.localAdminInfo || {},
+        regionalAdminInfo: user.regionalAdminInfo || {},
       };
     });
   }, [processRoleIds]);
@@ -454,15 +454,15 @@ const useUsers = (options = {}) => {
         active: userData.active,
         localUserInfo: userData.localUserInfo,
         regionalOrganizerInfo: userData.regionalOrganizerInfo,
-        // TODO: Backend doesn't handle localAdminInfo in updateUserInfo endpoint
-        // This is a known issue - the backend needs to be updated to process localAdminInfo
-        localAdminInfo: userData.localAdminInfo
+        // TODO: Backend doesn't handle regionalAdminInfo in updateUserInfo endpoint
+        // This is a known issue - the backend needs to be updated to process regionalAdminInfo
+        regionalAdminInfo: userData.regionalAdminInfo
       };
       
-      // Debug logging for localAdminInfo
+      // Debug logging for regionalAdminInfo
       console.log('Sending update to backend:', userUpdateData);
-      if (userData.localAdminInfo) {
-        console.log('LocalAdminInfo being sent:', JSON.stringify(userData.localAdminInfo, null, 2));
+      if (userData.regionalAdminInfo) {
+        console.log('LocalAdminInfo being sent:', JSON.stringify(userData.regionalAdminInfo, null, 2));
       }
       
       // Update user basic information
@@ -483,8 +483,8 @@ const useUsers = (options = {}) => {
       const updatedUser = users.find(u => u.firebaseUserId === userData.firebaseUserId);
       
       // Debug logging for the returned user
-      if (updatedUser && updatedUser.localAdminInfo) {
-        console.log('LocalAdminInfo after update:', JSON.stringify(updatedUser.localAdminInfo, null, 2));
+      if (updatedUser && updatedUser.regionalAdminInfo) {
+        console.log('LocalAdminInfo after update:', JSON.stringify(updatedUser.regionalAdminInfo, null, 2));
       }
       
       return updatedUser || userData;
