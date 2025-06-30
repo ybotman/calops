@@ -92,15 +92,15 @@ export default function RegionPermissionsModal({
       
       // Clear and rebuild permissions
       if (isAdmin) {
-        if (!updatedUserLogin.localAdminInfo) {
-          updatedUserLogin.localAdminInfo = {
+        if (!updatedUserLogin.regionalAdminInfo) {
+          updatedUserLogin.regionalAdminInfo = {
             isApproved: false,
             isEnabled: false,
             isActive: false,
             allowedAdminMasteredRegionIds: []
           };
         }
-        updatedUserLogin.localAdminInfo.allowedAdminMasteredRegionIds = selectedRegions;
+        updatedUserLogin.regionalAdminInfo.allowedAdminMasteredRegionIds = selectedRegions;
       } else {
         if (!updatedUserLogin.regionalOrganizerInfo) {
           updatedUserLogin.regionalOrganizerInfo = {

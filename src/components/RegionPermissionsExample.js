@@ -24,7 +24,7 @@ export default function RegionPermissionsExample() {
       isActive: true,
       allowedMasteredRegionIds: ['60a1234567890abcdef12345']
     },
-    localAdminInfo: {
+    regionalAdminInfo: {
       isApproved: false,
       isEnabled: false,
       isActive: false,

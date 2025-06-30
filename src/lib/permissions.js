@@ -73,16 +73,16 @@ export function canOrganizerAccessCity(userLogin, cityId) {
 
 /**
  * Check if a user has admin access to a specific region
- * @param {Object} userLogin - UserLogin document with localAdminInfo
+ * @param {Object} userLogin - UserLogin document with regionalAdminInfo
  * @param {String} regionId - MasteredRegion ObjectId to check
  * @returns {Boolean} - Whether user has access
  */
 export function canAdminAccessRegion(userLogin, regionId) {
-  if (!userLogin?.localAdminInfo) {
+  if (!userLogin?.regionalAdminInfo) {
     return false;
   }
 
-  const info = userLogin.localAdminInfo;
+  const info = userLogin.regionalAdminInfo;
   
   // Check if admin is approved, enabled, and active
   if (!info.isApproved || !info.isEnabled || !info.isActive) {
@@ -102,11 +102,11 @@ export function canAdminAccessRegion(userLogin, regionId) {
  * @returns {Boolean} - Whether user has access
  */
 export function canAdminAccessDivision(userLogin, divisionId) {
-  if (!userLogin?.localAdminInfo) {
+  if (!userLogin?.regionalAdminInfo) {
     return false;
   }
 
-  const info = userLogin.localAdminInfo;
+  const info = userLogin.regionalAdminInfo;
   
   if (!info.isApproved || !info.isEnabled || !info.isActive) {
     return false;
@@ -124,11 +124,11 @@ export function canAdminAccessDivision(userLogin, divisionId) {
  * @returns {Boolean} - Whether user has access
  */
 export function canAdminAccessCity(userLogin, cityId) {
-  if (!userLogin?.localAdminInfo) {
+  if (!userLogin?.regionalAdminInfo) {
     return false;
   }
 
-  const info = userLogin.localAdminInfo;
+  const info = userLogin.regionalAdminInfo;
   
   if (!info.isApproved || !info.isEnabled || !info.isActive) {
     return false;
@@ -164,11 +164,11 @@ export function getOrganizerAllowedRegions(userLogin) {
  * @returns {Array} - Array of allowed admin region IDs
  */
 export function getAdminAllowedRegions(userLogin) {
-  if (!userLogin?.localAdminInfo) {
+  if (!userLogin?.regionalAdminInfo) {
     return [];
   }
 
-  const info = userLogin.localAdminInfo;
+  const info = userLogin.regionalAdminInfo;
   
   if (!info.isApproved || !info.isEnabled || !info.isActive) {
     return [];
@@ -197,11 +197,11 @@ export function isActiveOrganizer(userLogin) {
  * @returns {Boolean} - Whether user is an active admin
  */
 export function isActiveAdmin(userLogin) {
-  if (!userLogin?.localAdminInfo) {
+  if (!userLogin?.regionalAdminInfo) {
     return false;
   }
 
-  const info = userLogin.localAdminInfo;
+  const info = userLogin.regionalAdminInfo;
   return info.isApproved && info.isEnabled && info.isActive;
 }
 
@@ -293,14 +293,14 @@ export function removeOrganizerRegionPermission(userLogin, regionId) {
  * Add masteredRegion permission to an admin
  * @param {Object} userLogin - UserLogin document to update
  * @param {String} regionId - MasteredRegion ObjectId to add
- * @returns {Object} - Updated localAdminInfo
+ * @returns {Object} - Updated regionalAdminInfo
  */
 export function addAdminRegionPermission(userLogin, regionId) {
-  if (!userLogin.localAdminInfo) {
-    throw new Error('User does not have localAdminInfo');
+  if (!userLogin.regionalAdminInfo) {
+    throw new Error('User does not have regionalAdminInfo');
   }
 
-  const info = userLogin.localAdminInfo;
+  const info = userLogin.regionalAdminInfo;
   
   // Initialize array if it doesn't exist
   if (!info.allowedAdminMasteredRegionIds) {
@@ -323,14 +323,14 @@ export function addAdminRegionPermission(userLogin, regionId) {
  * Remove masteredRegion permission from an admin
  * @param {Object} userLogin - UserLogin document to update
  * @param {String} regionId - MasteredRegion ObjectId to remove
- * @returns {Object} - Updated localAdminInfo
+ * @returns {Object} - Updated regionalAdminInfo
  */
 export function removeAdminRegionPermission(userLogin, regionId) {
-  if (!userLogin.localAdminInfo) {
-    throw new Error('User does not have localAdminInfo');
+  if (!userLogin.regionalAdminInfo) {
+    throw new Error('User does not have regionalAdminInfo');
   }
 
-  const info = userLogin.localAdminInfo;
+  const info = userLogin.regionalAdminInfo;
   
   if (info.allowedAdminMasteredRegionIds) {
     info.allowedAdminMasteredRegionIds = info.allowedAdminMasteredRegionIds.filter(
@@ -360,13 +360,13 @@ export function setOrganizerRegionPermissions(userLogin, regionIds) {
  * Set multiple region permissions at once for an admin
  * @param {Object} userLogin - UserLogin document to update
  * @param {Array} regionIds - Array of MasteredRegion ObjectIds
- * @returns {Object} - Updated localAdminInfo
+ * @returns {Object} - Updated regionalAdminInfo
  */
 export function setAdminRegionPermissions(userLogin, regionIds) {
-  if (!userLogin.localAdminInfo) {
-    throw new Error('User does not have localAdminInfo');
+  if (!userLogin.regionalAdminInfo) {
+    throw new Error('User does not have regionalAdminInfo');
   }
 
-  userLogin.localAdminInfo.allowedAdminMasteredRegionIds = regionIds;
-  return userLogin.localAdminInfo;
+  userLogin.regionalAdminInfo.allowedAdminMasteredRegionIds = regionIds;
+  return userLogin.regionalAdminInfo;
 }

@@ -51,7 +51,7 @@ const activeAdmin = {
     allowedMasteredDivisionIds: [],
     allowedMasteredCityIds: []
   },
-  localAdminInfo: {
+  regionalAdminInfo: {
     isApproved: true,
     isEnabled: true,
     isActive: true,
