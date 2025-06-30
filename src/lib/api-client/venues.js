@@ -191,7 +191,7 @@ const venuesApi = {
       }
       
       const response = await axios.get(
-        `${API_BASE_URL}/api/venues/nearest-city?lng=${lng}&lat=${lat}&appId=${appId}`
+        `${API_BASE_URL}/api/venues/nearest-city?longitude=${lng}&latitude=${lat}&appId=${appId}&limit=5`
       );
       return processResponse(response);
     } catch (error) {
