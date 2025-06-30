@@ -7,12 +7,16 @@ import {
   useGeoHierarchy,
   useVenueFilter
 } from './hooks';
+import venuesApi from '@/lib/api-client/venues';
+import { useAppContext } from '@/lib/AppContext';
 
 /**
  * VenuesPageContainer component
  * Container component that manages state and data fetching for the VenuesPage
  */
 const VenuesPageContainer = () => {
+  const { currentApp } = useAppContext();
+  
   // Add state for division and city filtering
   const [filterDivision, setFilterDivision] = useState('');
   const [filterCity, setFilterCity] = useState('');
@@ -73,6 +77,40 @@ const VenuesPageContainer = () => {
     ? geoHierarchy.cities.filter(city => city.masteredDivisionId === filterDivision)
     : geoHierarchy.cities;
   
+  // Function to fetch nearest cities
+  const fetchNearestCities = useCallback(async (longitude, latitude) => {
+    try {
+      const response = await venuesApi.getNearestCity(
+        { longitude, latitude },
+        currentApp?.id || '1'
+      );
+      
+      // Handle different response formats
+      if (Array.isArray(response)) {
+        return response;
+      } else if (response && response.data) {
+        return Array.isArray(response.data) ? response.data : [response.data];
+      } else if (response && response._id) {
+        return [response];
+      }
+      
+      return [];
+    } catch (error) {
+      console.error('Error fetching nearest cities:', error);
+      throw error;
+    }
+  }, [currentApp?.id]);
+  
+  // Function to fetch geo hierarchy data
+  const fetchGeoHierarchy = useCallback(async () => {
+    try {
+      await geoHierarchy.fetchAllGeoData();
+    } catch (error) {
+      console.error('Error fetching geo hierarchy:', error);
+      throw error;
+    }
+  }, [geoHierarchy.fetchAllGeoData]);
+  
   // Combine props for the presentation component
   const props = {
     // Venue data
@@ -122,7 +160,9 @@ const VenuesPageContainer = () => {
     pagination: venuesHook.pagination,
     setPagination: venuesHook.setPagination,
     getCityCoordinates: geoHierarchy.getCityCoordinates,
-    fetchGeoDataById: geoHierarchy.fetchGeoDataById
+    fetchGeoDataById: geoHierarchy.fetchGeoDataById,
+    fetchNearestCities,
+    fetchGeoHierarchy
   };
 
   return <VenuesPage {...props} />;

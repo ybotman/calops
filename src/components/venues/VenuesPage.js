@@ -16,7 +16,7 @@ import {
   InputAdornment
 } from '@mui/material';
 import TabPanel from '@/components/common/TabPanel';
-import { VenueSearchBar, VenueTable } from './components';
+import { VenueSearchBar, VenueTable, VenueEditDialog } from './components';
 import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
 
@@ -72,20 +72,24 @@ const VenuesPage = ({
   pagination = { page: 0, pageSize: 10, totalCount: 0 },
   setPagination,
   getCityCoordinates,
-  fetchGeoDataById
+  fetchGeoDataById,
+  fetchNearestCities,
+  fetchGeoHierarchy
 }) => {
   // Local state for dialogs
-  const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [validateGeoDialogOpen, setValidateGeoDialogOpen] = useState(false);
   const [editingVenue, setEditingVenue] = useState(null);
   
   // Handlers
-  const handleAddVenue = () => setAddDialogOpen(true);
+  const handleAddVenue = () => {
+    setEditingVenue(null);
+    setDialogOpen(true);
+  };
   
   const handleEditVenue = (venue) => {
     setEditingVenue(venue);
-    setEditDialogOpen(true);
+    setDialogOpen(true);
   };
   
   const handleValidateGeo = (venue) => {
@@ -115,6 +119,23 @@ const VenuesPage = ({
   const handleDeleteVenue = (venue) => {
     if (window.confirm(`Are you sure you want to delete venue: ${venue.name || venue.displayName}?`)) {
       deleteVenue(venue.id || venue._id);
+    }
+  };
+  
+  const handleSaveVenue = async (venueData) => {
+    try {
+      if (editingVenue) {
+        // Update existing venue
+        await updateVenue(venueData);
+      } else {
+        // Create new venue
+        await createVenue(venueData);
+      }
+      setDialogOpen(false);
+      setEditingVenue(null);
+    } catch (error) {
+      console.error('Error saving venue:', error);
+      alert(`Failed to save venue: ${error.message}`);
     }
   };
   
@@ -269,6 +290,22 @@ const VenuesPage = ({
         />
       </TabPanel>
       
+      {/* Venue Edit Dialog */}
+      <VenueEditDialog
+        open={dialogOpen}
+        onClose={() => {
+          setDialogOpen(false);
+          setEditingVenue(null);
+        }}
+        venue={editingVenue}
+        onSave={handleSaveVenue}
+        countries={countries}
+        regions={regions}
+        divisions={divisions}
+        cities={cities}
+        fetchNearestCities={fetchNearestCities}
+        fetchGeoHierarchy={fetchGeoHierarchy}
+      />
 
       {/* Other dialogs will go here */}
     </Box>
