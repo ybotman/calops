@@ -89,8 +89,8 @@ const VenueEditDialog = ({
         zip: venue.zip || venue.address?.zip || venue.postalCode || '',
         phone: venue.phone || '',
         comments: venue.comments || '',
-        latitude: venue.latitude || '',
-        longitude: venue.longitude || '',
+        latitude: venue.latitude !== undefined && venue.latitude !== null ? venue.latitude.toString() : '',
+        longitude: venue.longitude !== undefined && venue.longitude !== null ? venue.longitude.toString() : '',
         masteredCityId: 
           (typeof venue.masteredCityId === 'object' ? venue.masteredCityId?._id : venue.masteredCityId) || '',
         masteredDivisionId: 
@@ -103,9 +103,10 @@ const VenueEditDialog = ({
         isApproved: venue.isApproved || false
       });
       
-      // If venue has coordinates, fetch nearest cities
-      if (venue.latitude && venue.longitude) {
-        handleFindNearestCity();
+      // If venue has valid coordinates, fetch nearest cities
+      if (venue.latitude && venue.longitude && !isNaN(venue.latitude) && !isNaN(venue.longitude)) {
+        // Don't automatically fetch on edit to prevent alert
+        // handleFindNearestCity();
       }
     } else {
       // Reset form for new venue
@@ -146,6 +147,14 @@ const VenueEditDialog = ({
     }
   }, [open, fetchGeoHierarchy]);
   
+  // Load regions when country is selected
+  useEffect(() => {
+    if (formData.masteredCountryId && regions.length === 0) {
+      // The geo hierarchy hook should automatically fetch regions
+      console.log('Need to fetch regions for country:', formData.masteredCountryId);
+    }
+  }, [formData.masteredCountryId, regions]);
+  
   const handleFormChange = (e) => {
     const { name, value, checked, type } = e.target;
     setFormData(prev => ({
@@ -164,7 +173,7 @@ const VenueEditDialog = ({
   
   const handleFindNearestCity = async () => {
     if (!formData.longitude || !formData.latitude) {
-      alert('Please enter both latitude and longitude');
+      alert('Please enter both latitude and longitude to find nearest cities');
       return;
     }
     
@@ -267,9 +276,17 @@ const VenueEditDialog = ({
     // Format the data
     const submitData = {
       ...formData,
-      latitude: formData.latitude ? parseFloat(formData.latitude) : null,
-      longitude: formData.longitude ? parseFloat(formData.longitude) : null
+      latitude: formData.latitude ? parseFloat(formData.latitude) : 0,
+      longitude: formData.longitude ? parseFloat(formData.longitude) : 0
     };
+    
+    // Add geolocation if we have coordinates
+    if (submitData.latitude && submitData.longitude) {
+      submitData.geolocation = {
+        type: 'Point',
+        coordinates: [submitData.longitude, submitData.latitude]
+      };
+    }
     
     if (venue && venue._id) {
       submitData._id = venue._id;

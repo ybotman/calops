@@ -104,12 +104,14 @@ const VenuesPageContainer = () => {
   // Function to fetch geo hierarchy data
   const fetchGeoHierarchy = useCallback(async () => {
     try {
-      await geoHierarchy.fetchAllGeoData();
+      // The geo hierarchy hook automatically fetches data as needed
+      // We can manually trigger fetches if needed
+      await geoHierarchy.fetchCountries();
     } catch (error) {
       console.error('Error fetching geo hierarchy:', error);
       throw error;
     }
-  }, [geoHierarchy.fetchAllGeoData]);
+  }, [geoHierarchy.fetchCountries]);
   
   // Combine props for the presentation component
   const props = {
@@ -149,9 +151,21 @@ const VenuesPageContainer = () => {
     setSelectedDivision: geoHierarchy.setSelectedDivision,
     setSelectedCity: geoHierarchy.setSelectedCity,
     
-    // Venue operations
-    createVenue: venuesHook.createVenue,
-    updateVenue: venuesHook.updateVenue,
+    // Venue operations - wrap to ensure appId is included
+    createVenue: useCallback((venueData) => {
+      return venuesHook.createVenue({
+        ...venueData,
+        appId: currentApp?.id || '1'
+      });
+    }, [venuesHook.createVenue, currentApp?.id]),
+    
+    updateVenue: useCallback((venueData) => {
+      return venuesHook.updateVenue({
+        ...venueData,
+        appId: currentApp?.id || '1'
+      });
+    }, [venuesHook.updateVenue, currentApp?.id]),
+    
     deleteVenue: venuesHook.deleteVenue,
     validateVenueGeo: venuesHook.validateVenueGeo,
     batchValidateGeo: venuesHook.batchValidateGeo,
