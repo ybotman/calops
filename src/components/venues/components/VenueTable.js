@@ -41,7 +41,8 @@ const VenueTable = ({
   onPaginationChange,
   onEdit,
   onDelete,
-  onValidateGeo
+  onValidateGeo,
+  density = 'standard'
 }) => {
   // Local state for row actions
   const [hoveredRow, setHoveredRow] = useState(null);
@@ -76,7 +77,7 @@ const VenueTable = ({
   return (
     <Paper sx={{ width: '100%', overflow: 'hidden', mt: 2 }}>
       <TableContainer sx={{ maxHeight: 600 }}>
-        <Table stickyHeader aria-label="venues table">
+        <Table stickyHeader aria-label="venues table" size={density === 'compact' ? 'small' : 'medium'}>
           <TableHead>
             <TableRow>
               {columns.map((column) => (

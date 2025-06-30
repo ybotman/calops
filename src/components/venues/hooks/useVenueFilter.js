@@ -46,13 +46,13 @@ const useVenueFilter = ({ venues = [], initialFilters = {}, debounceMs = 300 }) 
     }
     
     if (tab === 1) {
-      // Validated venues tab - filter by valid geo
-      return venueList.filter(venue => venue.hasValidGeo);
+      // Approved venues tab - filter by isApproved = true
+      return venueList.filter(venue => venue.isApproved === true);
     }
     
     if (tab === 2) {
-      // Invalid geo tab - filter by invalid geo
-      return venueList.filter(venue => !venue.hasValidGeo);
+      // Not approved venues tab - filter by isApproved = false or null/undefined
+      return venueList.filter(venue => !venue.isApproved);
     }
     
     // Default - no filtering

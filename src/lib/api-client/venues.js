@@ -138,9 +138,16 @@ const venuesApi = {
    */
   updateVenue: async (venueId, venueData) => {
     try {
+      // Extract appId and ensure it's included in the request
       const { appId = '1', ...data } = venueData;
       
-      const response = await axios.put(`${API_BASE_URL}/api/venues/${venueId}?appId=${appId}`, data);
+      // Include appId in the data payload as well
+      const payload = {
+        ...data,
+        appId
+      };
+      
+      const response = await axios.put(`${API_BASE_URL}/api/venues/${venueId}?appId=${appId}`, payload);
       return processResponse(response);
     } catch (error) {
       return handleApiError(error, {
@@ -191,7 +198,7 @@ const venuesApi = {
       }
       
       const response = await axios.get(
-        `${API_BASE_URL}/api/venues/nearest-city?lng=${lng}&lat=${lat}&appId=${appId}`
+        `${API_BASE_URL}/api/venues/nearest-city?longitude=${lng}&latitude=${lat}&appId=${appId}&limit=5`
       );
       return processResponse(response);
     } catch (error) {
