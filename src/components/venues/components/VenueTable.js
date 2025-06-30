@@ -86,7 +86,20 @@ const VenueTable = ({
   return (
     <Paper sx={{ width: '100%', overflow: 'hidden', mt: 2 }}>
       <TableContainer sx={{ maxHeight: 600 }}>
-        <Table stickyHeader aria-label="venues table" size={density === 'compact' ? 'small' : 'medium'}>
+        <Table 
+          stickyHeader 
+          aria-label="venues table" 
+          size={density === 'compact' ? 'small' : 'medium'}
+          sx={{
+            '& .MuiTableCell-root': density === 'compact' ? {
+              paddingTop: '4px',
+              paddingBottom: '4px',
+              paddingLeft: '8px',
+              paddingRight: '8px',
+              fontSize: '0.875rem'
+            } : {}
+          }}
+        >
           <TableHead>
             <TableRow>
               {columns.map((column) => (
@@ -121,6 +134,7 @@ const VenueTable = ({
                     key={venue._id || venue.id}
                     onMouseEnter={() => setHoveredRow(venue.id || venue._id)}
                     onMouseLeave={() => setHoveredRow(null)}
+                    sx={density === 'compact' ? { height: '36px' } : {}}
                   >
                     <TableCell>
                       <Typography variant="body2" noWrap sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis' }}>
