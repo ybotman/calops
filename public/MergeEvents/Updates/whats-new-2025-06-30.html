@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>What's New - June 30, 2025</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; margin: 20px; }
+        h1 { color: #333; }
+        h2 { color: #666; margin-top: 30px; }
+        .feature { background: #f0f8ff; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .fix { background: #fff0f5; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .known-issue { background: #fffacd; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        ul { margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>What's New in CalOps - June 30, 2025</h1>
+    
+    <h2>🎉 New Features</h2>
+    
+    <div class="feature">
+        <h3>Enhanced Venue Management (CALOPS-24)</h3>
+        <ul>
+            <li><strong>Location-Based Filtering</strong>: Filter venues by Division and City for better organization</li>
+            <li><strong>Approval Workflow</strong>: New "Approved" and "Not Approved" tabs to manage venue status</li>
+            <li><strong>Comprehensive Editing</strong>: Full venue editing dialog with all fields accessible</li>
+            <li><strong>Smart Geo Assignment</strong>: 
+                <ul>
+                    <li>Automatic nearest city detection based on coordinates</li>
+                    <li>Manual geo hierarchy selection (Country → Region → Division → City)</li>
+                </ul>
+            </li>
+            <li><strong>Status Management</strong>: Toggle venues between Active/Inactive states</li>
+        </ul>
+    </div>
+
+    <h2>🐛 Bug Fixes</h2>
+    
+    <div class="fix">
+        <h3>API and Data Processing</h3>
+        <ul>
+            <li>Fixed venue API 404 errors in development environment</li>
+            <li>Corrected venue data processing for consistent display</li>
+            <li>Resolved syntax errors in venue filtering logic</li>
+            <li>Updated all API endpoints to use consistent camelCase naming</li>
+        </ul>
+    </div>
+
+    <h2>⚠️ Known Issues</h2>
+    
+    <div class="known-issue">
+        <h3>Venue Approval Status</h3>
+        <p>The "Approved" toggle switch is visible but the approval status doesn't save to the database yet. This requires a backend update that will be implemented soon. The UI is ready and waiting for the backend support.</p>
+    </div>
+
+    <h2>💡 Tips</h2>
+    <ul>
+        <li>Use the Division filter first, then City filter for precise venue location</li>
+        <li>Click "Find" after entering coordinates to automatically assign the nearest city</li>
+        <li>The "All" tab shows every venue regardless of status</li>
+    </ul>
+
+    <hr>
+    <p><em>Questions or issues? Contact the CalOps development team.</em></p>
+</body>
+</html>

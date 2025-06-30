@@ -21,6 +21,9 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
+import LocationSearchingIcon from '@mui/icons-material/LocationSearching';
+import MyLocationIcon from '@mui/icons-material/MyLocation';
+import CircularProgress from '@mui/material/CircularProgress';
 
 /**
  * VenueTable component
@@ -32,19 +35,25 @@ import ErrorIcon from '@mui/icons-material/Error';
  * @param {Function} props.onEdit - Edit venue handler
  * @param {Function} props.onDelete - Delete venue handler
  * @param {Function} props.onValidateGeo - Validate geo handler
+ * @param {Function} props.onFindMastered - Find mastered city handler
+ * @param {Function} props.onGeocodeAddress - Geocode address handler
  * @returns {JSX.Element} VenueTable component
  */
 const VenueTable = ({
   venues = [],
   loading = false,
-  pagination = { page: 0, pageSize: 10, totalCount: 0 },
+  pagination = { page: 0, pageSize: 500, totalCount: 0 },
   onPaginationChange,
   onEdit,
   onDelete,
-  onValidateGeo
+  onValidateGeo,
+  onFindMastered,
+  onGeocodeAddress,
+  density = 'standard'
 }) => {
   // Local state for row actions
   const [hoveredRow, setHoveredRow] = useState(null);
+  const [loadingGeo, setLoadingGeo] = useState({});
   
   // Handle pagination change
   const handleChangePage = (event, newPage) => {
@@ -62,21 +71,35 @@ const VenueTable = ({
   
   // Column definitions
   const columns = [
-    { id: 'name', label: 'Name', minWidth: 180 },
-    { id: 'location', label: 'Address', minWidth: 200 },
-    { id: 'city', label: 'City', minWidth: 120 },
-    { id: 'state', label: 'State', minWidth: 80 },
-    { id: 'zip', label: 'Zip', minWidth: 80 },
-    { id: 'region', label: 'Region', minWidth: 120 },
+    { id: 'name', label: 'Name', minWidth: 150 },
+    { id: 'shortName', label: 'Short', minWidth: 100 },
+    { id: 'location', label: 'Address', minWidth: 180 },
+    { id: 'city', label: 'City', minWidth: 100 },
+    { id: 'state', label: 'State', minWidth: 60 },
+    { id: 'zip', label: 'Zip', minWidth: 60 },
+    { id: 'masteredCity', label: 'Mastered City', minWidth: 120 },
     { id: 'geoStatus', label: 'Geo Status', minWidth: 100 },
-    { id: 'geoUpdated', label: 'Geo Updated', minWidth: 120 },
-    { id: 'actions', label: 'Actions', minWidth: 120, align: 'right' }
+    { id: 'geoActions', label: 'Geo Actions', minWidth: 140 },
+    { id: 'actions', label: 'Actions', minWidth: 100, align: 'right' }
   ];
   
   return (
     <Paper sx={{ width: '100%', overflow: 'hidden', mt: 2 }}>
       <TableContainer sx={{ maxHeight: 600 }}>
-        <Table stickyHeader aria-label="venues table">
+        <Table 
+          stickyHeader 
+          aria-label="venues table" 
+          size={density === 'compact' ? 'small' : 'medium'}
+          sx={{
+            '& .MuiTableCell-root': density === 'compact' ? {
+              paddingTop: '4px',
+              paddingBottom: '4px',
+              paddingLeft: '8px',
+              paddingRight: '8px',
+              fontSize: '0.875rem'
+            } : {}
+          }}
+        >
           <TableHead>
             <TableRow>
               {columns.map((column) => (
@@ -111,10 +134,16 @@ const VenueTable = ({
                     key={venue._id || venue.id}
                     onMouseEnter={() => setHoveredRow(venue.id || venue._id)}
                     onMouseLeave={() => setHoveredRow(null)}
+                    sx={density === 'compact' ? { height: '36px' } : {}}
                   >
                     <TableCell>
-                      <Typography variant="body2" noWrap>
+                      <Typography variant="body2" noWrap sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {venue.name || venue.displayName || 'Unnamed Venue'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" noWrap sx={{ maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {venue.shortName || (venue.name ? venue.name.substring(0, 15) : 'N/A')}
                       </Typography>
                     </TableCell>
                     <TableCell>
@@ -125,7 +154,7 @@ const VenueTable = ({
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" noWrap>
-                        {venue.cityName || venue.masteredCityName || venue.city || venue.address?.city || 'Unknown'}
+                        {venue.city || venue.address?.city || ''}
                       </Typography>
                     </TableCell>
                     <TableCell>
@@ -139,8 +168,15 @@ const VenueTable = ({
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2" noWrap>
-                        {venue.regionName || venue.masteredRegionName || 'Unknown'}
+                      <Typography 
+                        variant="body2" 
+                        noWrap
+                        sx={{ 
+                          color: venue.masteredCityName ? 'text.primary' : 'text.secondary',
+                          fontStyle: venue.masteredCityName ? 'normal' : 'italic'
+                        }}
+                      >
+                        {venue.masteredCityName || 'Not Set'}
                       </Typography>
                     </TableCell>
                     <TableCell>
@@ -163,13 +199,54 @@ const VenueTable = ({
                       )}
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2" noWrap>
-                        {venue.lastGeoUpdate ? 
-                          new Date(venue.lastGeoUpdate).toLocaleDateString() : 
-                          venue.updatedAt ? 
-                            new Date(venue.updatedAt).toLocaleDateString() : 
-                            'Never'}
-                      </Typography>
+                      <Box sx={{ display: 'flex', gap: 0.5 }}>
+                        <Tooltip title="Find nearest mastered city">
+                          <span>
+                            <IconButton
+                              size="small"
+                              onClick={async () => {
+                                if (onFindMastered && venue.latitude && venue.longitude) {
+                                  setLoadingGeo({ ...loadingGeo, [venue._id || venue.id]: 'mastered' });
+                                  try {
+                                    await onFindMastered(venue);
+                                  } finally {
+                                    setLoadingGeo({ ...loadingGeo, [venue._id || venue.id]: null });
+                                  }
+                                }
+                              }}
+                              disabled={!venue.latitude || !venue.longitude || loadingGeo[venue._id || venue.id] === 'mastered'}
+                            >
+                              {loadingGeo[venue._id || venue.id] === 'mastered' ? 
+                                <CircularProgress size={18} /> : 
+                                <LocationSearchingIcon fontSize="small" />
+                              }
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                        <Tooltip title={onGeocodeAddress ? "Geocode from address" : "Geocoding coming soon"}>
+                          <span>
+                            <IconButton
+                              size="small"
+                              onClick={async () => {
+                                if (onGeocodeAddress && (venue.address1 || venue.city)) {
+                                  setLoadingGeo({ ...loadingGeo, [venue._id || venue.id]: 'geocode' });
+                                  try {
+                                    await onGeocodeAddress(venue);
+                                  } finally {
+                                    setLoadingGeo({ ...loadingGeo, [venue._id || venue.id]: null });
+                                  }
+                                }
+                              }}
+                              disabled={!onGeocodeAddress || (!venue.address1 && !venue.city) || loadingGeo[venue._id || venue.id] === 'geocode'}
+                            >
+                              {loadingGeo[venue._id || venue.id] === 'geocode' ? 
+                                <CircularProgress size={18} /> : 
+                                <MyLocationIcon fontSize="small" />
+                              }
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                      </Box>
                     </TableCell>
                     <TableCell align="right">
                       <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -211,7 +288,7 @@ const VenueTable = ({
         </Table>
       </TableContainer>
       <TablePagination
-        rowsPerPageOptions={[10, 25, 50, 100]}
+        rowsPerPageOptions={[10, 25, 50, 100, 500]}
         component="div"
         count={pagination.totalCount}
         rowsPerPage={pagination.pageSize}

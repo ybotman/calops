@@ -5,6 +5,12 @@
 
 import axios from 'axios';
 
+// Base configuration
+// In development, use relative URLs to go through Next.js proxy
+// In production, use the backend URL from environment
+const isDevelopment = process.env.NODE_ENV === 'development';
+const API_BASE_URL = isDevelopment ? '' : (process.env.NEXT_PUBLIC_BE_URL || '');
+
 const organizersApi = {
   /**
    * Get all organizers for an application
@@ -13,8 +19,7 @@ const organizersApi = {
    * @returns {Promise<Array>} Array of organizers
    */
   async getOrganizers(appId, isActive = undefined, includeAllFields = false) {
-    // Use environment variable for backend URL consistency
-    const backendUrl = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
+    // Use relative URL for local development
     
     const params = {
       appId,
@@ -39,7 +44,7 @@ const organizersApi = {
     console.log('Fetching organizers with params:', params);
     
     try {
-      const response = await axios.get(`${backendUrl}/api/organizers`, {
+      const response = await axios.get(`${API_BASE_URL}/api/organizers`, {
         params,
         headers: {
           'Cache-Control': 'no-cache'
@@ -72,10 +77,8 @@ const organizersApi = {
    * @returns {Promise<Object>} Organizer data
    */
   async getOrganizer(organizerId, appId) {
-    const backendUrl = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
-    
     try {
-      const response = await axios.get(`${backendUrl}/api/organizers/${organizerId}`, {
+      const response = await axios.get(`${API_BASE_URL}/api/organizers/${organizerId}`, {
         params: { appId }
       });
       return response.data;
@@ -91,13 +94,10 @@ const organizersApi = {
    * @returns {Promise<Object>} Created organizer
    */
   async createOrganizer(organizerData) {
-    const backendUrl = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
-    
     console.log('Creating organizer with data:', organizerData);
-    console.log('Backend URL:', backendUrl);
     
     try {
-      const response = await axios.post(`${backendUrl}/api/organizers`, organizerData);
+      const response = await axios.post(`${API_BASE_URL}/api/organizers`, organizerData);
       
       console.log('Organizer created successfully:', response.data);
       return response.data;
@@ -123,7 +123,6 @@ const organizersApi = {
    */
   async updateOrganizer(organizerId, organizerData) {
     const appId = organizerData.appId || '1';
-    const backendUrl = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
     
     console.log('Updating organizer with PUT request:');
     console.log('Organizer ID:', organizerId);
@@ -131,7 +130,7 @@ const organizersApi = {
     
     try {
       const response = await axios.put(
-        `${backendUrl}/api/organizers/${organizerId}`,
+        `${API_BASE_URL}/api/organizers/${organizerId}`,
         organizerData,
         {
           params: { appId }
@@ -156,10 +155,8 @@ const organizersApi = {
    * @returns {Promise<Object>} Deletion result
    */
   async deleteOrganizer(organizerId, appId) {
-    const backendUrl = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
-    
     try {
-      const response = await axios.delete(`${backendUrl}/api/organizers/${organizerId}`, {
+      const response = await axios.delete(`${API_BASE_URL}/api/organizers/${organizerId}`, {
         params: { appId }
       });
       return response.data;
@@ -177,11 +174,9 @@ const organizersApi = {
    * @returns {Promise<Object>} Connection result
    */
   async connectToUser(organizerId, firebaseUserId, appId) {
-    const backendUrl = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
-    
     try {
       const response = await axios.patch(
-        `${backendUrl}/api/organizers/${organizerId}/connect-user`,
+        `${API_BASE_URL}/api/organizers/${organizerId}/connect-user`,
         { firebaseUserId, appId }
       );
       return response.data;
@@ -198,11 +193,9 @@ const organizersApi = {
    * @returns {Promise<Object>} Disconnection result
    */
   async disconnectFromUser(organizerId, appId) {
-    const backendUrl = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
-    
     try {
       const response = await axios.patch(
-        `${backendUrl}/api/organizers/${organizerId}/disconnect-user`,
+        `${API_BASE_URL}/api/organizers/${organizerId}/disconnect-user`,
         { appId }
       );
       return response.data;

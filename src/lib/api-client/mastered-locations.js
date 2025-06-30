@@ -6,8 +6,11 @@
 import axios from 'axios';
 import { processResponse, handleApiError, buildQueryString } from './utils';
 
-// Base configuration - Use backend URL
-const API_BASE_URL = process.env.NEXT_PUBLIC_BE_URL || 'https://calendarbe-test-bpg5caaqg5chbndu.eastus-01.azurewebsites.net';
+// Base configuration
+// In development, use relative URLs to go through Next.js proxy
+// In production, use the backend URL from environment
+const isDevelopment = process.env.NODE_ENV === 'development';
+const API_BASE_URL = isDevelopment ? '' : (process.env.NEXT_PUBLIC_BE_URL || '');
 
 /**
  * Mastered Locations API client for geo-hierarchy data
@@ -31,7 +34,7 @@ const masteredLocationsApi = {
     };
     
     try {
-      const url = `${API_BASE_URL}/api/masteredLocations/countries${buildQueryString(queryParams)}`;
+      const url = `/api/masteredLocations/countries${buildQueryString(queryParams)}`;
       const response = await axios.get(url);
       return processResponse(response);
     } catch (error) {
@@ -63,7 +66,7 @@ const masteredLocationsApi = {
     };
     
     try {
-      const url = `${API_BASE_URL}/api/masteredLocations/regions${buildQueryString(queryParams)}`;
+      const url = `/api/masteredLocations/regions${buildQueryString(queryParams)}`;
       const response = await axios.get(url);
       return processResponse(response);
     } catch (error) {
@@ -95,7 +98,7 @@ const masteredLocationsApi = {
     };
     
     try {
-      const url = `${API_BASE_URL}/api/masteredLocations/divisions${buildQueryString(queryParams)}`;
+      const url = `/api/masteredLocations/divisions${buildQueryString(queryParams)}`;
       const response = await axios.get(url);
       return processResponse(response);
     } catch (error) {
@@ -127,7 +130,7 @@ const masteredLocationsApi = {
     };
     
     try {
-      const url = `${API_BASE_URL}/api/masteredLocations/cities${buildQueryString(queryParams)}`;
+      const url = `/api/masteredLocations/cities${buildQueryString(queryParams)}`;
       const response = await axios.get(url);
       return processResponse(response);
     } catch (error) {
@@ -157,7 +160,7 @@ const masteredLocationsApi = {
     };
     
     try {
-      const url = `${API_BASE_URL}/api/masteredLocations/all${buildQueryString(queryParams)}`;
+      const url = `/api/masteredLocations/all${buildQueryString(queryParams)}`;
       const response = await axios.get(url);
       return processResponse(response);
     } catch (error) {

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAppContext } from '@/lib/AppContext';
 import masteredLocationsApi from '@/lib/api-client/mastered-locations';
+import axios from 'axios';
 
 /**
  * Custom hook for managing geo hierarchy data (countries, regions, divisions, cities)
@@ -277,11 +278,11 @@ const useGeoHierarchy = (options = {}) => {
           // Fetch the needed entity to get its parent IDs
           let parentResponse;
           if (params.cityId) {
-            parentResponse = await axios.get(`/api/geo-hierarchy/cities/${params.cityId}?appId=${appId}`);
+            parentResponse = await axios.get(`/api/masteredLocations/cities/${params.cityId}?appId=${appId}`);
           } else if (params.divisionId) {
-            parentResponse = await axios.get(`/api/geo-hierarchy/divisions/${params.divisionId}?appId=${appId}`);
+            parentResponse = await axios.get(`/api/masteredLocations/divisions/${params.divisionId}?appId=${appId}`);
           } else if (params.regionId) {
-            parentResponse = await axios.get(`/api/geo-hierarchy/regions/${params.regionId}?appId=${appId}`);
+            parentResponse = await axios.get(`/api/masteredLocations/regions/${params.regionId}?appId=${appId}`);
           }
           
           // Extract parent IDs from response
@@ -419,7 +420,7 @@ const useGeoHierarchy = (options = {}) => {
     if (!cityId) return null;
     
     try {
-      const response = await axios.get(`/api/geo-hierarchy/cities/${cityId}?appId=${appId}`);
+      const response = await axios.get(`/api/masteredLocations/cities/${cityId}?appId=${appId}`);
       
       if (response.data && response.data.coordinates) {
         return response.data.coordinates;
