@@ -223,7 +223,12 @@ const venuesApi = {
       
       const url = `/api/venues/${venueId}?appId=${appId}`;
       
+      console.log('Sending venue update request:', { url, payload });
+      
       const response = await axios.put(url, payload);
+      
+      console.log('Venue update response:', response.data);
+      
       return processResponse(response);
     } catch (error) {
       return handleApiError(error, {

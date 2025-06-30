@@ -54,9 +54,13 @@ const useVenues = (options = {}) => {
   const processVenues = useCallback((venuesData) => {
     if (!Array.isArray(venuesData)) return [];
     
-    return venuesData.map(venue => {
-      // Normalize venue properties with fallbacks for different API response formats
-      const normalizedVenue = {
+    const processed = [];
+    const failed = [];
+    
+    venuesData.forEach((venue, index) => {
+      try {
+        // Normalize venue properties with fallbacks for different API response formats
+        const normalizedVenue = {
         ...venue,
         _id: venue._id || venue.id, // Support both _id and id
         name: venue.name || venue.venueName || venue.venue_name || '',
@@ -74,11 +78,13 @@ const useVenues = (options = {}) => {
         masteredCityId: venue.masteredCityId || venue.cityId || null,
         masteredRegionId: venue.masteredRegionId || venue.regionId || null,
         masteredCityName: venue.masteredCityName || venue.cityName || '',
-        masteredRegionName: venue.masteredRegionName || venue.regionName || ''
+        masteredRegionName: venue.masteredRegionName || venue.regionName || '',
+        isActive: venue.isActive !== undefined ? venue.isActive : true,
+        isApproved: venue.isApproved !== undefined ? venue.isApproved : false
       };
       
       // Add computed fields for UI
-      return {
+      const processedVenue = {
         ...normalizedVenue,
         id: normalizedVenue._id, // Ensure id exists for DataGrid key
         displayName: normalizedVenue.name || 'Unnamed Venue',
@@ -101,7 +107,19 @@ const useVenues = (options = {}) => {
           normalizedVenue.address?.country
         ].filter(Boolean).join(', ')
       };
+      
+      processed.push(processedVenue);
+      } catch (error) {
+        console.error(`Error processing venue at index ${index}:`, error);
+        failed.push({ index, error: error.message });
+      }
     });
+    
+    if (failed.length > 0) {
+      console.warn(`Failed to process ${failed.length} venues:`, failed);
+    }
+    
+    return processed;
   }, []);
 
   /**
@@ -353,6 +371,12 @@ const useVenues = (options = {}) => {
       if (!venueId) {
         throw new Error('Venue ID is required for update');
       }
+      
+      // Debug: Log the data being sent
+      console.log('Updating venue with data:', {
+        ...data,
+        appId: data.appId || appId
+      });
       
       // Update venue using API client
       const updatedVenue = await venuesApi.updateVenue(venueId, {
