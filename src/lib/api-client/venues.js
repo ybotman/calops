@@ -26,34 +26,105 @@ const venuesApi = {
    * @param {number} options.page - Page number for pagination
    * @param {number} options.pageSize - Items per page
    * @param {number} options.timestamp - Cache busting timestamp
+   * @param {boolean} options.getAllPages - Fetch all pages automatically (default: true)
    * @returns {Promise<Array>} Array of venues
    */
   getVenues: async (options = {}) => {
     try {
-      // Build query parameters
-      const queryParams = {
-        appId: options.appId || '1',
-        ...(options.active !== undefined && { active: options.active }),
-        ...(options.search && { search: options.search }),
-        ...(options.page !== undefined && { page: options.page }),
-        ...(options.pageSize !== undefined && { pageSize: options.pageSize }),
-        ...(options.timestamp && { _: options.timestamp })
-      };
+      // Check if we should fetch all pages (default true for backward compatibility)
+      const fetchAllPages = options.getAllPages !== false;
       
-      // Add filter parameters if provided
-      if (options.filter) {
-        Object.entries(options.filter).forEach(([key, value]) => {
-          if (value !== undefined && value !== null) {
-            queryParams[key] = value;
-          }
-        });
+      // If specific page requested or getAllPages is false, use original behavior
+      if (!fetchAllPages || options.page !== undefined) {
+        return venuesApi._getVenuesPage(options);
       }
       
-      // Build URL with query parameters
-      const url = `/api/venues${buildQueryString(queryParams)}`;
+      // Fetch all pages automatically
+      let allVenues = [];
+      let currentPage = 1;
+      let hasMorePages = true;
+      const maxLimit = 500; // Backend max limit
       
-      // Make API request
-      const response = await axios.get(url);
+      while (hasMorePages) {
+        // Build query parameters for this page
+        const pageOptions = {
+          ...options,
+          page: currentPage,
+          pageSize: maxLimit // Use max limit for efficiency
+        };
+        
+        // Fetch this page
+        const response = await venuesApi._getVenuesPageRaw(pageOptions);
+        
+        // Extract venues from this page
+        let pageVenues = [];
+        if (response.data && response.data.data && Array.isArray(response.data.data)) {
+          pageVenues = response.data.data;
+        }
+        
+        // Add to all venues
+        allVenues = allVenues.concat(pageVenues);
+        
+        // Check if there are more pages
+        if (response.data && response.data.pagination) {
+          const { page, pages, total } = response.data.pagination;
+          hasMorePages = page < pages;
+          currentPage++;
+          
+        } else {
+          // No pagination info, assume single page
+          hasMorePages = false;
+        }
+      }
+      
+      return allVenues;
+    } catch (error) {
+      return handleApiError(error, {
+        returnDefault: true,
+        defaultValue: [],
+        context: 'venuesApi.getVenues'
+      });
+    }
+  },
+  
+  /**
+   * Internal method to get raw page response
+   * @private
+   */
+  _getVenuesPageRaw: async (options = {}) => {
+    // Build query parameters
+    const queryParams = {
+      appId: options.appId || '1',
+      ...(options.active !== undefined && { active: options.active }),
+      ...(options.search && { search: options.search }),
+      ...(options.page !== undefined && { page: options.page }),
+      ...(options.pageSize !== undefined && { pageSize: options.pageSize }),
+      ...(options.timestamp && { _: options.timestamp })
+    };
+    
+    // Add filter parameters if provided
+    if (options.filter) {
+      Object.entries(options.filter).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams[key] = value;
+        }
+      });
+    }
+    
+    // Build URL with query parameters
+    const url = `/api/venues${buildQueryString(queryParams)}`;
+    
+    // Make API request
+    return await axios.get(url);
+  },
+  
+  /**
+   * Internal method to get single page of venues (original behavior)
+   * @private
+   */
+  _getVenuesPage: async (options = {}) => {
+    try {
+      const response = await venuesApi._getVenuesPageRaw(options);
       
       // Process response with enhanced handling for different response formats
       let venues = [];
@@ -95,7 +166,7 @@ const venuesApi = {
       return handleApiError(error, {
         returnDefault: true,
         defaultValue: [],
-        context: 'venuesApi.getVenues'
+        context: 'venuesApi._getVenuesPage'
       });
     }
   },
@@ -150,7 +221,14 @@ const venuesApi = {
         appId
       };
       
-      const response = await axios.put(`/api/venues/${venueId}?appId=${appId}`, payload);
+      const url = `/api/venues/${venueId}?appId=${appId}`;
+      
+      console.log('Sending venue update request:', { url, payload });
+      
+      const response = await axios.put(url, payload);
+      
+      console.log('Venue update response:', response.data);
+      
       return processResponse(response);
     } catch (error) {
       return handleApiError(error, {

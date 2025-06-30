@@ -34,7 +34,7 @@ const masteredLocationsApi = {
     };
     
     try {
-      const url = `/api/mastered-locations/countries${buildQueryString(queryParams)}`;
+      const url = `/api/masteredLocations/countries${buildQueryString(queryParams)}`;
       const response = await axios.get(url);
       return processResponse(response);
     } catch (error) {
@@ -66,7 +66,7 @@ const masteredLocationsApi = {
     };
     
     try {
-      const url = `/api/mastered-locations/regions${buildQueryString(queryParams)}`;
+      const url = `/api/masteredLocations/regions${buildQueryString(queryParams)}`;
       const response = await axios.get(url);
       return processResponse(response);
     } catch (error) {
@@ -98,7 +98,7 @@ const masteredLocationsApi = {
     };
     
     try {
-      const url = `/api/mastered-locations/divisions${buildQueryString(queryParams)}`;
+      const url = `/api/masteredLocations/divisions${buildQueryString(queryParams)}`;
       const response = await axios.get(url);
       return processResponse(response);
     } catch (error) {
@@ -130,7 +130,7 @@ const masteredLocationsApi = {
     };
     
     try {
-      const url = `/api/mastered-locations/cities${buildQueryString(queryParams)}`;
+      const url = `/api/masteredLocations/cities${buildQueryString(queryParams)}`;
       const response = await axios.get(url);
       return processResponse(response);
     } catch (error) {
@@ -160,7 +160,7 @@ const masteredLocationsApi = {
     };
     
     try {
-      const url = `/api/mastered-locations/all${buildQueryString(queryParams)}`;
+      const url = `/api/masteredLocations/all${buildQueryString(queryParams)}`;
       const response = await axios.get(url);
       return processResponse(response);
     } catch (error) {

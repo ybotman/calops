@@ -41,8 +41,8 @@ const useVenueFilter = ({ venues = [], initialFilters = {}, debounceMs = 300 }) 
     }
     
     if (tab === 0) {
-      // All venues tab - no filtering
-      return venueList;
+      // Active venues tab - filter by isActive = true (default tab)
+      return venueList.filter(venue => venue.isActive === true);
     }
     
     if (tab === 1) {
@@ -55,8 +55,13 @@ const useVenueFilter = ({ venues = [], initialFilters = {}, debounceMs = 300 }) 
       return venueList.filter(venue => !venue.isApproved);
     }
     
-    // Default - no filtering
-    return venueList;
+    if (tab === 3) {
+      // All venues tab - no filtering
+      return venueList;
+    }
+    
+    // Default - show active venues
+    return venueList.filter(venue => venue.isActive === true);
   }, []);
 
   /**
@@ -75,9 +80,15 @@ const useVenueFilter = ({ venues = [], initialFilters = {}, debounceMs = 300 }) 
       try {
         // Add optional chaining for all properties to prevent null/undefined errors
         return (
+          (venue.name?.toLowerCase()?.includes(lowerTerm) || false) ||
           (venue.displayName?.toLowerCase()?.includes(lowerTerm) || false) ||
+          (venue.shortName?.toLowerCase()?.includes(lowerTerm) || false) ||
+          (venue.address1?.toLowerCase()?.includes(lowerTerm) || false) ||
+          (venue.city?.toLowerCase()?.includes(lowerTerm) || false) ||
           (venue.cityName?.toLowerCase()?.includes(lowerTerm) || false) ||
+          (venue.masteredCityName?.toLowerCase()?.includes(lowerTerm) || false) ||
           (venue.regionName?.toLowerCase()?.includes(lowerTerm) || false) ||
+          (venue.masteredRegionName?.toLowerCase()?.includes(lowerTerm) || false) ||
           (venue.locationString?.toLowerCase()?.includes(lowerTerm) || false)
         );
       } catch (error) {

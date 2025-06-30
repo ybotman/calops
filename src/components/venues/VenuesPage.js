@@ -69,7 +69,7 @@ const VenuesPage = ({
   setSelectedCity,
   
   // Other
-  pagination = { page: 0, pageSize: 10, totalCount: 0 },
+  pagination = { page: 0, pageSize: 500, totalCount: 0 },
   setPagination,
   getCityCoordinates,
   fetchGeoDataById,
@@ -139,6 +139,39 @@ const VenuesPage = ({
     }
   };
   
+  const handleFindMastered = async (venue) => {
+    if (!venue.latitude || !venue.longitude) {
+      alert('Venue must have coordinates to find nearest mastered city');
+      return;
+    }
+    
+    try {
+      const nearestCities = await fetchNearestCities(venue.longitude, venue.latitude);
+      
+      if (nearestCities && nearestCities.length > 0) {
+        // Update venue with the nearest city
+        const nearestCity = nearestCities[0];
+        const updatedData = {
+          ...venue,
+          masteredCityId: nearestCity._id,
+          masteredCityName: nearestCity.cityName
+        };
+        await updateVenue(updatedData);
+        alert(`Updated venue with mastered city: ${nearestCity.cityName}`);
+      } else {
+        alert('No nearby mastered cities found');
+      }
+    } catch (error) {
+      console.error('Error finding mastered city:', error);
+      alert(`Failed to find mastered city: ${error.message}`);
+    }
+  };
+  
+  const handleGeocodeAddress = async (venue) => {
+    // Placeholder for geocoding functionality
+    alert('Geocoding functionality coming soon. Backend API integration required.');
+  };
+  
   return (
     <Box sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
@@ -165,9 +198,10 @@ const VenuesPage = ({
             onChange={handleTabChange}
             aria-label="venue tabs"
           >
-            <Tab label="All Venues" />
+            <Tab label="Active" />
             <Tab label="Approved" />
             <Tab label="Not Approved" />
+            <Tab label="All" />
           </Tabs>
         </Box>
         
@@ -195,26 +229,24 @@ const VenuesPage = ({
               </Select>
             </FormControl>
             
-            {/* City Filter - only show if division is selected */}
-            {filterDivision && (
-              <FormControl size="small" sx={{ minWidth: 200 }}>
-                <InputLabel>Filter by City</InputLabel>
-                <Select
-                  value={filterCity || ''}
-                  onChange={(e) => setFilterCity(e.target.value)}
-                  label="Filter by City"
-                >
-                  <MenuItem value="">
-                    <em>All Cities</em>
+            {/* City Filter */}
+            <FormControl size="small" sx={{ minWidth: 200 }}>
+              <InputLabel>Filter by City</InputLabel>
+              <Select
+                value={filterCity || ''}
+                onChange={(e) => setFilterCity(e.target.value)}
+                label="Filter by City"
+              >
+                <MenuItem value="">
+                  <em>All Cities</em>
+                </MenuItem>
+                {(filterDivision ? filteredCities : cities).map(city => (
+                  <MenuItem key={city._id} value={city._id}>
+                    {city.cityName}
                   </MenuItem>
-                  {(filteredCities || []).map(city => (
-                    <MenuItem key={city._id} value={city._id}>
-                      {city.cityName}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
+                ))}
+              </Select>
+            </FormControl>
             
             {/* Search field */}
             <TextField
@@ -238,9 +270,9 @@ const VenuesPage = ({
       
       <TabPanel value={tabValue} index={0}>
         <Typography variant="body1">
-          {loading ? 'Loading venues...' : 
+          {loading ? 'Loading active venues...' : 
             error ? `Error loading venues: ${error.message}` :
-            `${filteredVenues.length} venues found`}
+            `${filteredVenues.length} active venues found`}
         </Typography>
         <VenueTable 
           venues={filteredVenues}
@@ -250,6 +282,8 @@ const VenuesPage = ({
           onEdit={handleEditVenue}
           onDelete={handleDeleteVenue}
           onValidateGeo={handleValidateGeo}
+          onFindMastered={handleFindMastered}
+          onGeocodeAddress={handleGeocodeAddress}
           density="compact"
         />
       </TabPanel>
@@ -268,6 +302,8 @@ const VenuesPage = ({
           onEdit={handleEditVenue}
           onDelete={handleDeleteVenue}
           onValidateGeo={handleValidateGeo}
+          onFindMastered={handleFindMastered}
+          onGeocodeAddress={handleGeocodeAddress}
           density="compact"
         />
       </TabPanel>
@@ -286,6 +322,28 @@ const VenuesPage = ({
           onEdit={handleEditVenue}
           onDelete={handleDeleteVenue}
           onValidateGeo={handleValidateGeo}
+          onFindMastered={handleFindMastered}
+          onGeocodeAddress={handleGeocodeAddress}
+          density="compact"
+        />
+      </TabPanel>
+      
+      <TabPanel value={tabValue} index={3}>
+        <Typography variant="body1">
+          {loading ? 'Loading all venues...' : 
+            error ? `Error loading venues: ${error.message}` :
+            `${filteredVenues.length} total venues found`}
+        </Typography>
+        <VenueTable 
+          venues={filteredVenues}
+          loading={loading}
+          pagination={pagination}
+          onPaginationChange={handlePaginationChange}
+          onEdit={handleEditVenue}
+          onDelete={handleDeleteVenue}
+          onValidateGeo={handleValidateGeo}
+          onFindMastered={handleFindMastered}
+          onGeocodeAddress={handleGeocodeAddress}
           density="compact"
         />
       </TabPanel>
