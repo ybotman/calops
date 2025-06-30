@@ -42,7 +42,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 const VenueTable = ({
   venues = [],
   loading = false,
-  pagination = { page: 0, pageSize: 10, totalCount: 0 },
+  pagination = { page: 0, pageSize: 500, totalCount: 0 },
   onPaginationChange,
   onEdit,
   onDelete,
@@ -274,7 +274,7 @@ const VenueTable = ({
         </Table>
       </TableContainer>
       <TablePagination
-        rowsPerPageOptions={[10, 25, 50, 100]}
+        rowsPerPageOptions={[10, 25, 50, 100, 500]}
         component="div"
         count={pagination.totalCount}
         rowsPerPage={pagination.pageSize}

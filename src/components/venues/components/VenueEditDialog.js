@@ -269,10 +269,7 @@ const VenueEditDialog = ({
   };
   
   const handleSubmit = async () => {
-    console.log('[VenueEditDialog] handleSubmit called');
-    
     if (!validateForm()) {
-      console.log('[VenueEditDialog] Form validation failed');
       return;
     }
     
@@ -295,7 +292,6 @@ const VenueEditDialog = ({
       submitData._id = venue._id;
     }
     
-    console.log('[VenueEditDialog] Calling onSave with data:', submitData);
     onSave(submitData);
   };
   

@@ -221,7 +221,9 @@ const venuesApi = {
         appId
       };
       
-      const response = await axios.put(`/api/venues/${venueId}?appId=${appId}`, payload);
+      const url = `/api/venues/${venueId}?appId=${appId}`;
+      
+      const response = await axios.put(url, payload);
       return processResponse(response);
     } catch (error) {
       return handleApiError(error, {
