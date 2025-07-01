@@ -5,8 +5,11 @@
 
 import axios from 'axios';
 
-// Base URL for the API - defaults to localhost:3010
-const BE_URL = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
+// Base URL for the API
+// In development, use relative URLs to go through Next.js proxy
+// In production, use the backend URL from environment
+const isDevelopment = process.env.NODE_ENV === 'development';
+const BE_URL = isDevelopment ? '' : (process.env.NEXT_PUBLIC_BE_URL || '');
 
 // API client configuration
 

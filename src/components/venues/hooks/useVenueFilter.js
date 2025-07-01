@@ -41,22 +41,27 @@ const useVenueFilter = ({ venues = [], initialFilters = {}, debounceMs = 300 }) 
     }
     
     if (tab === 0) {
+      // Active venues tab - filter by isActive = true (default tab)
+      return venueList.filter(venue => venue.isActive === true);
+    }
+    
+    if (tab === 1) {
+      // Approved venues tab - filter by isApproved = true
+      return venueList.filter(venue => venue.isApproved === true);
+    }
+    
+    if (tab === 2) {
+      // Not approved venues tab - filter by isApproved = false or null/undefined
+      return venueList.filter(venue => !venue.isApproved);
+    }
+    
+    if (tab === 3) {
       // All venues tab - no filtering
       return venueList;
     }
     
-    if (tab === 1) {
-      // Validated venues tab - filter by valid geo
-      return venueList.filter(venue => venue.hasValidGeo);
-    }
-    
-    if (tab === 2) {
-      // Invalid geo tab - filter by invalid geo
-      return venueList.filter(venue => !venue.hasValidGeo);
-    }
-    
-    // Default - no filtering
-    return venueList;
+    // Default - show active venues
+    return venueList.filter(venue => venue.isActive === true);
   }, []);
 
   /**
@@ -75,9 +80,15 @@ const useVenueFilter = ({ venues = [], initialFilters = {}, debounceMs = 300 }) 
       try {
         // Add optional chaining for all properties to prevent null/undefined errors
         return (
+          (venue.name?.toLowerCase()?.includes(lowerTerm) || false) ||
           (venue.displayName?.toLowerCase()?.includes(lowerTerm) || false) ||
+          (venue.shortName?.toLowerCase()?.includes(lowerTerm) || false) ||
+          (venue.address1?.toLowerCase()?.includes(lowerTerm) || false) ||
+          (venue.city?.toLowerCase()?.includes(lowerTerm) || false) ||
           (venue.cityName?.toLowerCase()?.includes(lowerTerm) || false) ||
+          (venue.masteredCityName?.toLowerCase()?.includes(lowerTerm) || false) ||
           (venue.regionName?.toLowerCase()?.includes(lowerTerm) || false) ||
+          (venue.masteredRegionName?.toLowerCase()?.includes(lowerTerm) || false) ||
           (venue.locationString?.toLowerCase()?.includes(lowerTerm) || false)
         );
       } catch (error) {

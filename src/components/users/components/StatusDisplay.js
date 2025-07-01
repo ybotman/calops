@@ -27,8 +27,8 @@ const StatusDisplay = ({ user, showLabels = true, size = 'medium' }) => {
   const userEnabled = getNestedValue(user, 'localUserInfo.isEnabled', false);
   const orgApproved = getNestedValue(user, 'regionalOrganizerInfo.isApproved', false);
   const orgEnabled = getNestedValue(user, 'regionalOrganizerInfo.isEnabled', false);
-  const adminApproved = getNestedValue(user, 'localAdminInfo.isApproved', false);
-  const adminEnabled = getNestedValue(user, 'localAdminInfo.isEnabled', false);
+  const adminApproved = getNestedValue(user, 'regionalAdminInfo.isApproved', false);
+  const adminEnabled = getNestedValue(user, 'regionalAdminInfo.isEnabled', false);
   
   // Define sizes based on the size prop
   const containerPadding = size === 'small' ? '1px 2px' : '2px 4px';
@@ -153,7 +153,7 @@ StatusDisplay.propTypes = {
       isActive: PropTypes.bool,
       organizerId: PropTypes.oneOfType([PropTypes.string, PropTypes.object])
     }),
-    localAdminInfo: PropTypes.shape({
+    regionalAdminInfo: PropTypes.shape({
       isApproved: PropTypes.bool,
       isEnabled: PropTypes.bool,
       isActive: PropTypes.bool

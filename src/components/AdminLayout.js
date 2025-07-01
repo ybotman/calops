@@ -15,6 +15,7 @@ import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Avatar from '@mui/material/Avatar';
 import { useAppContext } from '@/lib/AppContext';
+import packageJson from '../../package.json';
 
 // Icons
 import MenuIcon from '@mui/icons-material/Menu';
@@ -143,6 +144,10 @@ export default function AdminLayout({ children }) {
             <Box onClick={handleAppMenu} sx={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
               Current Application: {currentApp.name} <AppsIcon sx={{ ml: 1 }} />
             </Box>
+          </Typography>
+          
+          <Typography variant="caption" sx={{ mr: 2, opacity: 0.7 }}>
+            v{packageJson.version}
           </Typography>
           
           

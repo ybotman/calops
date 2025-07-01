@@ -133,7 +133,7 @@ EditUserDialog.propTypes = {
       isActive: PropTypes.bool,
       organizerId: PropTypes.oneOfType([PropTypes.string, PropTypes.object])
     }),
-    localAdminInfo: PropTypes.shape({
+    regionalAdminInfo: PropTypes.shape({
       isApproved: PropTypes.bool,
       isEnabled: PropTypes.bool,
       isActive: PropTypes.bool

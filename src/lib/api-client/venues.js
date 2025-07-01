@@ -7,7 +7,10 @@ import axios from 'axios';
 import { processResponse, handleApiError, buildQueryString } from './utils';
 
 // Base configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
+// In development, use relative URLs to go through Next.js proxy
+// In production, use the backend URL from environment
+const isDevelopment = process.env.NODE_ENV === 'development';
+const API_BASE_URL = isDevelopment ? '' : (process.env.NEXT_PUBLIC_BE_URL || '');
 
 /**
  * Venues API client for interacting with venue endpoints
@@ -23,34 +26,105 @@ const venuesApi = {
    * @param {number} options.page - Page number for pagination
    * @param {number} options.pageSize - Items per page
    * @param {number} options.timestamp - Cache busting timestamp
+   * @param {boolean} options.getAllPages - Fetch all pages automatically (default: true)
    * @returns {Promise<Array>} Array of venues
    */
   getVenues: async (options = {}) => {
     try {
-      // Build query parameters
-      const queryParams = {
-        appId: options.appId || '1',
-        ...(options.active !== undefined && { active: options.active }),
-        ...(options.search && { search: options.search }),
-        ...(options.page !== undefined && { page: options.page }),
-        ...(options.pageSize !== undefined && { pageSize: options.pageSize }),
-        ...(options.timestamp && { _: options.timestamp })
-      };
+      // Check if we should fetch all pages (default true for backward compatibility)
+      const fetchAllPages = options.getAllPages !== false;
       
-      // Add filter parameters if provided
-      if (options.filter) {
-        Object.entries(options.filter).forEach(([key, value]) => {
-          if (value !== undefined && value !== null) {
-            queryParams[key] = value;
-          }
-        });
+      // If specific page requested or getAllPages is false, use original behavior
+      if (!fetchAllPages || options.page !== undefined) {
+        return venuesApi._getVenuesPage(options);
       }
       
-      // Build URL with query parameters
-      const url = `${API_BASE_URL}/api/venues${buildQueryString(queryParams)}`;
+      // Fetch all pages automatically
+      let allVenues = [];
+      let currentPage = 1;
+      let hasMorePages = true;
+      const maxLimit = 500; // Backend max limit
       
-      // Make API request
-      const response = await axios.get(url);
+      while (hasMorePages) {
+        // Build query parameters for this page
+        const pageOptions = {
+          ...options,
+          page: currentPage,
+          pageSize: maxLimit // Use max limit for efficiency
+        };
+        
+        // Fetch this page
+        const response = await venuesApi._getVenuesPageRaw(pageOptions);
+        
+        // Extract venues from this page
+        let pageVenues = [];
+        if (response.data && response.data.data && Array.isArray(response.data.data)) {
+          pageVenues = response.data.data;
+        }
+        
+        // Add to all venues
+        allVenues = allVenues.concat(pageVenues);
+        
+        // Check if there are more pages
+        if (response.data && response.data.pagination) {
+          const { page, pages, total } = response.data.pagination;
+          hasMorePages = page < pages;
+          currentPage++;
+          
+        } else {
+          // No pagination info, assume single page
+          hasMorePages = false;
+        }
+      }
+      
+      return allVenues;
+    } catch (error) {
+      return handleApiError(error, {
+        returnDefault: true,
+        defaultValue: [],
+        context: 'venuesApi.getVenues'
+      });
+    }
+  },
+  
+  /**
+   * Internal method to get raw page response
+   * @private
+   */
+  _getVenuesPageRaw: async (options = {}) => {
+    // Build query parameters
+    const queryParams = {
+      appId: options.appId || '1',
+      ...(options.active !== undefined && { active: options.active }),
+      ...(options.search && { search: options.search }),
+      ...(options.page !== undefined && { page: options.page }),
+      ...(options.pageSize !== undefined && { pageSize: options.pageSize }),
+      ...(options.timestamp && { _: options.timestamp })
+    };
+    
+    // Add filter parameters if provided
+    if (options.filter) {
+      Object.entries(options.filter).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams[key] = value;
+        }
+      });
+    }
+    
+    // Build URL with query parameters
+    const url = `/api/venues${buildQueryString(queryParams)}`;
+    
+    // Make API request
+    return await axios.get(url);
+  },
+  
+  /**
+   * Internal method to get single page of venues (original behavior)
+   * @private
+   */
+  _getVenuesPage: async (options = {}) => {
+    try {
+      const response = await venuesApi._getVenuesPageRaw(options);
       
       // Process response with enhanced handling for different response formats
       let venues = [];
@@ -92,7 +166,7 @@ const venuesApi = {
       return handleApiError(error, {
         returnDefault: true,
         defaultValue: [],
-        context: 'venuesApi.getVenues'
+        context: 'venuesApi._getVenuesPage'
       });
     }
   },
@@ -105,7 +179,7 @@ const venuesApi = {
    */
   getVenueById: async (venueId, appId = '1') => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/venues/${venueId}?appId=${appId}`);
+      const response = await axios.get(`/api/venues/${venueId}?appId=${appId}`);
       return processResponse(response);
     } catch (error) {
       return handleApiError(error, {
@@ -121,7 +195,7 @@ const venuesApi = {
    */
   createVenue: async (venueData) => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/venues`, venueData);
+      const response = await axios.post(`/api/venues`, venueData);
       return processResponse(response);
     } catch (error) {
       return handleApiError(error, {
@@ -138,9 +212,23 @@ const venuesApi = {
    */
   updateVenue: async (venueId, venueData) => {
     try {
+      // Extract appId and ensure it's included in the request
       const { appId = '1', ...data } = venueData;
       
-      const response = await axios.put(`${API_BASE_URL}/api/venues/${venueId}?appId=${appId}`, data);
+      // Include appId in the data payload as well
+      const payload = {
+        ...data,
+        appId
+      };
+      
+      const url = `/api/venues/${venueId}?appId=${appId}`;
+      
+      console.log('Sending venue update request:', { url, payload });
+      
+      const response = await axios.put(url, payload);
+      
+      console.log('Venue update response:', response.data);
+      
       return processResponse(response);
     } catch (error) {
       return handleApiError(error, {
@@ -157,7 +245,7 @@ const venuesApi = {
    */
   deleteVenue: async (venueId, appId = '1') => {
     try {
-      const response = await axios.delete(`${API_BASE_URL}/api/venues/${venueId}?appId=${appId}`);
+      const response = await axios.delete(`/api/venues/${venueId}?appId=${appId}`);
       return processResponse(response);
     } catch (error) {
       return handleApiError(error, {
@@ -191,7 +279,7 @@ const venuesApi = {
       }
       
       const response = await axios.get(
-        `${API_BASE_URL}/api/venues/nearest-city?lng=${lng}&lat=${lat}&appId=${appId}`
+        `/api/venues/nearest-city?longitude=${lng}&latitude=${lat}&appId=${appId}&limit=5`
       );
       return processResponse(response);
     } catch (error) {
@@ -223,7 +311,7 @@ const venuesApi = {
       };
       
       // Make API request
-      const response = await axios.post(`${API_BASE_URL}/api/venues/validate-geo`, requestBody);
+      const response = await axios.post(`/api/venues/validate-geo`, requestBody);
       return processResponse(response);
     } catch (error) {
       return handleApiError(error, {
@@ -252,7 +340,7 @@ const venuesApi = {
       };
       
       // Make API request
-      const response = await axios.post(`${API_BASE_URL}/api/venues/batch-validate-geo`, requestBody);
+      const response = await axios.post(`/api/venues/batch-validate-geo`, requestBody);
       return processResponse(response);
     } catch (error) {
       return handleApiError(error, {

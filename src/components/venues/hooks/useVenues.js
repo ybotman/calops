@@ -39,10 +39,10 @@ const useVenues = (options = {}) => {
   const [searchTerm, setSearchTerm] = useState(options.initialFilters?.searchTerm || '');
   const [tabValue, setTabValue] = useState(options.initialFilters?.tabValue || 0);
   
-  // State for pagination
+  // State for pagination - default to max page size
   const [pagination, setPagination] = useState({
     page: 0,
-    pageSize: 10,
+    pageSize: 500, // Use max API limit
     totalCount: 0
   });
 
@@ -54,9 +54,13 @@ const useVenues = (options = {}) => {
   const processVenues = useCallback((venuesData) => {
     if (!Array.isArray(venuesData)) return [];
     
-    return venuesData.map(venue => {
-      // Normalize venue properties with fallbacks for different API response formats
-      const normalizedVenue = {
+    const processed = [];
+    const failed = [];
+    
+    venuesData.forEach((venue, index) => {
+      try {
+        // Normalize venue properties with fallbacks for different API response formats
+        const normalizedVenue = {
         ...venue,
         _id: venue._id || venue.id, // Support both _id and id
         name: venue.name || venue.venueName || venue.venue_name || '',
@@ -74,11 +78,13 @@ const useVenues = (options = {}) => {
         masteredCityId: venue.masteredCityId || venue.cityId || null,
         masteredRegionId: venue.masteredRegionId || venue.regionId || null,
         masteredCityName: venue.masteredCityName || venue.cityName || '',
-        masteredRegionName: venue.masteredRegionName || venue.regionName || ''
+        masteredRegionName: venue.masteredRegionName || venue.regionName || '',
+        isActive: venue.isActive !== undefined ? venue.isActive : true,
+        isApproved: venue.isApproved !== undefined ? venue.isApproved : false
       };
       
       // Add computed fields for UI
-      return {
+      const processedVenue = {
         ...normalizedVenue,
         id: normalizedVenue._id, // Ensure id exists for DataGrid key
         displayName: normalizedVenue.name || 'Unnamed Venue',
@@ -101,7 +107,19 @@ const useVenues = (options = {}) => {
           normalizedVenue.address?.country
         ].filter(Boolean).join(', ')
       };
+      
+      processed.push(processedVenue);
+      } catch (error) {
+        console.error(`Error processing venue at index ${index}:`, error);
+        failed.push({ index, error: error.message });
+      }
     });
+    
+    if (failed.length > 0) {
+      console.warn(`Failed to process ${failed.length} venues:`, failed);
+    }
+    
+    return processed;
   }, []);
 
   /**
@@ -322,9 +340,8 @@ const useVenues = (options = {}) => {
         appId: venueData.appId || appId
       };
       
-      // Create venue using direct API call
-      const response = await axios.post('/api/venues', venueDataWithAppId);
-      const createdVenue = response.data;
+      // Create venue using API client
+      const createdVenue = await venuesApi.createVenue(venueDataWithAppId);
       
       // Refresh venues list
       await fetchVenues(true);
@@ -355,12 +372,17 @@ const useVenues = (options = {}) => {
         throw new Error('Venue ID is required for update');
       }
       
-      // Update venue using direct API call
-      const response = await axios.put(`/api/venues/${venueId}?appId=${appId}`, {
+      // Debug: Log the data being sent
+      console.log('Updating venue with data:', {
         ...data,
         appId: data.appId || appId
       });
-      const updatedVenue = response.data;
+      
+      // Update venue using API client
+      const updatedVenue = await venuesApi.updateVenue(venueId, {
+        ...data,
+        appId: data.appId || appId
+      });
       
       // Refresh venues list
       await fetchVenues(true);
@@ -384,8 +406,8 @@ const useVenues = (options = {}) => {
       setLoading(true);
       setError(null);
       
-      // Delete venue using direct API call
-      await axios.delete(`/api/venues/${venueId}?appId=${appId}`);
+      // Delete venue using API client
+      await venuesApi.deleteVenue(venueId, appId);
       
       // Refresh venues list
       await fetchVenues(true);
@@ -408,13 +430,11 @@ const useVenues = (options = {}) => {
       setLoading(true);
       setError(null);
       
-      // Validate venue using direct API call
-      const response = await axios.post(`/api/venues/validate-geo`, {
-        venueId,
+      // Validate venue using API client
+      const result = await venuesApi.validateGeolocation(venueId, {
         ...options,
         appId: options.appId || appId
       });
-      const result = response.data;
       
       // Refresh venues list
       await fetchVenues(true);
@@ -439,13 +459,11 @@ const useVenues = (options = {}) => {
       setLoading(true);
       setError(null);
       
-      // Batch validate venues using direct API call
-      const response = await axios.post(`/api/venues/batch-validate-geo`, {
-        venueIds,
+      // Batch validate venues using API client
+      const result = await venuesApi.batchValidateGeolocation(venueIds, {
         ...options,
         appId: options.appId || appId
       });
-      const result = response.data;
       
       // Refresh venues list
       await fetchVenues(true);
