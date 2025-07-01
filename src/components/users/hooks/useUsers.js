@@ -82,7 +82,7 @@ const useUsers = (options = {}) => {
         hasOrganizerId: !!user.regionalOrganizerInfo?.organizerId,
         localUserInfo: user.localUserInfo || {},
         regionalOrganizerInfo: user.regionalOrganizerInfo || {},
-        regionalAdminInfo: user.regionalAdminInfo || {},
+        regionalAdminInfo: user.localAdminInfo || {},
       };
     });
   }, [processRoleIds]);
@@ -454,15 +454,14 @@ const useUsers = (options = {}) => {
         active: userData.active,
         localUserInfo: userData.localUserInfo,
         regionalOrganizerInfo: userData.regionalOrganizerInfo,
-        // TODO: Backend doesn't handle regionalAdminInfo in updateUserInfo endpoint
-        // This is a known issue - the backend needs to be updated to process regionalAdminInfo
-        regionalAdminInfo: userData.regionalAdminInfo
+        // Map regionalAdminInfo to localAdminInfo for backend compatibility
+        localAdminInfo: userData.regionalAdminInfo
       };
       
-      // Debug logging for regionalAdminInfo
+      // Debug logging for localAdminInfo mapping
       console.log('Sending update to backend:', userUpdateData);
       if (userData.regionalAdminInfo) {
-        console.log('LocalAdminInfo being sent:', JSON.stringify(userData.regionalAdminInfo, null, 2));
+        console.log('Regional Admin Info (mapped to localAdminInfo):', JSON.stringify(userData.regionalAdminInfo, null, 2));
       }
       
       // Update user basic information
@@ -483,8 +482,8 @@ const useUsers = (options = {}) => {
       const updatedUser = users.find(u => u.firebaseUserId === userData.firebaseUserId);
       
       // Debug logging for the returned user
-      if (updatedUser && updatedUser.regionalAdminInfo) {
-        console.log('LocalAdminInfo after update:', JSON.stringify(updatedUser.regionalAdminInfo, null, 2));
+      if (updatedUser && updatedUser.localAdminInfo) {
+        console.log('Regional Admin Info after update:', JSON.stringify(updatedUser.localAdminInfo, null, 2));
       }
       
       return updatedUser || userData;
