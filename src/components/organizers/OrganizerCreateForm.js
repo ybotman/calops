@@ -22,6 +22,7 @@ export default function OrganizerCreateForm({ onSubmit, appId = '1' }) {
     isActive: true,
     isApproved: false,
     isEnabled: false,
+    isVisible: true,
     // organizerRegion is now optional in backend
     contactInfo: {
       email: '',
@@ -150,6 +151,7 @@ export default function OrganizerCreateForm({ onSubmit, appId = '1' }) {
         isApproved: formData.isApproved === true,
         isActive: formData.isActive === true,
         isEnabled: formData.isEnabled === true,
+        isVisible: formData.isVisible !== false,
         // Ensure appId is included
         appId: formData.appId || appId
       };
@@ -168,6 +170,7 @@ export default function OrganizerCreateForm({ onSubmit, appId = '1' }) {
         isActive: true,
         isApproved: false,
         isEnabled: false,
+        isVisible: true,
         contactInfo: {
           email: '',
           phone: '',
@@ -321,6 +324,20 @@ export default function OrganizerCreateForm({ onSubmit, appId = '1' }) {
               />
             }
             label="Enabled"
+          />
+        </Grid>
+        
+        <Grid item xs={12} sm={4}>
+          <FormControlLabel
+            control={
+              <Switch 
+                checked={formData.isVisible} 
+                onChange={handleChange}
+                name="isVisible"
+                color="primary"
+              />
+            }
+            label="Visible"
           />
         </Grid>
       </Grid>

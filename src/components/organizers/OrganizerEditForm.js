@@ -10,10 +10,7 @@ import {
   Typography,
   Divider,
   Button,
-  Card,
-  CardContent,
   ToggleButton,
-  ToggleButtonGroup,
 } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
 import EventIcon from '@mui/icons-material/Event';
@@ -30,6 +27,7 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
     shortName: '',
     description: '',
     isEnabled: false,
+    isVisible: true,
     wantRender: false,
     isRendered: false,
     publicContactInfo: {
@@ -68,6 +66,7 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
         shortName: organizer.shortName || '',
         description: organizer.description || '',
         isEnabled: organizer.isEnabled === true,
+        isVisible: organizer.isVisible !== false,
         wantRender: organizer.wantRender === true,
         isRendered: organizer.isRendered === true,
         publicContactInfo: {
@@ -194,6 +193,7 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
         shortName: formatShortName(formData.shortName || formData.name.substring(0, 10)),
         description: formData.description,
         isEnabled: formData.isEnabled,
+        isVisible: formData.isVisible,
         wantRender: formData.wantRender,
         publicContactInfo: formData.publicContactInfo,
         organizerTypes: formData.organizerTypes,
@@ -284,6 +284,20 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
           <FormControlLabel
             control={
               <Switch 
+                checked={formData.isVisible} 
+                onChange={handleChange}
+                name="isVisible"
+                color="primary"
+              />
+            }
+            label="Visible"
+          />
+        </Grid>
+        
+        <Grid item xs={12} sm={4}>
+          <FormControlLabel
+            control={
+              <Switch 
                 checked={formData.wantRender} 
                 onChange={handleChange}
                 name="wantRender"
@@ -313,117 +327,76 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
       
       {/* Organizer Types */}
       <Typography variant="h6" gutterBottom>Organizer Types</Typography>
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} md={4}>
-          <Card 
+      <Box sx={{ mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+          <ToggleButton
+            value="event"
+            selected={true}
+            disabled
+            size="small"
             sx={{ 
-              cursor: 'not-allowed',
               opacity: 0.8,
-              bgcolor: 'action.selected'
+              '&.Mui-disabled': {
+                color: 'primary.main',
+                backgroundColor: 'action.selected'
+              }
             }}
           >
-            <CardContent sx={{ textAlign: 'center' }}>
-              <EventIcon sx={{ fontSize: 40, color: 'primary.main', mb: 1 }} />
-              <Typography variant="body1" fontWeight="bold">
-                Event Organizer
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                (Always enabled)
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        
-        <Grid item xs={12} sm={6} md={4}>
-          <Card 
-            sx={{ 
-              cursor: 'pointer',
-              bgcolor: formData.organizerTypes.isVenue ? 'primary.light' : 'background.paper',
-              '&:hover': { bgcolor: formData.organizerTypes.isVenue ? 'primary.main' : 'action.hover' }
-            }}
-            onClick={() => handleOrganizerTypeChange('isVenue')}
+            <EventIcon sx={{ fontSize: 20, mr: 1 }} />
+            Event (Always)
+          </ToggleButton>
+          
+          <ToggleButton
+            value="venue"
+            selected={formData.organizerTypes.isVenue}
+            onChange={() => handleOrganizerTypeChange('isVenue')}
+            size="small"
           >
-            <CardContent sx={{ textAlign: 'center' }}>
-              <PlaceIcon sx={{ fontSize: 40, mb: 1 }} />
-              <Typography variant="body1" fontWeight="bold">
-                Venue
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        
-        <Grid item xs={12} sm={6} md={4}>
-          <Card 
-            sx={{ 
-              cursor: 'pointer',
-              bgcolor: formData.organizerTypes.isTeacher ? 'primary.light' : 'background.paper',
-              '&:hover': { bgcolor: formData.organizerTypes.isTeacher ? 'primary.main' : 'action.hover' }
-            }}
-            onClick={() => handleOrganizerTypeChange('isTeacher')}
+            <PlaceIcon sx={{ fontSize: 20, mr: 1 }} />
+            Venue
+          </ToggleButton>
+          
+          <ToggleButton
+            value="teacher"
+            selected={formData.organizerTypes.isTeacher}
+            onChange={() => handleOrganizerTypeChange('isTeacher')}
+            size="small"
           >
-            <CardContent sx={{ textAlign: 'center' }}>
-              <SchoolIcon sx={{ fontSize: 40, mb: 1 }} />
-              <Typography variant="body1" fontWeight="bold">
-                Teacher
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        
-        <Grid item xs={12} sm={6} md={4}>
-          <Card 
-            sx={{ 
-              cursor: 'pointer',
-              bgcolor: formData.organizerTypes.isMaestro ? 'primary.light' : 'background.paper',
-              '&:hover': { bgcolor: formData.organizerTypes.isMaestro ? 'primary.main' : 'action.hover' }
-            }}
-            onClick={() => handleOrganizerTypeChange('isMaestro')}
+            <SchoolIcon sx={{ fontSize: 20, mr: 1 }} />
+            Teacher
+          </ToggleButton>
+          
+          <ToggleButton
+            value="maestro"
+            selected={formData.organizerTypes.isMaestro}
+            onChange={() => handleOrganizerTypeChange('isMaestro')}
+            size="small"
           >
-            <CardContent sx={{ textAlign: 'center' }}>
-              <StarIcon sx={{ fontSize: 40, mb: 1 }} />
-              <Typography variant="body1" fontWeight="bold">
-                Maestro
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        
-        <Grid item xs={12} sm={6} md={4}>
-          <Card 
-            sx={{ 
-              cursor: 'pointer',
-              bgcolor: formData.organizerTypes.isDJ ? 'primary.light' : 'background.paper',
-              '&:hover': { bgcolor: formData.organizerTypes.isDJ ? 'primary.main' : 'action.hover' }
-            }}
-            onClick={() => handleOrganizerTypeChange('isDJ')}
+            <StarIcon sx={{ fontSize: 20, mr: 1 }} />
+            Maestro
+          </ToggleButton>
+          
+          <ToggleButton
+            value="dj"
+            selected={formData.organizerTypes.isDJ}
+            onChange={() => handleOrganizerTypeChange('isDJ')}
+            size="small"
           >
-            <CardContent sx={{ textAlign: 'center' }}>
-              <HeadphonesIcon sx={{ fontSize: 40, mb: 1 }} />
-              <Typography variant="body1" fontWeight="bold">
-                DJ
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        
-        <Grid item xs={12} sm={6} md={4}>
-          <Card 
-            sx={{ 
-              cursor: 'pointer',
-              bgcolor: formData.organizerTypes.isOrchestra ? 'primary.light' : 'background.paper',
-              '&:hover': { bgcolor: formData.organizerTypes.isOrchestra ? 'primary.main' : 'action.hover' }
-            }}
-            onClick={() => handleOrganizerTypeChange('isOrchestra')}
+            <HeadphonesIcon sx={{ fontSize: 20, mr: 1 }} />
+            DJ
+          </ToggleButton>
+          
+          <ToggleButton
+            value="orchestra"
+            selected={formData.organizerTypes.isOrchestra}
+            onChange={() => handleOrganizerTypeChange('isOrchestra')}
+            size="small"
           >
-            <CardContent sx={{ textAlign: 'center' }}>
-              <MusicNoteIcon sx={{ fontSize: 40, mb: 1 }} />
-              <Typography variant="body1" fontWeight="bold">
-                Orchestra
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+            <MusicNoteIcon sx={{ fontSize: 20, mr: 1 }} />
+            Orchestra
+          </ToggleButton>
+        </Box>
+      </Box>
       
       <Divider sx={{ my: 3 }} />
       
