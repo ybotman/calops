@@ -16,9 +16,11 @@ const organizersApi = {
    * Get all organizers for an application
    * @param {string} appId - Application ID
    * @param {boolean} isActive - Filter by active status (optional)
+   * @param {boolean} includeAllFields - Include all fields (optional)
+   * @param {boolean} includeHidden - Include hidden organizers (optional)
    * @returns {Promise<Array>} Array of organizers
    */
-  async getOrganizers(appId, isActive = undefined, includeAllFields = false) {
+  async getOrganizers(appId, isActive = undefined, includeAllFields = false, includeHidden = false) {
     // Use relative URL for local development
     
     const params = {
@@ -30,10 +32,14 @@ const organizersApi = {
       params.isActive = isActive;
     }
     
+    if (includeHidden) {
+      params.includeHidden = true;
+    }
+    
     // If we need all fields (like for editing), don't use select
     if (includeAllFields) {
       // Request all fields by specifying them explicitly
-      const allFields = '_id appId fullName shortName description isActive isEnabled wantRender isRendered ' +
+      const allFields = '_id appId fullName shortName description isActive isEnabled isVisible wantRender isRendered ' +
                        'publicContactInfo organizerTypes images delegatedOrganizerIds ' +
                        'organizerRegion masteredRegionId masteredDivisionId masteredCityId ' +
                        'firebaseUserId linkedUserLogin organizerBannerImage organizerProfileImage ' +

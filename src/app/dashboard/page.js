@@ -47,9 +47,9 @@ export default function Dashboard() {
           // Fetch active users
           usersApi.getUsers(currentApp.id, true),
           // Fetch all organizers
-          organizersApi.getOrganizers(currentApp.id),
+          organizersApi.getOrganizers(currentApp.id, undefined, false, true),
           // Fetch active organizers
-          organizersApi.getOrganizers(currentApp.id, true)
+          organizersApi.getOrganizers(currentApp.id, true, false, true)
         ];
         
         // Execute all requests in parallel

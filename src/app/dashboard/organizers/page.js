@@ -108,7 +108,7 @@ export default function OrganizersPage() {
         console.log(`Fetching organizers for AppId: ${appId}`);
         
         // Fetch all organizers with all fields for editing capability
-        const organizersData = await organizersApi.getOrganizers(appId, undefined, true);
+        const organizersData = await organizersApi.getOrganizers(appId, undefined, true, true);
         
         console.log(`Successfully fetched ${organizersData.length} organizers`);
         
@@ -174,6 +174,7 @@ export default function OrganizersPage() {
           wantRender: organizer.wantRender ? 'Yes' : 'No',
           isRendered: organizer.isRendered ? 'Yes' : 'No',
           enabled: organizer.isEnabled ? 'Yes' : 'No',
+          visible: organizer.isVisible ? 'Yes' : 'No',
           userConnected: organizer.linkedUserLogin ? 'Yes' : 'No',
           linkedUserLogin: organizer.linkedUserLogin, // Store the ID for column renderer
           userConnectedName: organizer.linkedUserLogin ? firebaseUserMap[organizer.linkedUserLogin] || null : '-',
@@ -198,7 +199,7 @@ export default function OrganizersPage() {
   const refreshOrganizersData = async () => {
     try {
       // Fetch organizers with all fields
-      const organizersData = await organizersApi.getOrganizers(currentApp.id, undefined, true);
+      const organizersData = await organizersApi.getOrganizers(currentApp.id, undefined, true, true);
       
       // Fetch Firebase users for linked organizers
       const linkedUserIds = organizersData
@@ -253,6 +254,7 @@ export default function OrganizersPage() {
         wantRender: organizer.wantRender ? 'Yes' : 'No',
         isRendered: organizer.isRendered ? 'Yes' : 'No',
         enabled: organizer.isEnabled ? 'Yes' : 'No',
+        visible: organizer.isVisible ? 'Yes' : 'No',
         userConnected: organizer.linkedUserLogin ? 'Yes' : 'No',
         linkedUserLogin: organizer.linkedUserLogin, // Store the ID for column renderer
         userConnectedName: organizer.linkedUserLogin ? firebaseUserMap[organizer.linkedUserLogin] || null : '-',
@@ -338,13 +340,13 @@ export default function OrganizersPage() {
       console.log(`Refreshing organizers at ${timestamp}...`);
       
       // Use organizersApi to call backend directly with all fields
-      const organizersData = await organizersApi.getOrganizers(currentApp.id, undefined, true);
+      const organizersData = await organizersApi.getOrganizers(currentApp.id, undefined, true, true);
       
       // Check if organizersData is an array
       if (!Array.isArray(organizersData)) {
         console.error('Expected array of organizers, got:', typeof organizersData);
         // If not an array, try to fetch again using the organizersApi client
-        const apiResponse = await organizersApi.getOrganizers(currentApp.id);
+        const apiResponse = await organizersApi.getOrganizers(currentApp.id, undefined, false, true);
         if (Array.isArray(apiResponse)) {
           console.log('Successfully retrieved organizers using api client');
           const processedOrganizers = apiResponse.map(org => ({
@@ -447,7 +449,7 @@ export default function OrganizersPage() {
         
         try {
           // Use the organizersApi client directly for more reliable fetching
-          const organizersData = await organizersApi.getOrganizers(currentApp.id);
+          const organizersData = await organizersApi.getOrganizers(currentApp.id, undefined, false, true);
           
           // Process organizers data
           const processedOrganizers = organizersData.map(org => ({
@@ -458,6 +460,7 @@ export default function OrganizersPage() {
             status: org.isActive ? 'Active' : 'Inactive',
             approved: org.isApproved ? 'Yes' : 'No',
             enabled: org.isEnabled ? 'Yes' : 'No',
+            visible: org.isVisible ? 'Yes' : 'No',
             userConnected: org.linkedUserLogin ? 'Yes' : 'No',
           }));
           
@@ -688,6 +691,17 @@ export default function OrganizersPage() {
         params.row.isEnabled ? 
           <CheckCircleIcon sx={{ color: 'success.main', fontSize: 20 }} /> : 
           <CancelIcon sx={{ color: 'error.main', fontSize: 20 }} />
+    },
+    { 
+      field: 'visible', 
+      headerName: 'Visible', 
+      width: 80,
+      align: 'center',
+      headerAlign: 'center',
+      renderCell: (params) => 
+        params.row.isVisible ? 
+          <CheckCircleIcon sx={{ color: 'success.main', fontSize: 20 }} /> : 
+          <CancelIcon sx={{ color: 'grey.400', fontSize: 20 }} />
     },
     { 
       field: 'wantRender', 
