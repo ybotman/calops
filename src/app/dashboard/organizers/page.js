@@ -702,28 +702,6 @@ export default function OrganizersPage() {
           <CancelIcon sx={{ color: 'grey.400', fontSize: 20 }} />
     },
     { 
-      field: 'wantRender', 
-      headerName: 'Render', 
-      width: 60,
-      align: 'center',
-      headerAlign: 'center',
-      renderCell: (params) => 
-        params.row.wantRender ? 
-          <CheckCircleIcon sx={{ color: 'info.main', fontSize: 20 }} /> : 
-          <CancelIcon sx={{ color: 'grey.400', fontSize: 20 }} />
-    },
-    { 
-      field: 'isRendered', 
-      headerName: 'Rendered', 
-      width: 70,
-      align: 'center',
-      headerAlign: 'center',
-      renderCell: (params) => 
-        params.row.isRendered ? 
-          <CheckCircleIcon sx={{ color: 'success.main', fontSize: 20 }} /> : 
-          <CancelIcon sx={{ color: 'error.main', fontSize: 20 }} />
-    },
-    { 
       field: 'organizerTypes', 
       headerName: 'Types', 
       width: 150,
@@ -739,58 +717,6 @@ export default function OrganizersPage() {
             {types.length > 0 ? types.join(', ') : 'Event Only'}
           </span>
         );
-      }
-    },
-    { 
-      field: 'hasBanner', 
-      headerName: 'Banner', 
-      width: 50,
-      align: 'center',
-      headerAlign: 'center',
-      renderCell: (params) => {
-        const hasBanner = params.row.organizerBannerImage && !params.row.organizerBannerImage.includes('/defaults/');
-        return hasBanner ? 
-          <CheckCircleIcon sx={{ color: 'success.main', fontSize: 18 }} /> : 
-          <CancelIcon sx={{ color: 'grey.400', fontSize: 18 }} />;
-      }
-    },
-    { 
-      field: 'hasProfile', 
-      headerName: 'Profile', 
-      width: 50,
-      align: 'center',
-      headerAlign: 'center',
-      renderCell: (params) => {
-        const hasProfile = params.row.organizerProfileImage && !params.row.organizerProfileImage.includes('/defaults/');
-        return hasProfile ? 
-          <CheckCircleIcon sx={{ color: 'success.main', fontSize: 18 }} /> : 
-          <CancelIcon sx={{ color: 'grey.400', fontSize: 18 }} />;
-      }
-    },
-    { 
-      field: 'hasLandscape', 
-      headerName: 'Landscape', 
-      width: 65,
-      align: 'center',
-      headerAlign: 'center',
-      renderCell: (params) => {
-        const hasLandscape = params.row.organizerLandscapeImage && !params.row.organizerLandscapeImage.includes('/defaults/');
-        return hasLandscape ? 
-          <CheckCircleIcon sx={{ color: 'success.main', fontSize: 18 }} /> : 
-          <CancelIcon sx={{ color: 'grey.400', fontSize: 18 }} />;
-      }
-    },
-    { 
-      field: 'hasLogo', 
-      headerName: 'Logo', 
-      width: 50,
-      align: 'center',
-      headerAlign: 'center',
-      renderCell: (params) => {
-        const hasLogo = params.row.organizerLogoImage && !params.row.organizerLogoImage.includes('/defaults/');
-        return hasLogo ? 
-          <CheckCircleIcon sx={{ color: 'success.main', fontSize: 18 }} /> : 
-          <CancelIcon sx={{ color: 'grey.400', fontSize: 18 }} />;
       }
     },
     { 

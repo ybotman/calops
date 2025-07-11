@@ -19,6 +19,8 @@ import SchoolIcon from '@mui/icons-material/School';
 import StarIcon from '@mui/icons-material/Star';
 import HeadphonesIcon from '@mui/icons-material/Headphones';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CancelIcon from '@mui/icons-material/Cancel';
 
 export default function OrganizerEditForm({ organizer, onSubmit }) {
   console.log('OrganizerEditForm mounted with organizer prop:', organizer);
@@ -89,6 +91,11 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
           isDJ: organizer.organizerTypes?.isDJ || false,
           isOrchestra: organizer.organizerTypes?.isOrchestra || false
         },
+        // Image fields for status display
+        organizerBannerImage: organizer.organizerBannerImage || '/defaults/banner.png',
+        organizerProfileImage: organizer.organizerProfileImage || '/defaults/profile.png',
+        organizerLandscapeImage: organizer.organizerLandscapeImage || '/defaults/landscape.png',
+        organizerLogoImage: organizer.organizerLogoImage || '/defaults/logo.png',
         // Keep these fields from the original but don't display
         organizerRegion: organizer.organizerRegion || "66c4d99042ec462ea22484bd",
         linkedUserLogin: organizer.linkedUserLogin || null,
@@ -325,6 +332,41 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
       
       <Divider sx={{ my: 3 }} />
       
+      {/* Image Status */}
+      <Typography variant="h6" gutterBottom>Image Status</Typography>
+      <Box sx={{ mb: 3, display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {formData.organizerBannerImage && !formData.organizerBannerImage.includes('/defaults/') ?
+            <CheckCircleIcon sx={{ color: 'success.main' }} /> :
+            <CancelIcon sx={{ color: 'grey.400' }} />
+          }
+          <Typography>Banner Image</Typography>
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {formData.organizerProfileImage && !formData.organizerProfileImage.includes('/defaults/') ?
+            <CheckCircleIcon sx={{ color: 'success.main' }} /> :
+            <CancelIcon sx={{ color: 'grey.400' }} />
+          }
+          <Typography>Profile Image</Typography>
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {formData.organizerLandscapeImage && !formData.organizerLandscapeImage.includes('/defaults/') ?
+            <CheckCircleIcon sx={{ color: 'success.main' }} /> :
+            <CancelIcon sx={{ color: 'grey.400' }} />
+          }
+          <Typography>Landscape Image</Typography>
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {formData.organizerLogoImage && !formData.organizerLogoImage.includes('/defaults/') ?
+            <CheckCircleIcon sx={{ color: 'success.main' }} /> :
+            <CancelIcon sx={{ color: 'grey.400' }} />
+          }
+          <Typography>Logo Image</Typography>
+        </Box>
+      </Box>
+      
+      <Divider sx={{ my: 3 }} />
+      
       {/* Organizer Types */}
       <Typography variant="h6" gutterBottom>Organizer Types</Typography>
       <Box sx={{ mb: 3 }}>
@@ -351,6 +393,15 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
             selected={formData.organizerTypes.isVenue}
             onChange={() => handleOrganizerTypeChange('isVenue')}
             size="small"
+            sx={{
+              '&.Mui-selected': {
+                backgroundColor: 'success.main',
+                color: 'white',
+                '&:hover': {
+                  backgroundColor: 'success.dark',
+                }
+              }
+            }}
           >
             <PlaceIcon sx={{ fontSize: 20, mr: 1 }} />
             Venue
@@ -361,6 +412,15 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
             selected={formData.organizerTypes.isTeacher}
             onChange={() => handleOrganizerTypeChange('isTeacher')}
             size="small"
+            sx={{
+              '&.Mui-selected': {
+                backgroundColor: 'success.main',
+                color: 'white',
+                '&:hover': {
+                  backgroundColor: 'success.dark',
+                }
+              }
+            }}
           >
             <SchoolIcon sx={{ fontSize: 20, mr: 1 }} />
             Teacher
@@ -371,6 +431,15 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
             selected={formData.organizerTypes.isMaestro}
             onChange={() => handleOrganizerTypeChange('isMaestro')}
             size="small"
+            sx={{
+              '&.Mui-selected': {
+                backgroundColor: 'success.main',
+                color: 'white',
+                '&:hover': {
+                  backgroundColor: 'success.dark',
+                }
+              }
+            }}
           >
             <StarIcon sx={{ fontSize: 20, mr: 1 }} />
             Maestro
@@ -381,6 +450,15 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
             selected={formData.organizerTypes.isDJ}
             onChange={() => handleOrganizerTypeChange('isDJ')}
             size="small"
+            sx={{
+              '&.Mui-selected': {
+                backgroundColor: 'success.main',
+                color: 'white',
+                '&:hover': {
+                  backgroundColor: 'success.dark',
+                }
+              }
+            }}
           >
             <HeadphonesIcon sx={{ fontSize: 20, mr: 1 }} />
             DJ
@@ -391,6 +469,15 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
             selected={formData.organizerTypes.isOrchestra}
             onChange={() => handleOrganizerTypeChange('isOrchestra')}
             size="small"
+            sx={{
+              '&.Mui-selected': {
+                backgroundColor: 'success.main',
+                color: 'white',
+                '&:hover': {
+                  backgroundColor: 'success.dark',
+                }
+              }
+            }}
           >
             <MusicNoteIcon sx={{ fontSize: 20, mr: 1 }} />
             Orchestra
