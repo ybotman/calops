@@ -72,7 +72,7 @@ const EventPage = () => {
         // Execute API requests in parallel for better performance
         const [organizersResponse, geoResponse, venuesResponse] = await Promise.all([
           // Load organizers
-          organizersApi.getOrganizers(appId, true),
+          organizersApi.getOrganizers(appId, true, false, true),
           
           // Load geo hierarchy data - all regions, divisions, and cities
           masteredLocationsApi.getAllGeoData({ appId, isActive: true }),

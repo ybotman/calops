@@ -1,0 +1,90 @@
+auth_type: basic
+board:
+    id: 1
+    name: SCRUM board
+    type: simple
+epic:
+    name: ""
+    link: ""
+installation: Cloud
+issue:
+    fields:
+        custom:
+            - name: development
+              key: customfield_10032
+              schema:
+                datatype: any
+            - name: Vulnerability
+              key: customfield_10035
+              schema:
+                datatype: any
+            - name: Design
+              key: customfield_10036
+              schema:
+                datatype: array
+                items: design.field.name
+            - name: Role
+              key: customfield_10104
+              schema:
+                datatype: option
+            - name: Sprint
+              key: customfield_10020
+              schema:
+                datatype: array
+                items: json
+            - name: Flagged
+              key: customfield_10021
+              schema:
+                datatype: array
+                items: option
+            - name: Category
+              key: customfield_10137
+              schema:
+                datatype: option
+            - name: Story point estimate
+              key: customfield_10016
+              schema:
+                datatype: number
+            - name: Issue color
+              key: customfield_10017
+              schema:
+                datatype: string
+            - name: Rank
+              key: customfield_10019
+              schema:
+                datatype: any
+            - name: Start date
+              key: customfield_10015
+              schema:
+                datatype: date
+            - name: Team
+              key: customfield_10001
+              schema:
+                datatype: team
+    types:
+        - id: "10001"
+          name: Epic
+          handle: Epic
+          subtask: false
+        - id: "10002"
+          name: Subtask
+          handle: Subtask
+          subtask: true
+        - id: "10003"
+          name: Task
+          handle: Task
+          subtask: false
+        - id: "10004"
+          name: Story
+          handle: Story
+          subtask: false
+        - id: "10076"
+          name: Bug
+          handle: Bug
+          subtask: false
+login: toby.balsley@gmail.com
+project:
+    key: CALOPS
+    type: next-gen
+server: https://hdtsllc.atlassian.net
+timezone: America/New_York

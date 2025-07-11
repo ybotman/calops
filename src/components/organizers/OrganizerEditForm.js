@@ -10,10 +10,7 @@ import {
   Typography,
   Divider,
   Button,
-  Card,
-  CardContent,
   ToggleButton,
-  ToggleButtonGroup,
 } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
 import EventIcon from '@mui/icons-material/Event';
@@ -22,6 +19,8 @@ import SchoolIcon from '@mui/icons-material/School';
 import StarIcon from '@mui/icons-material/Star';
 import HeadphonesIcon from '@mui/icons-material/Headphones';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CancelIcon from '@mui/icons-material/Cancel';
 
 export default function OrganizerEditForm({ organizer, onSubmit }) {
   console.log('OrganizerEditForm mounted with organizer prop:', organizer);
@@ -30,6 +29,7 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
     shortName: '',
     description: '',
     isEnabled: false,
+    isVisible: true,
     wantRender: false,
     isRendered: false,
     publicContactInfo: {
@@ -68,6 +68,7 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
         shortName: organizer.shortName || '',
         description: organizer.description || '',
         isEnabled: organizer.isEnabled === true,
+        isVisible: organizer.isVisible !== false,
         wantRender: organizer.wantRender === true,
         isRendered: organizer.isRendered === true,
         publicContactInfo: {
@@ -90,6 +91,11 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
           isDJ: organizer.organizerTypes?.isDJ || false,
           isOrchestra: organizer.organizerTypes?.isOrchestra || false
         },
+        // Image fields for status display
+        organizerBannerImage: organizer.organizerBannerImage || '/defaults/banner.png',
+        organizerProfileImage: organizer.organizerProfileImage || '/defaults/profile.png',
+        organizerLandscapeImage: organizer.organizerLandscapeImage || '/defaults/landscape.png',
+        organizerLogoImage: organizer.organizerLogoImage || '/defaults/logo.png',
         // Keep these fields from the original but don't display
         organizerRegion: organizer.organizerRegion || "66c4d99042ec462ea22484bd",
         linkedUserLogin: organizer.linkedUserLogin || null,
@@ -194,6 +200,7 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
         shortName: formatShortName(formData.shortName || formData.name.substring(0, 10)),
         description: formData.description,
         isEnabled: formData.isEnabled,
+        isVisible: formData.isVisible,
         wantRender: formData.wantRender,
         publicContactInfo: formData.publicContactInfo,
         organizerTypes: formData.organizerTypes,
@@ -284,6 +291,20 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
           <FormControlLabel
             control={
               <Switch 
+                checked={formData.isVisible} 
+                onChange={handleChange}
+                name="isVisible"
+                color="primary"
+              />
+            }
+            label="Visible"
+          />
+        </Grid>
+        
+        <Grid item xs={12} sm={4}>
+          <FormControlLabel
+            control={
+              <Switch 
                 checked={formData.wantRender} 
                 onChange={handleChange}
                 name="wantRender"
@@ -311,119 +332,158 @@ export default function OrganizerEditForm({ organizer, onSubmit }) {
       
       <Divider sx={{ my: 3 }} />
       
+      {/* Image Status */}
+      <Typography variant="h6" gutterBottom>Image Status</Typography>
+      <Box sx={{ mb: 3, display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {formData.organizerBannerImage && !formData.organizerBannerImage.includes('/defaults/') ?
+            <CheckCircleIcon sx={{ color: 'success.main' }} /> :
+            <CancelIcon sx={{ color: 'grey.400' }} />
+          }
+          <Typography>Banner Image</Typography>
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {formData.organizerProfileImage && !formData.organizerProfileImage.includes('/defaults/') ?
+            <CheckCircleIcon sx={{ color: 'success.main' }} /> :
+            <CancelIcon sx={{ color: 'grey.400' }} />
+          }
+          <Typography>Profile Image</Typography>
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {formData.organizerLandscapeImage && !formData.organizerLandscapeImage.includes('/defaults/') ?
+            <CheckCircleIcon sx={{ color: 'success.main' }} /> :
+            <CancelIcon sx={{ color: 'grey.400' }} />
+          }
+          <Typography>Landscape Image</Typography>
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {formData.organizerLogoImage && !formData.organizerLogoImage.includes('/defaults/') ?
+            <CheckCircleIcon sx={{ color: 'success.main' }} /> :
+            <CancelIcon sx={{ color: 'grey.400' }} />
+          }
+          <Typography>Logo Image</Typography>
+        </Box>
+      </Box>
+      
+      <Divider sx={{ my: 3 }} />
+      
       {/* Organizer Types */}
       <Typography variant="h6" gutterBottom>Organizer Types</Typography>
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} md={4}>
-          <Card 
+      <Box sx={{ mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+          <ToggleButton
+            value="event"
+            selected={true}
+            disabled
+            size="small"
             sx={{ 
-              cursor: 'not-allowed',
               opacity: 0.8,
-              bgcolor: 'action.selected'
+              '&.Mui-disabled': {
+                color: 'primary.main',
+                backgroundColor: 'action.selected'
+              }
             }}
           >
-            <CardContent sx={{ textAlign: 'center' }}>
-              <EventIcon sx={{ fontSize: 40, color: 'primary.main', mb: 1 }} />
-              <Typography variant="body1" fontWeight="bold">
-                Event Organizer
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                (Always enabled)
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        
-        <Grid item xs={12} sm={6} md={4}>
-          <Card 
-            sx={{ 
-              cursor: 'pointer',
-              bgcolor: formData.organizerTypes.isVenue ? 'primary.light' : 'background.paper',
-              '&:hover': { bgcolor: formData.organizerTypes.isVenue ? 'primary.main' : 'action.hover' }
+            <EventIcon sx={{ fontSize: 20, mr: 1 }} />
+            Event (Always)
+          </ToggleButton>
+          
+          <ToggleButton
+            value="venue"
+            selected={formData.organizerTypes.isVenue}
+            onChange={() => handleOrganizerTypeChange('isVenue')}
+            size="small"
+            sx={{
+              '&.Mui-selected': {
+                backgroundColor: 'success.main',
+                color: 'white',
+                '&:hover': {
+                  backgroundColor: 'success.dark',
+                }
+              }
             }}
-            onClick={() => handleOrganizerTypeChange('isVenue')}
           >
-            <CardContent sx={{ textAlign: 'center' }}>
-              <PlaceIcon sx={{ fontSize: 40, mb: 1 }} />
-              <Typography variant="body1" fontWeight="bold">
-                Venue
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        
-        <Grid item xs={12} sm={6} md={4}>
-          <Card 
-            sx={{ 
-              cursor: 'pointer',
-              bgcolor: formData.organizerTypes.isTeacher ? 'primary.light' : 'background.paper',
-              '&:hover': { bgcolor: formData.organizerTypes.isTeacher ? 'primary.main' : 'action.hover' }
+            <PlaceIcon sx={{ fontSize: 20, mr: 1 }} />
+            Venue
+          </ToggleButton>
+          
+          <ToggleButton
+            value="teacher"
+            selected={formData.organizerTypes.isTeacher}
+            onChange={() => handleOrganizerTypeChange('isTeacher')}
+            size="small"
+            sx={{
+              '&.Mui-selected': {
+                backgroundColor: 'success.main',
+                color: 'white',
+                '&:hover': {
+                  backgroundColor: 'success.dark',
+                }
+              }
             }}
-            onClick={() => handleOrganizerTypeChange('isTeacher')}
           >
-            <CardContent sx={{ textAlign: 'center' }}>
-              <SchoolIcon sx={{ fontSize: 40, mb: 1 }} />
-              <Typography variant="body1" fontWeight="bold">
-                Teacher
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        
-        <Grid item xs={12} sm={6} md={4}>
-          <Card 
-            sx={{ 
-              cursor: 'pointer',
-              bgcolor: formData.organizerTypes.isMaestro ? 'primary.light' : 'background.paper',
-              '&:hover': { bgcolor: formData.organizerTypes.isMaestro ? 'primary.main' : 'action.hover' }
+            <SchoolIcon sx={{ fontSize: 20, mr: 1 }} />
+            Teacher
+          </ToggleButton>
+          
+          <ToggleButton
+            value="maestro"
+            selected={formData.organizerTypes.isMaestro}
+            onChange={() => handleOrganizerTypeChange('isMaestro')}
+            size="small"
+            sx={{
+              '&.Mui-selected': {
+                backgroundColor: 'success.main',
+                color: 'white',
+                '&:hover': {
+                  backgroundColor: 'success.dark',
+                }
+              }
             }}
-            onClick={() => handleOrganizerTypeChange('isMaestro')}
           >
-            <CardContent sx={{ textAlign: 'center' }}>
-              <StarIcon sx={{ fontSize: 40, mb: 1 }} />
-              <Typography variant="body1" fontWeight="bold">
-                Maestro
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        
-        <Grid item xs={12} sm={6} md={4}>
-          <Card 
-            sx={{ 
-              cursor: 'pointer',
-              bgcolor: formData.organizerTypes.isDJ ? 'primary.light' : 'background.paper',
-              '&:hover': { bgcolor: formData.organizerTypes.isDJ ? 'primary.main' : 'action.hover' }
+            <StarIcon sx={{ fontSize: 20, mr: 1 }} />
+            Maestro
+          </ToggleButton>
+          
+          <ToggleButton
+            value="dj"
+            selected={formData.organizerTypes.isDJ}
+            onChange={() => handleOrganizerTypeChange('isDJ')}
+            size="small"
+            sx={{
+              '&.Mui-selected': {
+                backgroundColor: 'success.main',
+                color: 'white',
+                '&:hover': {
+                  backgroundColor: 'success.dark',
+                }
+              }
             }}
-            onClick={() => handleOrganizerTypeChange('isDJ')}
           >
-            <CardContent sx={{ textAlign: 'center' }}>
-              <HeadphonesIcon sx={{ fontSize: 40, mb: 1 }} />
-              <Typography variant="body1" fontWeight="bold">
-                DJ
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        
-        <Grid item xs={12} sm={6} md={4}>
-          <Card 
-            sx={{ 
-              cursor: 'pointer',
-              bgcolor: formData.organizerTypes.isOrchestra ? 'primary.light' : 'background.paper',
-              '&:hover': { bgcolor: formData.organizerTypes.isOrchestra ? 'primary.main' : 'action.hover' }
+            <HeadphonesIcon sx={{ fontSize: 20, mr: 1 }} />
+            DJ
+          </ToggleButton>
+          
+          <ToggleButton
+            value="orchestra"
+            selected={formData.organizerTypes.isOrchestra}
+            onChange={() => handleOrganizerTypeChange('isOrchestra')}
+            size="small"
+            sx={{
+              '&.Mui-selected': {
+                backgroundColor: 'success.main',
+                color: 'white',
+                '&:hover': {
+                  backgroundColor: 'success.dark',
+                }
+              }
             }}
-            onClick={() => handleOrganizerTypeChange('isOrchestra')}
           >
-            <CardContent sx={{ textAlign: 'center' }}>
-              <MusicNoteIcon sx={{ fontSize: 40, mb: 1 }} />
-              <Typography variant="body1" fontWeight="bold">
-                Orchestra
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+            <MusicNoteIcon sx={{ fontSize: 20, mr: 1 }} />
+            Orchestra
+          </ToggleButton>
+        </Box>
+      </Box>
       
       <Divider sx={{ my: 3 }} />
       
