@@ -935,6 +935,7 @@ export const eventsApi = {
   getEventCounts: async (appId = '1') => {
     try {
       appId = normalizeAppId(appId);
+      console.log('getEventCounts called with appId:', appId);
       
       // Get today's date
       const today = new Date();
@@ -948,22 +949,35 @@ export const eventsApi = {
       const startDate = today.toISOString().split('T')[0];
       const endDate = twoMonthsFromNow.toISOString().split('T')[0];
       
+      console.log('Fetching events from', startDate, 'to', endDate);
+      
       // Fetch events with limit to get actual results
-      const response = await apiClient.get(
-        `/api/events?appId=${appId}&afterEqualDate=${startDate}&beforeEqualDate=${endDate}&limit=100`
-      );
+      const url = `/api/events?appId=${appId}&afterEqualDate=${startDate}&beforeEqualDate=${endDate}&limit=100`;
+      console.log('Event counts API URL:', url);
+      
+      const response = await apiClient.get(url);
+      
+      console.log('Event counts API response:', response.data);
       
       // Get the events array from response
       let events = [];
       if (response.data && response.data.events && Array.isArray(response.data.events)) {
         events = response.data.events;
+        console.log('Found events in response.data.events');
       } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
         events = response.data.data;
+        console.log('Found events in response.data.data');
       } else if (Array.isArray(response.data)) {
         events = response.data;
+        console.log('Response is directly an array');
+      } else {
+        console.log('Unexpected response format:', response.data);
       }
       
       console.log(`Dashboard: Found ${events.length} events for next 2 months`);
+      if (events.length > 0) {
+        console.log('Sample event:', events[0]);
+      }
       
       // Count active events
       const activeEvents = events.filter(event => event.active !== false);
@@ -975,14 +989,18 @@ export const eventsApi = {
         return eventDate <= endOfMonth;
       });
       
-      return {
+      const result = {
         total: events.length,
         active: activeEvents.length,
         upcoming: events.length, // All events in next 2 months are "upcoming"
         thisMonth: thisMonthEvents.length
       };
+      
+      console.log('Event counts result:', result);
+      return result;
     } catch (error) {
       console.error('Error fetching event counts:', error);
+      console.error('Error details:', error.response?.data || error.message);
       // Return defaults
       return {
         total: 0,

@@ -14,6 +14,9 @@ import IconButton from '@mui/material/IconButton';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Avatar from '@mui/material/Avatar';
+import Collapse from '@mui/material/Collapse';
+import ExpandLess from '@mui/icons-material/ExpandLess';
+import ExpandMore from '@mui/icons-material/ExpandMore';
 import { useAppContext } from '@/lib/AppContext';
 import packageJson from '../../package.json';
 
@@ -30,6 +33,8 @@ import EventIcon from '@mui/icons-material/Event';
 import SupervisorAccountIcon from '@mui/icons-material/SupervisorAccount';
 import PlaceIcon from '@mui/icons-material/Place';
 import SchoolIcon from '@mui/icons-material/School';
+import HeadphonesIcon from '@mui/icons-material/Headphones';
+import MusicNoteIcon from '@mui/icons-material/MusicNote';
 
 // Navigation items
 const mainNavItems = [
@@ -42,6 +47,14 @@ const mainNavItems = [
   { name: 'Admin Guide', icon: <MenuBookIcon />, href: '/dashboard/admin-guide' },
 ];
 
+// Organizer Types submenu items
+const organizerTypeItems = [
+  { name: 'DJ Management', icon: <HeadphonesIcon />, href: '/dashboard/dj-management' },
+  { name: 'Teacher Management', icon: <SchoolIcon />, href: '/dashboard/teacher-management' },
+  { name: 'Orchestra Management', icon: <MusicNoteIcon />, href: '/dashboard/orchestra-management' },
+  { name: 'Venue Management', icon: <BusinessIcon />, href: '/dashboard/venue-management' },
+];
+
 const drawerWidth = 240;
 
 export default function AdminLayout({ children }) {
@@ -49,6 +62,7 @@ export default function AdminLayout({ children }) {
   const { currentApp, updateCurrentApp } = useAppContext();
   const [anchorEl, setAnchorEl] = useState(null);
   const [appMenuAnchor, setAppMenuAnchor] = useState(null);
+  const [organizerTypesOpen, setOrganizerTypesOpen] = useState(false);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -106,6 +120,29 @@ export default function AdminLayout({ children }) {
             </ListItemButton>
           </ListItem>
         ))}
+        
+        {/* Organizer Types with submenu */}
+        <ListItem disablePadding>
+          <ListItemButton onClick={() => setOrganizerTypesOpen(!organizerTypesOpen)}>
+            <ListItemIcon>
+              <SupervisorAccountIcon />
+            </ListItemIcon>
+            <ListItemText primary="Organizer Types" />
+            {organizerTypesOpen ? <ExpandLess /> : <ExpandMore />}
+          </ListItemButton>
+        </ListItem>
+        <Collapse in={organizerTypesOpen} timeout="auto" unmountOnExit>
+          <List component="div" disablePadding>
+            {organizerTypeItems.map((item) => (
+              <ListItem key={item.name} disablePadding>
+                <ListItemButton component="a" href={item.href} sx={{ pl: 4 }}>
+                  <ListItemIcon>{item.icon}</ListItemIcon>
+                  <ListItemText primary={item.name} />
+                </ListItemButton>
+              </ListItem>
+            ))}
+          </List>
+        </Collapse>
       </List>
       <Box sx={{ flexGrow: 1 }} />
       <Divider />
