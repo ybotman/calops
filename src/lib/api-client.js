@@ -935,23 +935,23 @@ export const eventsApi = {
   getEventCounts: async (appId = '1') => {
     try {
       appId = normalizeAppId(appId);
-      // Use the events endpoint with minimum data and count only
-      const activeResponse = await apiClient.get(`/api/events?appId=${appId}&active=true&countOnly=true`);
-      const allResponse = await apiClient.get(`/api/events?appId=${appId}&countOnly=true`);
+      // Use the events endpoint with limit=1 to get pagination totals
+      const activeResponse = await apiClient.get(`/api/events?appId=${appId}&active=true&limit=1`);
+      const allResponse = await apiClient.get(`/api/events?appId=${appId}&limit=1`);
       
       // Get upcoming events (today and future)
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const startDate = today.toISOString();
+      const startDate = today.toISOString().split('T')[0];
       const upcomingResponse = await apiClient.get(
-        `/api/events?appId=${appId}&startDate=${startDate}&countOnly=true`
+        `/api/events?appId=${appId}&afterEqualDate=${startDate}&limit=1`
       );
       
       // Get this month's events
       const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-      const endDate = endOfMonth.toISOString();
+      const endDate = endOfMonth.toISOString().split('T')[0];
       const thisMonthResponse = await apiClient.get(
-        `/api/events?appId=${appId}&startDate=${startDate}&endDate=${endDate}&countOnly=true`
+        `/api/events?appId=${appId}&afterEqualDate=${startDate}&beforeEqualDate=${endDate}&limit=1`
       );
       
       return {
