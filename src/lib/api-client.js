@@ -935,30 +935,51 @@ export const eventsApi = {
   getEventCounts: async (appId = '1') => {
     try {
       appId = normalizeAppId(appId);
-      // Use the events endpoint with minimum data and count only
-      const activeResponse = await apiClient.get(`/api/events?appId=${appId}&active=true&countOnly=true`);
-      const allResponse = await apiClient.get(`/api/events?appId=${appId}&countOnly=true`);
       
-      // Get upcoming events (today and future)
+      // Get today's date
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const startDate = today.toISOString();
-      const upcomingResponse = await apiClient.get(
-        `/api/events?appId=${appId}&startDate=${startDate}&countOnly=true`
+      
+      // Get date 2 months from now
+      const twoMonthsFromNow = new Date(today);
+      twoMonthsFromNow.setMonth(twoMonthsFromNow.getMonth() + 2);
+      
+      // Format dates as YYYY-MM-DD
+      const startDate = today.toISOString().split('T')[0];
+      const endDate = twoMonthsFromNow.toISOString().split('T')[0];
+      
+      // Fetch events with limit to get actual results
+      const response = await apiClient.get(
+        `/api/events?appId=${appId}&afterEqualDate=${startDate}&beforeEqualDate=${endDate}&limit=100`
       );
       
-      // Get this month's events
+      // Get the events array from response
+      let events = [];
+      if (response.data && response.data.events && Array.isArray(response.data.events)) {
+        events = response.data.events;
+      } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        events = response.data.data;
+      } else if (Array.isArray(response.data)) {
+        events = response.data;
+      }
+      
+      console.log(`Dashboard: Found ${events.length} events for next 2 months`);
+      
+      // Count active events
+      const activeEvents = events.filter(event => event.active !== false);
+      
+      // Count this month's events
       const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-      const endDate = endOfMonth.toISOString();
-      const thisMonthResponse = await apiClient.get(
-        `/api/events?appId=${appId}&startDate=${startDate}&endDate=${endDate}&countOnly=true`
-      );
+      const thisMonthEvents = events.filter(event => {
+        const eventDate = new Date(event.startDate || event.start);
+        return eventDate <= endOfMonth;
+      });
       
       return {
-        total: allResponse.data?.pagination?.total || 0,
-        active: activeResponse.data?.pagination?.total || 0,
-        upcoming: upcomingResponse.data?.pagination?.total || 0,
-        thisMonth: thisMonthResponse.data?.pagination?.total || 0
+        total: events.length,
+        active: activeEvents.length,
+        upcoming: events.length, // All events in next 2 months are "upcoming"
+        thisMonth: thisMonthEvents.length
       };
     } catch (error) {
       console.error('Error fetching event counts:', error);
