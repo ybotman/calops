@@ -8,7 +8,8 @@ import BusinessIcon from '@mui/icons-material/Business';
 import EventIcon from '@mui/icons-material/Event';
 import SchoolIcon from '@mui/icons-material/School';
 import PlaceIcon from '@mui/icons-material/Place';
-import { usersApi, organizersApi, eventsApi } from '@/lib/api-client';
+import { usersApi, organizersApi } from '@/lib/api-client';
+import { eventsApi } from '@/lib/api-client.js';
 import StatusPanel from './components/StatusPanel';
 import { useAppContext } from '@/lib/AppContext';
 
