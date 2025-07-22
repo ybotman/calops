@@ -1030,10 +1030,188 @@ export const debugApi = {
   }
 };
 
+// Logs API
+export const logsApi = {
+  getLogs: async (filters = {}) => {
+    try {
+      const appId = normalizeAppId(filters.appId || '1');
+      
+      // Build query parameters
+      const queryParams = new URLSearchParams({
+        appId: appId
+      });
+      
+      // Pagination
+      if (filters.page !== undefined) queryParams.append('page', filters.page);
+      if (filters.pageSize !== undefined) queryParams.append('limit', filters.pageSize);
+      
+      // Date range
+      if (filters.startDate) queryParams.append('startDate', filters.startDate);
+      if (filters.endDate) queryParams.append('endDate', filters.endDate);
+      
+      // Filters
+      if (filters.levels && filters.levels.length > 0) {
+        queryParams.append('levels', filters.levels.join(','));
+      }
+      if (filters.actions && filters.actions.length > 0) {
+        queryParams.append('actions', filters.actions.join(','));
+      }
+      if (filters.resources && filters.resources.length > 0) {
+        queryParams.append('resources', filters.resources.join(','));
+      }
+      if (filters.status) queryParams.append('status', filters.status);
+      if (filters.userId) queryParams.append('userId', filters.userId);
+      if (filters.orgId) queryParams.append('orgId', filters.orgId);
+      if (filters.searchText) queryParams.append('search', filters.searchText);
+      if (filters.httpStatus) queryParams.append('httpStatus', filters.httpStatus);
+      if (filters.minDuration) queryParams.append('minDuration', filters.minDuration);
+      
+      const url = `/api/logs?${queryParams.toString()}`;
+      console.log('Getting logs with URL:', url);
+      
+      const response = await apiClient.get(url);
+      
+      // Handle response format
+      if (response.data && response.data.logs && Array.isArray(response.data.logs)) {
+        return {
+          logs: response.data.logs,
+          pagination: response.data.pagination || {}
+        };
+      } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        return {
+          logs: response.data.data,
+          pagination: response.data.pagination || {}
+        };
+      } else if (Array.isArray(response.data)) {
+        return {
+          logs: response.data,
+          pagination: { total: response.data.length, page: 1, pages: 1 }
+        };
+      }
+      
+      console.warn('Unexpected logs API response format:', response.data);
+      return { logs: [], pagination: {} };
+    } catch (error) {
+      console.error('Error fetching logs:', error);
+      return { logs: [], pagination: {} };
+    }
+  },
+  
+  getLogStats: async (filters = {}) => {
+    try {
+      const appId = normalizeAppId(filters.appId || '1');
+      
+      // Build query parameters similar to getLogs
+      const queryParams = new URLSearchParams({
+        appId: appId
+      });
+      
+      if (filters.startDate) queryParams.append('startDate', filters.startDate);
+      if (filters.endDate) queryParams.append('endDate', filters.endDate);
+      if (filters.levels && filters.levels.length > 0) {
+        queryParams.append('levels', filters.levels.join(','));
+      }
+      
+      const response = await apiClient.get(`/api/logs/stats?${queryParams.toString()}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching log stats:', error);
+      return {
+        totalLogs: 0,
+        errorRate: 0,
+        topUsers: [],
+        actionBreakdown: {}
+      };
+    }
+  },
+  
+  getFilterOptions: async (appId = '1') => {
+    try {
+      appId = normalizeAppId(appId);
+      const response = await apiClient.get(`/api/logs/filters?appId=${appId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching log filter options:', error);
+      return {
+        users: [],
+        organizations: [],
+        resources: [],
+        actions: []
+      };
+    }
+  },
+  
+  exportLogs: async (filters = {}, format = 'csv') => {
+    try {
+      const appId = normalizeAppId(filters.appId || '1');
+      
+      // Build query parameters same as getLogs
+      const queryParams = new URLSearchParams({
+        appId: appId,
+        format: format
+      });
+      
+      // Add all filters
+      if (filters.startDate) queryParams.append('startDate', filters.startDate);
+      if (filters.endDate) queryParams.append('endDate', filters.endDate);
+      if (filters.levels && filters.levels.length > 0) {
+        queryParams.append('levels', filters.levels.join(','));
+      }
+      if (filters.actions && filters.actions.length > 0) {
+        queryParams.append('actions', filters.actions.join(','));
+      }
+      if (filters.resources && filters.resources.length > 0) {
+        queryParams.append('resources', filters.resources.join(','));
+      }
+      if (filters.status) queryParams.append('status', filters.status);
+      if (filters.userId) queryParams.append('userId', filters.userId);
+      if (filters.orgId) queryParams.append('orgId', filters.orgId);
+      if (filters.searchText) queryParams.append('search', filters.searchText);
+      
+      const response = await apiClient.get(`/api/logs/export?${queryParams.toString()}`, {
+        responseType: 'blob'
+      });
+      
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `logs-export-${Date.now()}.${format}`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error exporting logs:', error);
+      throw error;
+    }
+  }
+};
+
+// Geocoding API
+const geocodingApi = {
+  geocodeAddress: async (addressData) => {
+    try {
+      const response = await localApiClient.post('/api/geocoding', addressData);
+      return response.data;
+    } catch (error) {
+      console.error('Error geocoding address:', error);
+      if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
+      }
+      throw new Error('Failed to geocode address');
+    }
+  }
+};
+
 export default {
   users: usersApi,
   roles: rolesApi,
   organizers: organizersApi,
   events: eventsApi,
-  debug: debugApi
+  debug: debugApi,
+  logs: logsApi,
+  geocoding: geocodingApi
 };

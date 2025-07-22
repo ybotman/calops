@@ -35,6 +35,7 @@ import PlaceIcon from '@mui/icons-material/Place';
 import SchoolIcon from '@mui/icons-material/School';
 import HeadphonesIcon from '@mui/icons-material/Headphones';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
+import DescriptionIcon from '@mui/icons-material/Description';
 
 // Navigation items
 const mainNavItems = [
@@ -44,6 +45,7 @@ const mainNavItems = [
   { name: 'Venues', icon: <BusinessIcon />, href: '/dashboard/venues' },
   { name: 'Geo Hierarchy', icon: <LocationOnIcon />, href: '/dashboard/geo-hierarchy' },
   { name: 'Events', icon: <EventIcon />, href: '/dashboard/events' },
+  { name: 'Logs', icon: <DescriptionIcon />, href: '/dashboard/logs' },
   { name: 'Admin Guide', icon: <MenuBookIcon />, href: '/dashboard/admin-guide' },
 ];
 
