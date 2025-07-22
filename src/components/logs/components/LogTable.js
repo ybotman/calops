@@ -115,14 +115,17 @@ const LogTable = ({
       field: 'userName',
       headerName: 'User',
       width: 150,
-      valueGetter: (params) => formatUserName(params.row),
-      renderCell: (params) => (
-        <Tooltip title={params.row.userEmail || params.row.userId || ''} arrow>
-          <Typography variant="body2" noWrap>
-            {params.value}
-          </Typography>
-        </Tooltip>
-      )
+      valueGetter: (params) => params.row ? formatUserName(params.row) : '',
+      renderCell: (params) => {
+        if (!params.row) return null;
+        return (
+          <Tooltip title={params.row.userEmail || params.row.userId || ''} arrow>
+            <Typography variant="body2" noWrap>
+              {params.value}
+            </Typography>
+          </Tooltip>
+        );
+      }
     },
     {
       field: 'status',
@@ -161,8 +164,9 @@ const LogTable = ({
       field: 'duration',
       headerName: 'Duration',
       width: 90,
-      valueGetter: (params) => params.row.duration || 0,
+      valueGetter: (params) => params.row?.duration || 0,
       renderCell: (params) => {
+        if (!params.row) return '-';
         const duration = formatDuration(params.row.duration);
         const isLong = params.row.duration > 1000;
         return (
@@ -181,18 +185,23 @@ const LogTable = ({
       headerName: 'Details',
       width: 80,
       sortable: false,
-      renderCell: (params) => (
-        <IconButton
-          size="small"
-          onClick={(e) => {
-            e.stopPropagation();
-            onRowClick(params.row);
-          }}
-          color="primary"
-        >
-          <InfoOutlinedIcon />
-        </IconButton>
-      )
+      renderCell: (params) => {
+        if (!params.row) return null;
+        return (
+          <IconButton
+            size="small"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onRowClick && params.row) {
+                onRowClick(params.row);
+              }
+            }}
+            color="primary"
+          >
+            <InfoOutlinedIcon />
+          </IconButton>
+        );
+      }
     }
   ];
 
@@ -238,7 +247,6 @@ const LogTable = ({
         getRowId={(row) => row._id || row.id || `${row.timestamp}-${row.action}`}
         getRowHeight={getRowHeight}
         disableSelectionOnClick
-        autoHeight={false}
         density="comfortable"
         sx={{
           '& .MuiDataGrid-cell': {
