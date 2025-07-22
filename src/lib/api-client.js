@@ -1093,7 +1093,21 @@ export const logsApi = {
       return { logs: [], pagination: {} };
     } catch (error) {
       console.error('Error fetching logs:', error);
-      return { logs: [], pagination: {} };
+      
+      // Check if it's a 404 (endpoint not found) or 500 (server error)
+      if (error.response) {
+        if (error.response.status === 404) {
+          console.error('Logs endpoint not found. Backend may not have implemented /api/logs yet.');
+        } else if (error.response.status === 500) {
+          console.error('Backend server error. Check backend logs for details.');
+          // Log the actual error from backend if available
+          if (error.response.data) {
+            console.error('Backend error details:', error.response.data);
+          }
+        }
+      }
+      
+      throw error; // Re-throw to let the UI handle it
     }
   },
   

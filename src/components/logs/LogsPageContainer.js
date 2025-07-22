@@ -110,7 +110,25 @@ const LogsPageContainer = () => {
       });
     } catch (err) {
       console.error('Error fetching logs:', err);
-      setError(err.message || 'Failed to fetch logs');
+      
+      let errorMessage = 'Failed to fetch logs';
+      if (err.response) {
+        if (err.response.status === 404) {
+          errorMessage = 'Logs API endpoint not found. The backend may not have implemented the logs feature yet.';
+        } else if (err.response.status === 500) {
+          errorMessage = 'Backend server error when fetching logs. The logs collection may not be set up yet.';
+          // Check for specific error messages from backend
+          if (err.response.data?.message) {
+            errorMessage += ` Details: ${err.response.data.message}`;
+          }
+        } else if (err.response.status === 401 || err.response.status === 403) {
+          errorMessage = 'Authentication error. You may not have permission to view logs.';
+        }
+      } else if (err.code === 'ERR_NETWORK') {
+        errorMessage = 'Cannot connect to backend server. Make sure the backend is running at ' + (process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010');
+      }
+      
+      setError(errorMessage);
       setLogs([]);
     } finally {
       setLoading(false);
@@ -251,7 +269,13 @@ const LogsPageContainer = () => {
       {/* Error Alert */}
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
+          <Typography variant="body1" gutterBottom>
+            {error}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            The logs API endpoint may not be implemented yet in the backend. 
+            Check if the backend server at {process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010'} has the /api/logs endpoint ready.
+          </Typography>
         </Alert>
       )}
 
