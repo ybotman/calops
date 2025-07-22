@@ -64,6 +64,8 @@ const LogTable = ({
   onRowClick,
   error
 }) => {
+  // Ensure logs is always an array
+  const safeRows = Array.isArray(logs) ? logs : [];
   const [sortModel, setSortModel] = useState([
     { field: 'timestamp', sort: 'desc' }
   ]);
@@ -231,7 +233,7 @@ const LogTable = ({
   return (
     <Box sx={{ width: '100%', height: '100%' }}>
       <DataGrid
-        rows={logs}
+        rows={safeRows}
         columns={columns}
         loading={loading}
         pageSize={pagination.pageSize}

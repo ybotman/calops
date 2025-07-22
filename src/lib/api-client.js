@@ -1071,6 +1071,8 @@ export const logsApi = {
       
       const response = await apiClient.get(url);
       
+      console.log('Logs API response:', response.data);
+      
       // Handle response format
       if (response.data && response.data.logs && Array.isArray(response.data.logs)) {
         return {

@@ -282,7 +282,7 @@ const LogsPageContainer = () => {
       {/* Logs Table */}
       <Paper sx={{ height: 600, width: '100%' }}>
         <LogTable
-          logs={logs}
+          logs={logs || []}
           loading={loading}
           pagination={pagination}
           onPaginationChange={handlePaginationChange}
