@@ -23,6 +23,8 @@ import {
   Divider
 } from '@mui/material';
 import LocationSearchingIcon from '@mui/icons-material/LocationSearching';
+import MyLocationIcon from '@mui/icons-material/MyLocation';
+import apiClient from '@/lib/api-client';
 
 /**
  * VenueEditDialog component for adding/editing venues
@@ -74,6 +76,8 @@ const VenueEditDialog = ({
   const [fetchingNearest, setFetchingNearest] = useState(false);
   const [hierarchySelectMode, setHierarchySelectMode] = useState(false);
   const [loadingGeoHierarchy, setLoadingGeoHierarchy] = useState(false);
+  const [geocoding, setGeocoding] = useState(false);
+  const [geocodeResult, setGeocodeResult] = useState(null);
   
   // Initialize form when venue changes
   useEffect(() => {
@@ -135,6 +139,7 @@ const VenueEditDialog = ({
     
     setFormErrors({});
     setHierarchySelectMode(false);
+    setGeocodeResult(null);
   }, [venue]);
   
   // Load geo hierarchy when dialog opens
@@ -246,6 +251,55 @@ const VenueEditDialog = ({
     setHierarchySelectMode(!hierarchySelectMode);
     if (!hierarchySelectMode) {
       setNearestCities([]);
+    }
+  };
+  
+  const handleGeocodeAddress = async () => {
+    if (!formData.address1 && !formData.city) {
+      alert('Please enter at least a street address or city to geocode');
+      return;
+    }
+    
+    setGeocoding(true);
+    setGeocodeResult(null);
+    
+    try {
+      const addressData = {
+        address1: formData.address1,
+        address2: formData.address2,
+        city: formData.city,
+        state: formData.state,
+        zip: formData.zip
+      };
+      
+      const result = await apiClient.geocoding.geocodeAddress(addressData);
+      
+      if (result.success) {
+        setFormData(prev => ({
+          ...prev,
+          latitude: result.coordinates.latitude.toString(),
+          longitude: result.coordinates.longitude.toString()
+        }));
+        
+        setGeocodeResult({
+          confidence: result.confidence,
+          formattedAddress: result.formattedAddress
+        });
+        
+        // Auto-fetch nearest cities after successful geocoding
+        if (fetchNearestCities) {
+          setTimeout(() => {
+            handleFindNearestCity();
+          }, 500);
+        }
+      } else {
+        alert(result.error || 'Failed to geocode address');
+      }
+    } catch (error) {
+      console.error('Geocoding error:', error);
+      alert(error.message || 'Failed to geocode address');
+    } finally {
+      setGeocoding(false);
     }
   };
   
@@ -426,9 +480,33 @@ const VenueEditDialog = ({
             </Grid>
             
             <Grid item xs={12}>
-              <Typography variant="subtitle1" gutterBottom>
-                Geolocation
-              </Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                <Typography variant="subtitle1">
+                  Geolocation
+                </Typography>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={handleGeocodeAddress}
+                  startIcon={<MyLocationIcon />}
+                  disabled={geocoding || (!formData.address1 && !formData.city)}
+                >
+                  {geocoding ? <CircularProgress size={20} /> : 'Geocode from Address'}
+                </Button>
+              </Box>
+              {geocodeResult && (
+                <Alert 
+                  severity={geocodeResult.confidence === 'HIGH' ? 'success' : 'info'} 
+                  sx={{ mb: 2 }}
+                >
+                  <Typography variant="body2">
+                    <strong>Geocoded:</strong> {geocodeResult.formattedAddress}
+                  </Typography>
+                  <Typography variant="caption">
+                    Confidence: {geocodeResult.confidence}
+                  </Typography>
+                </Alert>
+              )}
             </Grid>
             
             <Grid item xs={12} sm={5}>
