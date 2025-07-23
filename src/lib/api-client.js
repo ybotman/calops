@@ -1059,12 +1059,19 @@ export const logsApi = {
       if (filters.resources && filters.resources.length > 0) {
         queryParams.append('resources', filters.resources.join(','));
       }
+      if (filters.statuses && filters.statuses.length > 0) {
+        queryParams.append('statuses', filters.statuses.join(','));
+      }
       if (filters.status) queryParams.append('status', filters.status);
       if (filters.userId) queryParams.append('userId', filters.userId);
+      if (filters.userEmail) queryParams.append('userEmail', filters.userEmail);
       if (filters.orgId) queryParams.append('orgId', filters.orgId);
-      if (filters.searchText) queryParams.append('search', filters.searchText);
       if (filters.httpStatus) queryParams.append('httpStatus', filters.httpStatus);
       if (filters.minDuration) queryParams.append('minDuration', filters.minDuration);
+      if (filters.maxDuration) queryParams.append('maxDuration', filters.maxDuration);
+      if (filters.endpoint) queryParams.append('endpoint', filters.endpoint);
+      if (filters.ipAddress) queryParams.append('ipAddress', filters.ipAddress);
+      if (filters.searchText) queryParams.append('search', filters.searchText);
       
       const url = `/api/logs?${queryParams.toString()}`;
       console.log('Getting logs with URL:', url);
@@ -1110,6 +1117,27 @@ export const logsApi = {
       }
       
       throw error; // Re-throw to let the UI handle it
+    }
+  },
+
+  getFilterOptions: async (appId) => {
+    try {
+      const normalizedAppId = normalizeAppId(appId);
+      const queryParams = new URLSearchParams({
+        appId: normalizedAppId
+      });
+      
+      const response = await apiClient.get(`/api/logs/filter-options?${queryParams.toString()}`);
+      return response.data || {};
+    } catch (error) {
+      console.error('Error fetching filter options:', error);
+      return {
+        userEmails: [],
+        userIds: [],
+        orgIds: [],
+        endpoints: [],
+        ipAddresses: []
+      };
     }
   },
   
@@ -1179,9 +1207,18 @@ export const logsApi = {
       if (filters.resources && filters.resources.length > 0) {
         queryParams.append('resources', filters.resources.join(','));
       }
+      if (filters.statuses && filters.statuses.length > 0) {
+        queryParams.append('statuses', filters.statuses.join(','));
+      }
       if (filters.status) queryParams.append('status', filters.status);
       if (filters.userId) queryParams.append('userId', filters.userId);
+      if (filters.userEmail) queryParams.append('userEmail', filters.userEmail);
       if (filters.orgId) queryParams.append('orgId', filters.orgId);
+      if (filters.httpStatus) queryParams.append('httpStatus', filters.httpStatus);
+      if (filters.minDuration) queryParams.append('minDuration', filters.minDuration);
+      if (filters.maxDuration) queryParams.append('maxDuration', filters.maxDuration);
+      if (filters.endpoint) queryParams.append('endpoint', filters.endpoint);
+      if (filters.ipAddress) queryParams.append('ipAddress', filters.ipAddress);
       if (filters.searchText) queryParams.append('search', filters.searchText);
       
       const response = await apiClient.get(`/api/logs/export?${queryParams.toString()}`, {

@@ -64,8 +64,19 @@ const LogTable = ({
   onRowClick,
   error
 }) => {
-  // Ensure logs is always an array
-  const safeRows = Array.isArray(logs) ? logs : [];
+  // Ensure logs is always an array and add debugging
+  const safeRows = Array.isArray(logs) ? logs.filter(log => log != null) : [];
+  
+  // Debug logging to understand data structure
+  console.log('LogTable received logs:', logs);
+  console.log('LogTable safeRows:', safeRows);
+  console.log('LogTable pagination:', pagination);
+  
+  // Additional validation
+  if (safeRows.length > 0 && safeRows[0]) {
+    console.log('First row structure:', Object.keys(safeRows[0]));
+  }
+  
   const [sortModel, setSortModel] = useState([
     { field: 'timestamp', sort: 'desc' }
   ]);
@@ -117,7 +128,7 @@ const LogTable = ({
       field: 'userName',
       headerName: 'User',
       width: 150,
-      valueGetter: (params) => params.row ? formatUserName(params.row) : '',
+      valueGetter: (_, row) => row ? formatUserName(row) : '',
       renderCell: (params) => {
         if (!params.row) return null;
         return (
@@ -166,7 +177,7 @@ const LogTable = ({
       field: 'duration',
       headerName: 'Duration',
       width: 90,
-      valueGetter: (params) => params.row?.duration || 0,
+      valueGetter: (_, row) => row?.duration || 0,
       renderCell: (params) => {
         if (!params.row) return '-';
         const duration = formatDuration(params.row.duration);
@@ -236,19 +247,33 @@ const LogTable = ({
         rows={safeRows}
         columns={columns}
         loading={loading}
-        pageSize={pagination.pageSize}
-        page={pagination.page}
-        rowCount={pagination.totalCount || logs.length}
+        paginationModel={{
+          page: pagination.page,
+          pageSize: pagination.pageSize
+        }}
+        onPaginationModelChange={(model) => {
+          if (model.page !== pagination.page) {
+            handlePageChange(model.page);
+          }
+          if (model.pageSize !== pagination.pageSize) {
+            handlePageSizeChange(model.pageSize);
+          }
+        }}
+        rowCount={pagination.totalCount || safeRows.length}
         paginationMode="server"
-        onPageChange={handlePageChange}
-        onPageSizeChange={handlePageSizeChange}
-        rowsPerPageOptions={[25, 50, 100, 250]}
+        pageSizeOptions={[25, 50, 100, 250]}
         sortModel={sortModel}
         onSortModelChange={setSortModel}
         onRowClick={handleRowClick}
-        getRowId={(row) => row._id || row.id || `${row.timestamp}-${row.action}`}
+        getRowId={(row) => {
+          if (!row) {
+            console.warn('getRowId called with null/undefined row');
+            return `unknown-${Date.now()}`;
+          }
+          return row._id || row.id || `${row.timestamp || Date.now()}-${row.action || 'unknown'}`;
+        }}
         getRowHeight={getRowHeight}
-        disableSelectionOnClick
+        disableRowSelectionOnClick
         density="comfortable"
         sx={{
           '& .MuiDataGrid-cell': {
@@ -265,7 +290,7 @@ const LogTable = ({
             borderBottomColor: 'divider',
           }
         }}
-        componentsProps={{
+        slotProps={{
           pagination: {
             labelRowsPerPage: 'Logs per page:',
           }

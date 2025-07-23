@@ -20,6 +20,7 @@ import apiClient from '@/lib/api-client';
 import LogTable from './components/LogTable';
 import LogQuickFilters from './components/LogQuickFilters';
 import LogDetailsDialog from './components/LogDetailsDialog';
+import LogAdvancedFilters from './components/LogAdvancedFilters';
 import { DEFAULT_PAGE_SIZE, LOG_LEVELS } from './utils/logConstants';
 import { getQuickFilterDates } from './utils/logFormatters';
 
@@ -47,9 +48,18 @@ const LogsPageContainer = () => {
     levels: [],
     actions: [],
     resources: [],
+    statuses: [],
     searchText: '',
     startDate: null,
-    endDate: null
+    endDate: null,
+    userEmail: '',
+    userId: '',
+    orgId: '',
+    httpStatus: '',
+    minDuration: '',
+    maxDuration: '',
+    endpoint: '',
+    ipAddress: ''
   });
   
   // UI State
@@ -97,16 +107,31 @@ const LogsPageContainer = () => {
       // Add other filters
       if (filters.actions.length > 0) filterParams.actions = filters.actions;
       if (filters.resources.length > 0) filterParams.resources = filters.resources;
+      if (filters.statuses && filters.statuses.length > 0) filterParams.statuses = filters.statuses;
       if (filters.searchText) filterParams.searchText = filters.searchText;
+      if (filters.userEmail) filterParams.userEmail = filters.userEmail;
+      if (filters.userId) filterParams.userId = filters.userId;
+      if (filters.orgId) filterParams.orgId = filters.orgId;
+      if (filters.httpStatus) filterParams.httpStatus = filters.httpStatus;
+      if (filters.minDuration) filterParams.minDuration = filters.minDuration;
+      if (filters.maxDuration) filterParams.maxDuration = filters.maxDuration;
+      if (filters.endpoint) filterParams.endpoint = filters.endpoint;
+      if (filters.ipAddress) filterParams.ipAddress = filters.ipAddress;
       
       // Fetch logs
       const response = await apiClient.logs.getLogs(filterParams);
       
-      setLogs(response.logs || []);
+      console.log('LogsPageContainer received response:', response);
+      
+      // Extract logs array from response
+      const logsArray = response.logs || [];
+      console.log('LogsPageContainer extracted logs:', logsArray);
+      
+      setLogs(logsArray);
       setPagination({
         page: pageOptions.page ?? pagination.page,
         pageSize: pageOptions.pageSize ?? pagination.pageSize,
-        totalCount: response.pagination?.total || response.logs?.length || 0
+        totalCount: response.pagination?.total || logsArray.length || 0
       });
     } catch (err) {
       console.error('Error fetching logs:', err);
@@ -170,6 +195,10 @@ const LogsPageContainer = () => {
 
   const handleErrorsOnlyChange = (value) => {
     setFilters(prev => ({ ...prev, showErrorsOnly: value }));
+  };
+
+  const handleAdvancedFiltersChange = (newFilters) => {
+    setFilters(prev => ({ ...prev, ...newFilters }));
   };
 
   const handleRowClick = (log) => {
@@ -236,6 +265,15 @@ const LogsPageContainer = () => {
           onRefreshIntervalChange={setRefreshInterval}
         />
       </Paper>
+
+      {/* Advanced Filters */}
+      <LogAdvancedFilters
+        open={showAdvancedFilters}
+        filters={filters}
+        onFiltersChange={handleAdvancedFiltersChange}
+        onClose={() => setShowAdvancedFilters(false)}
+        appId={currentApp?.id || currentApp}
+      />
 
       {/* Actions Bar */}
       <Stack direction="row" spacing={2} mb={2} justifyContent="space-between">
