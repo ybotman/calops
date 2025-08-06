@@ -16,7 +16,8 @@ import {
   CircularProgress,
   Menu,
   MenuItem,
-  Stack
+  Stack,
+  Paper
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -95,7 +96,7 @@ const OrganizerMobileCards = ({
   }
 
   return (
-    <Box sx={{ p: 1 }}>
+    <Box sx={{ p: { xs: 2, sm: 3 }, maxWidth: { xs: '100%', sm: 600 }, mx: 'auto' }}>
       <Stack spacing={2}>
         {organizers.map((organizer) => {
           const isExpanded = expandedCards[organizer.id];

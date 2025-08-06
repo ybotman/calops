@@ -16,7 +16,8 @@ import {
   CircularProgress,
   Menu,
   MenuItem,
-  Stack
+  Stack,
+  Paper
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -149,9 +150,10 @@ const UserMobileCards = ({
   }
 
   return (
-    <Box sx={{ p: 1 }}>
-      <Stack spacing={2}>
-        {users.map((user) => {
+    <Paper elevation={0} sx={{ backgroundColor: 'transparent' }}>
+      <Box sx={{ p: { xs: 2, sm: 3 }, maxWidth: { xs: '100%', sm: 600 }, mx: 'auto' }}>
+        <Stack spacing={2}>
+          {users.map((user) => {
           const isExpanded = expandedCards[user._id];
           const statusInfo = getStatusInfo(user);
           const hasOrganizerId = user.regionalOrganizerInfo?.organizerId;
@@ -247,10 +249,10 @@ const UserMobileCards = ({
             </Card>
           );
         })}
-      </Stack>
+        </Stack>
 
-      {/* Action Menu */}
-      <Menu
+        {/* Action Menu */}
+        <Menu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
         onClose={handleMenuClose}
@@ -277,7 +279,8 @@ const UserMobileCards = ({
           Delete User
         </MenuItem>
       </Menu>
-    </Box>
+      </Box>
+    </Paper>
   );
 };
 
