@@ -49,6 +49,8 @@ import OrganizerEditForm from '@/components/organizers/OrganizerEditForm';
 import OrganizerCreateForm from '@/components/organizers/OrganizerCreateForm';
 import OrganizerConnectUserForm from '@/components/organizers/OrganizerConnectUserForm';
 import { useAppContext } from '@/lib/AppContext';
+import ResponsiveTableWrapper from '@/components/common/ResponsiveTableWrapper';
+import OrganizerMobileCards from '@/components/organizers/OrganizerMobileCards';
 
 
 export default function OrganizersPage() {
@@ -866,22 +868,36 @@ export default function OrganizersPage() {
         </Box>
       </Box>
       
-      <Paper sx={{ height: 600, width: '100%' }}>
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-            <CircularProgress />
-          </Box>
-        ) : (
-          <DataGrid
-            rows={filteredOrganizers}
-            columns={columns}
-            pageSize={10}
-            rowsPerPageOptions={[10, 25, 50]}
-            disableSelectionOnClick
-            density="standard"
+      <ResponsiveTableWrapper
+        desktopView={
+          <Paper sx={{ height: 600, width: '100%' }}>
+            {loading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <DataGrid
+                rows={filteredOrganizers}
+                columns={columns}
+                pageSize={10}
+                rowsPerPageOptions={[10, 25, 50]}
+                disableSelectionOnClick
+                density="standard"
+              />
+            )}
+          </Paper>
+        }
+        mobileView={
+          <OrganizerMobileCards
+            organizers={filteredOrganizers}
+            loading={loading}
+            onEdit={handleEditOrganizer}
+            onDelete={handleDeleteOrganizer}
+            onConnect={handleConnectOrganizer}
           />
-        )}
-      </Paper>
+        }
+        breakpoint="md"
+      />
       
       {/* Organizer Edit Dialog */}
       <Dialog 

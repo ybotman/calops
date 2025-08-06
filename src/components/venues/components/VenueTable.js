@@ -24,6 +24,8 @@ import ErrorIcon from '@mui/icons-material/Error';
 import LocationSearchingIcon from '@mui/icons-material/LocationSearching';
 import MyLocationIcon from '@mui/icons-material/MyLocation';
 import CircularProgress from '@mui/material/CircularProgress';
+import ResponsiveTableWrapper from '@/components/common/ResponsiveTableWrapper';
+import VenueMobileCards from './VenueMobileCards';
 
 /**
  * VenueTable component
@@ -83,7 +85,8 @@ const VenueTable = ({
     { id: 'actions', label: 'Actions', minWidth: 100, align: 'right' }
   ];
   
-  return (
+  // Desktop table view
+  const desktopView = (
     <Paper sx={{ width: '100%', overflow: 'hidden', mt: 2 }}>
       <TableContainer sx={{ maxHeight: 600 }}>
         <Table 
@@ -297,6 +300,27 @@ const VenueTable = ({
         onRowsPerPageChange={handleChangeRowsPerPage}
       />
     </Paper>
+  );
+
+  // Mobile card view
+  const mobileView = (
+    <VenueMobileCards
+      venues={venues}
+      loading={loading}
+      onEdit={onEdit}
+      onDelete={onDelete}
+      onValidateGeo={onValidateGeo}
+      onFindMastered={onFindMastered}
+      onGeocodeAddress={onGeocodeAddress}
+    />
+  );
+
+  return (
+    <ResponsiveTableWrapper
+      desktopView={desktopView}
+      mobileView={mobileView}
+      breakpoint="md"
+    />
   );
 };
 

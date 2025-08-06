@@ -12,6 +12,8 @@ import { DataGrid } from '@mui/x-data-grid';
 import { formatDistanceToNow } from 'date-fns';
 import StatusDisplay from './StatusDisplay';
 import ActionButtons from './ActionButtons';
+import ResponsiveTableWrapper from '@/components/common/ResponsiveTableWrapper';
+import UserMobileCards from './UserMobileCards';
 
 /**
  * Utility function to truncate Firebase ID for display
@@ -205,7 +207,8 @@ const UserTable = ({
     }
   };
 
-  return (
+  // Desktop DataGrid view
+  const desktopView = (
     <Box sx={{ height: 600, width: '100%' }}>
       {error && (
         <Typography color="error" sx={{ mb: 2 }}>
@@ -240,6 +243,28 @@ const UserTable = ({
         />
       )}
     </Box>
+  );
+
+  // Mobile card view
+  const mobileView = (
+    <UserMobileCards
+      users={users}
+      loading={loading}
+      onEdit={onEdit}
+      onDelete={onDelete}
+      onCreateOrganizer={onCreateOrganizer}
+      onDeleteOrganizer={onDeleteOrganizer}
+      error={error}
+      selectedUser={selectedUser}
+    />
+  );
+
+  return (
+    <ResponsiveTableWrapper
+      desktopView={desktopView}
+      mobileView={mobileView}
+      breakpoint="md"
+    />
   );
 };
 
