@@ -1,6 +1,6 @@
 import { Inter } from 'next/font/google';
 import { ThemeRegistry } from '@/components/ThemeRegistry';
-import { AuthProvider } from '@/lib/firebase-auth';
+import { AuthProvider } from '@/contexts/AuthContext';
 import { AppProvider } from '@/lib/AppContext';
 import './globals.css';
 import '@/styles/mobile-friendly.css';
