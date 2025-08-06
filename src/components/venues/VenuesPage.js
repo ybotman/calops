@@ -197,6 +197,14 @@ const VenuesPage = ({
             value={tabValue}
             onChange={handleTabChange}
             aria-label="venue tabs"
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
+            sx={{
+              '& .MuiTabs-flexContainer': {
+                gap: { xs: 0, sm: 1 }
+              }
+            }}
           >
             <Tab label="Active" />
             <Tab label="Approved" />

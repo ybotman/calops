@@ -39,7 +39,7 @@ const LogQuickFilters = ({
           <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'medium' }}>
             Quick Time Filters
           </Typography>
-          <Stack direction="row" spacing={1} flexWrap="wrap">
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
             {QUICK_FILTERS.filter(f => f.value !== 'errors' && f.value !== 'all').map((filter) => (
               <Chip
                 key={filter.value}
@@ -49,6 +49,8 @@ const LogQuickFilters = ({
                 color={selectedTimeFilter === filter.value ? 'primary' : 'default'}
                 variant={selectedTimeFilter === filter.value ? 'filled' : 'outlined'}
                 clickable
+                size="small"
+                sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
               />
             ))}
             <Chip
@@ -57,8 +59,10 @@ const LogQuickFilters = ({
               color={selectedTimeFilter === 'custom' ? 'primary' : 'default'}
               variant={selectedTimeFilter === 'custom' ? 'filled' : 'outlined'}
               clickable
+              size="small"
+              sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
             />
-          </Stack>
+          </Box>
         </Box>
 
         {/* Level and Status Filters */}

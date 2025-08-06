@@ -109,6 +109,14 @@ const ApplicationsPage = ({
                 value={tabValue} 
                 onChange={handleTabChange}
                 aria-label="application filter tabs"
+                variant="scrollable"
+                scrollButtons="auto"
+                allowScrollButtonsMobile
+                sx={{
+                  '& .MuiTabs-flexContainer': {
+                    gap: { xs: 0, sm: 1 }
+                  }
+                }}
               >
                 <Tab label="All Applications" />
                 <Tab label="Active" />

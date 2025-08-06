@@ -39,7 +39,16 @@ const UserTabNavigationBar = ({
         <Tabs 
           value={value} 
           onChange={handleTabChange}
+          variant="scrollable"
+          scrollButtons="auto"
+          allowScrollButtonsMobile
           data-testid="user-tabs"
+          sx={{
+            maxWidth: { xs: '60vw', sm: 'none' },
+            '& .MuiTabs-flexContainer': {
+              gap: { xs: 0, sm: 1 }
+            }
+          }}
         >
           {tabs.map((tab, index) => (
             <Tab 

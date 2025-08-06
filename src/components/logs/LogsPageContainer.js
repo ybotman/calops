@@ -18,6 +18,8 @@ import DownloadIcon from '@mui/icons-material/Download';
 import { useAppContext } from '@/lib/AppContext';
 import apiClient from '@/lib/api-client';
 import LogTable from './components/LogTable';
+import LogMobileCards from './components/LogMobileCards';
+import ResponsiveTableWrapper from '@/components/common/ResponsiveTableWrapper';
 import LogQuickFilters from './components/LogQuickFilters';
 import LogDetailsDialog from './components/LogDetailsDialog';
 import LogAdvancedFilters from './components/LogAdvancedFilters';
@@ -276,13 +278,21 @@ const LogsPageContainer = () => {
       />
 
       {/* Actions Bar */}
-      <Stack direction="row" spacing={2} mb={2} justifyContent="space-between">
-        <Stack direction="row" spacing={2}>
+      <Stack 
+        direction={{ xs: 'column', sm: 'row' }} 
+        spacing={2} 
+        mb={2} 
+        justifyContent="space-between"
+        alignItems={{ xs: 'stretch', sm: 'center' }}
+      >
+        <Stack direction="row" spacing={1}>
           <Button
             variant="outlined"
             startIcon={<RefreshIcon />}
             onClick={handleRefresh}
             disabled={loading}
+            size="small"
+            sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
           >
             Refresh
           </Button>
@@ -290,8 +300,10 @@ const LogsPageContainer = () => {
             variant="outlined"
             startIcon={<FilterListIcon />}
             onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+            size="small"
+            sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
           >
-            Advanced Filters
+            Filters
           </Button>
         </Stack>
         <Button
@@ -299,6 +311,9 @@ const LogsPageContainer = () => {
           startIcon={<DownloadIcon />}
           onClick={handleExport}
           disabled={loading || logs.length === 0}
+          size="small"
+          fullWidth={{ xs: true, sm: false }}
+          sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
         >
           Export CSV
         </Button>
@@ -318,14 +333,28 @@ const LogsPageContainer = () => {
       )}
 
       {/* Logs Table */}
-      <Paper sx={{ height: 600, width: '100%' }}>
-        <LogTable
-          logs={logs || []}
-          loading={loading}
-          pagination={pagination}
-          onPaginationChange={handlePaginationChange}
-          onRowClick={handleRowClick}
-          error={error}
+      <Paper sx={{ height: { xs: 'auto', sm: 600 }, width: '100%' }}>
+        <ResponsiveTableWrapper
+          desktopView={
+            <LogTable
+              logs={logs || []}
+              loading={loading}
+              pagination={pagination}
+              onPaginationChange={handlePaginationChange}
+              onRowClick={handleRowClick}
+              error={error}
+            />
+          }
+          mobileView={
+            <LogMobileCards
+              logs={logs || []}
+              loading={loading}
+              pagination={pagination}
+              onPaginationChange={handlePaginationChange}
+              onRowClick={handleRowClick}
+              error={error}
+            />
+          }
         />
       </Paper>
 
