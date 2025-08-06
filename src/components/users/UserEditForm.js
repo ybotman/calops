@@ -166,7 +166,19 @@ const UserEditForm = ({ user, roles, onChange, onSubmit, loading = false }) => {
       </Paper>
 
       {/* Tabs for different sections */}
-      <Tabs value={tabValue} onChange={handleTabChange} aria-label="user edit tabs">
+      <Tabs 
+        value={tabValue} 
+        onChange={handleTabChange} 
+        aria-label="user edit tabs"
+        variant="scrollable"
+        scrollButtons="auto"
+        allowScrollButtonsMobile
+        sx={{
+          '& .MuiTabs-flexContainer': {
+            gap: { xs: 0, sm: 1 }
+          }
+        }}
+      >
         <Tab label="Roles" id="user-edit-tab-0" />
         <Tab label="Firebase Info" id="user-edit-tab-1" />
         <Tab label="Local User Info" id="user-edit-tab-2" />
