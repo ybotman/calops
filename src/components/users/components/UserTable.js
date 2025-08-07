@@ -212,7 +212,7 @@ const UserTable = ({
     <Box sx={{ height: 600, width: '100%' }}>
       {error && (
         <Typography color="error" sx={{ mb: 2 }}>
-          Error: {error}
+          Error: {error?.message || error?.toString() || 'An error occurred'}
         </Typography>
       )}
       
