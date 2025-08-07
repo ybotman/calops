@@ -84,7 +84,7 @@ const useFirebaseUsers = (options = {}) => {
     } catch (err) {
       const errorMessage = err.message || 'Failed to fetch Firebase users';
       console.error('Error fetching Firebase users:', errorMessage, err);
-      setError(err);
+      setError(errorMessage);
       
       // Don't clear existing data on error unless it's the first fetch
       if (firebaseUsers.length === 0) {

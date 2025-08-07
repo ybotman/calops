@@ -136,7 +136,7 @@ const UserMobileCards = ({
   if (error) {
     return (
       <Typography color="error" sx={{ p: 2 }}>
-        Error: {error}
+        Error: {error?.message || error?.toString() || 'An error occurred'}
       </Typography>
     );
   }

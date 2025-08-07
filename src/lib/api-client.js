@@ -4,6 +4,7 @@
  */
 
 import axios from 'axios';
+import { auth } from '@/utils/firebase';
 
 // Base URL for the API
 // In development, use relative URLs to go through Next.js proxy
@@ -30,10 +31,22 @@ const localApiClient = axios.create({
   },
 });
 
-// Add interceptors for debugging
+// Add authentication and debugging interceptors
 apiClient.interceptors.request.use(
-  config => {
+  async config => {
     console.log(`API Request: ${config.method.toUpperCase()} ${config.url}`);
+    
+    // Add Firebase auth token if user is authenticated
+    try {
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        const token = await currentUser.getIdToken();
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    } catch (error) {
+      console.warn('Could not get auth token:', error.message);
+    }
+    
     return config;
   },
   error => {
