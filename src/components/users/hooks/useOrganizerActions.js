@@ -123,7 +123,7 @@ const useOrganizerActions = ({ appId, onSuccess, refreshUsers } = {}) => {
       
       return createdOrganizer;
     } catch (err) {
-      setError(err);
+      setError(err.message || 'An error occurred');
       throw err;
     } finally {
       setLoading(false);
@@ -200,7 +200,7 @@ const useOrganizerActions = ({ appId, onSuccess, refreshUsers } = {}) => {
         onSuccess('deleteOrganizer', { ...user, isOrganizer: 'No', hasOrganizerId: false });
       }
     } catch (err) {
-      setError(err);
+      setError(err.message || 'An error occurred');
       throw err;
     } finally {
       setLoading(false);
@@ -279,7 +279,7 @@ const useOrganizerActions = ({ appId, onSuccess, refreshUsers } = {}) => {
       
       return user;
     } catch (err) {
-      setError(err);
+      setError(err.message || 'An error occurred');
       throw err;
     } finally {
       setLoading(false);
@@ -359,7 +359,7 @@ const useOrganizerActions = ({ appId, onSuccess, refreshUsers } = {}) => {
       
       return user;
     } catch (err) {
-      setError(err);
+      setError(err.message || 'An error occurred');
       throw err;
     } finally {
       setLoading(false);
