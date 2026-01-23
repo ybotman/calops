@@ -402,8 +402,21 @@ export default function GeoHierarchyPage() {
         </Button>
       </Box>
       
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-        <Tabs value={tabValue} onChange={handleTabChange}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, flexWrap: { xs: 'wrap', sm: 'nowrap' }, gap: 2 }}>
+        <Tabs 
+          value={tabValue} 
+          onChange={handleTabChange}
+          variant="scrollable"
+          scrollButtons="auto"
+          allowScrollButtonsMobile
+          sx={{
+            minWidth: 0,
+            flexGrow: { xs: 1, sm: 0 },
+            '& .MuiTabs-flexContainer': {
+              gap: { xs: 0, sm: 1 }
+            }
+          }}
+        >
           <Tab label="Cities" />
           <Tab label="Divisions" />
           <Tab label="Regions" />

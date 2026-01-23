@@ -18,6 +18,7 @@ import Collapse from '@mui/material/Collapse';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import { useAppContext } from '@/lib/AppContext';
+import { useAuth } from '@/contexts/AuthContext';
 import packageJson from '../../package.json';
 
 // Icons
@@ -62,6 +63,7 @@ const drawerWidth = 240;
 export default function AdminLayout({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { currentApp, updateCurrentApp } = useAppContext();
+  const { user, logout } = useAuth();
   const [anchorEl, setAnchorEl] = useState(null);
   const [appMenuAnchor, setAppMenuAnchor] = useState(null);
   const [organizerTypesOpen, setOrganizerTypesOpen] = useState(false);
@@ -80,6 +82,11 @@ export default function AdminLayout({ children }) {
 
   const handleClose = () => {
     setAnchorEl(null);
+  };
+
+  const handleLogout = async () => {
+    handleClose();
+    await logout();
   };
 
   const handleAppMenuClose = () => {
@@ -204,6 +211,11 @@ export default function AdminLayout({ children }) {
             </MenuItem>
           </Menu>
           
+          {user && (
+            <Typography variant="body2" sx={{ mr: 1 }}>
+              {user.displayName || user.email}
+            </Typography>
+          )}
           <IconButton
             size="large"
             aria-label="account of current user"
@@ -212,7 +224,13 @@ export default function AdminLayout({ children }) {
             onClick={handleMenu}
             color="inherit"
           >
-            <Avatar sx={{ width: 32, height: 32 }} />
+            <Avatar 
+              sx={{ width: 32, height: 32 }}
+              src={user?.photoURL}
+              alt={user?.displayName || user?.email}
+            >
+              {user && !user.photoURL && (user.displayName || user.email || '').charAt(0).toUpperCase()}
+            </Avatar>
           </IconButton>
           <Menu
             id="menu-appbar"
@@ -230,7 +248,7 @@ export default function AdminLayout({ children }) {
             onClose={handleClose}
           >
             <MenuItem onClick={handleClose}>Profile</MenuItem>
-            <MenuItem onClick={handleClose}>Logout</MenuItem>
+            <MenuItem onClick={handleLogout}>Logout</MenuItem>
           </Menu>
         </Toolbar>
       </AppBar>

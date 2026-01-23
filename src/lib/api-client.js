@@ -312,30 +312,32 @@ export const usersApi = {
       appId = normalizeAppId(appId);
       console.log(`Deleting user ${userId} with appId ${appId}...`);
       
-      // First attempt the direct database access via our debug endpoint
-      const directResponse = await apiClient.delete(`/api/debug?userId=${userId}&appId=${appId}`);
-      return directResponse.data;
-    } catch (directError) {
-      console.error('Direct database deletion failed:', directError.message);
+      // Use the correct backend endpoint format
+      // The backend accepts either MongoDB _id or Firebase UID as userId
+      const response = await apiClient.delete(`/api/userlogins/${userId}`);
       
-      // Try the backend API route
-      try {
-        appId = normalizeAppId(appId);
-        const response = await apiClient.delete(`/api/userlogins/${userId}?appId=${appId}`);
-        return response.data;
-      } catch (firstError) {
-        console.error('First API deletion attempt failed:', firstError.message);
-        
-        // Try alternative endpoint
-        try {
-          appId = normalizeAppId(appId);
-          const alternativeResponse = await apiClient.delete(`/api/users/${userId}?appId=${appId}`);
-          return alternativeResponse.data;
-        } catch (secondError) {
-          console.error('All deletion attempts failed');
-          throw new Error(`Failed to delete user: ${directError.message}`);
+      console.log('User deleted successfully:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      
+      // Handle specific error cases
+      if (error.response) {
+        switch (error.response.status) {
+          case 401:
+            throw new Error('Authentication required. Please log in again.');
+          case 403:
+            throw new Error('Insufficient permissions. You can only delete your own account.');
+          case 404:
+            throw new Error('User not found.');
+          case 500:
+            throw new Error(`Server error: ${error.response.data?.message || 'Unknown error'}`);
+          default:
+            throw new Error(`Failed to delete user: ${error.response.data?.message || error.message}`);
         }
       }
+      
+      throw new Error(`Failed to delete user: ${error.message}`);
     }
   },
   
