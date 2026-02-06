@@ -1,14 +1,13 @@
-# Calendar Admin Application
+# CalOps - Calendar Operations Dashboard
 
-
-An administrative interface for managing the Calendar Backend system, supporting both TangoTiempo and HarmonyJunction applications.
+An administrative interface for managing the MasterCalendar system, supporting both TangoTiempo and HarmonyJunction applications.
 
 ## Overview
 
 This admin application provides a centralized interface for managing:
 
 1. **User Management**
-   - Role assignment and permissions
+   - Role assignment and permissions (NU, RO, RA, SA)
    - User approval and activation
    - User profile management
 
@@ -23,14 +22,20 @@ This admin application provides a centralized interface for managing:
    - Linking organizers to users and locations
 
 4. **Multi-Application Support**
-   - Switch between TangoTiempo and HarmonyJunction
+   - Switch between TangoTiempo (AppId=1) and HarmonyJunction (AppId=2)
    - Application-specific settings
+
+5. **Advanced Logging**
+   - Winston + MongoDB log viewer
+   - Real-time log monitoring
+   - Color-coded severity levels
 
 ## Installation
 
 1. **Prerequisites**
-   - Make sure the `calendar-be` backend is running (default port 3010)
+   - Azure Functions backend running (`calendar-be-af` on port 7071)
    - Node.js 18+ installed
+   - Run `func start` in calendar-be-af directory
 
 2. **Install dependencies**
 
@@ -42,12 +47,16 @@ npm install
 
 Create a `.env.local` file in the root directory with:
 
-```
-# API Backend URL
-NEXT_PUBLIC_BE_URL=http://localhost:3010
+```bash
+# Azure Functions Backend (PRIMARY)
+NEXT_PUBLIC_AF_ENABLED=true
+NEXT_PUBLIC_AF_URL=http://localhost:7071
 
 # Port for this application
 PORT=3003
+
+# Google Maps API Key for Geocoding
+GOOGLE_MAPS_API_KEY=your_key_here
 ```
 
 4. **Start the development server**
@@ -58,25 +67,59 @@ npm run dev
 
 The admin app will be available at http://localhost:3003
 
+## Backend Architecture
+
+### Primary Backend: Azure Functions (calendar-be-af)
+
+- **Local Development**: http://localhost:7071
+- **TEST Environment**: https://calendarbeaf-test-*.azurewebsites.net
+- **PROD Environment**: https://calendarbeaf-prod-*.azurewebsites.net
+
+### API Endpoints (73 total)
+
+| Category | Count | Base Path |
+|----------|-------|-----------|
+| Health & Monitoring | 5 | `/api/health/*` |
+| Events | 12 | `/api/events/*` |
+| Venues | 9 + timer | `/api/venues/*` |
+| Organizers | 10 | `/api/organizers/*` |
+| User Services | 10 | `/api/userlogins/*`, `/api/user/*` |
+| Geolocation | 15 | `/api/geo/*`, `/api/masteredLocations/*` |
+| Analytics | 4 | `/api/analytics/*`, `/api/visitor/*` |
+
+### Legacy Backend (DEPRECATED)
+
+The Express.js backend (`calendar-be` on port 3010) is no longer running. All functionality has been migrated to Azure Functions.
+
 ## Authentication
 
-Authentication is temporarily bypassed for development purposes. The authentication system will be implemented in a future update.
+Firebase Authentication is used for user management. The system uses role-based access control:
+- **NU** - Named User (basic authenticated user)
+- **RO** - Regional Organizer
+- **RA** - Regional Admin
+- **SA** - System Admin
 
 ## Architecture
 
-- **Frontend**: Next.js with Material UI for the interface
-- **Backend Connection**: Direct API calls to the calendar-be backend
-- **API Client**: Centralized in `src/lib/api-client.js`
+- **Frontend**: Next.js 14 (App Router) with Material UI
+- **Backend**: Azure Functions (Node.js 20)
+- **Database**: MongoDB Atlas
+- **Authentication**: Firebase Auth
+- **Styling**: Tailwind CSS + MUI theming
 
-## API Routes
+## JIRA Integration
 
-The application provides the following API routes:
+Access JIRA using direct curl with macOS keychain authentication:
 
-- `/api/users` - User management
-- `/api/venues` - Physical venue management
-- `/api/geo-hierarchy` - Geographic hierarchy management
-- `/api/organizers` - Organizer management
-- `/api/applications` - Application settings management
+```bash
+JIRA_EMAIL="toby.balsley@gmail.com"
+JIRA_TOKEN=$(security find-generic-password -a "toby.balsley@gmail.com" -s "jira-api-token" -w)
+
+curl -s -G -u "$JIRA_EMAIL:$JIRA_TOKEN" \
+  -H "Accept: application/json" \
+  --data-urlencode "jql=project=CALOPS ORDER BY updated DESC" \
+  "https://hdtsllc.atlassian.net/rest/api/3/search/jql"
+```
 
 ## License
 
@@ -84,5 +127,4 @@ This project is proprietary and confidential. All rights reserved.
 
 ## Contact
 
-For any questions or support, please contact your system administrator.# Trigger Vercel deployment - Fri May 30 00:52:47 EDT 2025
-# Trigger PROD deployment - Fri May 30 00:56:47 EDT 2025
+For any questions or support, please contact your system administrator.
