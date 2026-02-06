@@ -5,12 +5,11 @@
 
 import axios from 'axios';
 import { auth } from '@/utils/firebase';
+import { getApiBaseUrl } from '@/utils/apiConfig';
 
 // Base URL for the API
-// In development, use relative URLs to go through Next.js proxy
-// In production, use the backend URL from environment
-const isDevelopment = process.env.NODE_ENV === 'development';
-const BE_URL = isDevelopment ? '' : (process.env.NEXT_PUBLIC_BE_URL || '');
+// Uses Azure Functions (port 7071) or legacy Express (port 3010) based on config
+const BE_URL = getApiBaseUrl();
 
 // API client configuration
 

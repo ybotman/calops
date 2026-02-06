@@ -7,8 +7,12 @@ export async function GET(request) {
     const appId = searchParams.get('appId') || '1';
     const type = searchParams.get('type') || 'all';
     
-    const backendUrl = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
-    
+    // Use Azure Functions if enabled, otherwise fallback to legacy Express
+    const afEnabled = process.env.NEXT_PUBLIC_AF_ENABLED === 'true';
+    const backendUrl = afEnabled
+      ? (process.env.NEXT_PUBLIC_AF_URL || 'http://localhost:7071')
+      : (process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010');
+
     // Use the mastered-locations/all endpoint from the backend
     const response = await axios.get(`${backendUrl}/api/mastered-locations/all`, {
       params: {
