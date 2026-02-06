@@ -151,7 +151,10 @@ const EventPage = () => {
         // Load event categories from the API
         try {
           // Use backend API endpoint for categories
-          const BE_URL = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
+          const afEnabled = process.env.NEXT_PUBLIC_AF_ENABLED === 'true';
+          const BE_URL = afEnabled
+            ? (process.env.NEXT_PUBLIC_AF_URL || 'http://localhost:7071')
+            : (process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010');
           const categoriesResponse = await fetch(`${BE_URL}/api/categories?appId=${appId}`);
           
           if (!categoriesResponse.ok) {
