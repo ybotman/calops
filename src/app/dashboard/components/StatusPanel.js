@@ -24,27 +24,44 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import SettingsIcon from '@mui/icons-material/Settings';
 
+// Get the appropriate backend URL based on environment configuration
+const getBackendUrl = () => {
+  const afEnabled = process.env.NEXT_PUBLIC_AF_ENABLED === 'true';
+  if (afEnabled) {
+    return process.env.NEXT_PUBLIC_AF_URL || 'http://localhost:7071';
+  }
+  // Fallback to legacy Express backend (DEPRECATED)
+  return process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
+};
+
+const getBackendType = () => {
+  return process.env.NEXT_PUBLIC_AF_ENABLED === 'true' ? 'Azure Functions' : 'Express (Legacy)';
+};
+
 export default function StatusPanel() {
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState(null);
   const [error, setError] = useState(null);
   const [expanded, setExpanded] = useState(false);
   const [envExpanded, setEnvExpanded] = useState(false);
-  
+
   const fetchStatus = async () => {
     try {
       setLoading(true);
-      const backendUrl = process.env.NEXT_PUBLIC_BE_URL || 'https://calendarbe-test-bpg5caaqg5chbndu.eastus-01.azurewebsites.net';
-      
+      const backendUrl = getBackendUrl();
+      const backendType = getBackendType();
+
       // Fetch backend health status
-      const response = await fetch(`${backendUrl}/health`);
-      
+      // Azure Functions uses /api/health, Express uses /health
+      const healthPath = backendType === 'Azure Functions' ? '/api/health' : '/health';
+      const response = await fetch(`${backendUrl}${healthPath}`);
+
       if (!response.ok) {
         throw new Error(`Backend health check failed: ${response.status} ${response.statusText}`);
       }
-      
+
       const backendData = await response.json();
-      
+
       // Format status data to match expected structure
       const formattedStatus = {
         application: {
@@ -54,19 +71,23 @@ export default function StatusPanel() {
         },
         backend: {
           status: backendData.status === 'ok' ? 'ok' : 'error',
+          type: backendType,
           url: backendUrl,
-          message: `Backend ${backendData.status === 'ok' ? 'connected' : 'disconnected'}`,
+          message: `${backendType} ${backendData.status === 'ok' ? 'connected' : 'disconnected'}`,
           apiMessage: `DB: ${backendData.dbConnected ? 'Connected' : 'Disconnected'}, Firebase: ${backendData.firebaseConnected ? 'Connected' : 'Disconnected'}`,
           ...backendData
         }
       };
-      
+
       setStatus(formattedStatus);
       setError(null);
     } catch (err) {
       console.error('Error fetching status:', err);
       setError(err.message);
-      
+
+      const backendUrl = getBackendUrl();
+      const backendType = getBackendType();
+
       // Set error status
       setStatus({
         application: {
@@ -76,8 +97,9 @@ export default function StatusPanel() {
         },
         backend: {
           status: 'error',
-          url: process.env.NEXT_PUBLIC_BE_URL || 'https://calendarbe-test-bpg5caaqg5chbndu.eastus-01.azurewebsites.net',
-          message: 'Backend connection failed',
+          type: backendType,
+          url: backendUrl,
+          message: `${backendType} connection failed`,
           fallbackMessage: err.message
         }
       });
@@ -85,11 +107,11 @@ export default function StatusPanel() {
       setLoading(false);
     }
   };
-  
+
   useEffect(() => {
     fetchStatus();
   }, []);
-  
+
   // Status icon mapping
   const getStatusIcon = (status) => {
     switch (status) {
@@ -103,7 +125,7 @@ export default function StatusPanel() {
         return <HelpIcon sx={{ color: 'info.main' }} />;
     }
   };
-  
+
   // Status chip mapping
   const getStatusChip = (status) => {
     const colors = {
@@ -112,32 +134,32 @@ export default function StatusPanel() {
       error: 'error',
       unknown: 'default'
     };
-    
+
     return (
-      <Chip 
-        label={status.toUpperCase()} 
-        color={colors[status] || 'default'} 
-        size="small" 
+      <Chip
+        label={status.toUpperCase()}
+        color={colors[status] || 'default'}
+        size="small"
         sx={{ fontWeight: 'bold' }}
       />
     );
   };
-  
+
   // Get overall system status (simplified - only checks backend)
   const getOverallStatus = () => {
     if (!status) return 'unknown';
-    
+
     if (status.backend?.status === 'error') {
       return 'error';
     }
-    
+
     if (status.backend?.status === 'warning') {
       return 'warning';
     }
-    
+
     return 'ok';
   };
-  
+
   // Mask environment variable values (show last 10 characters)
   const maskEnvValue = (value) => {
     if (!value || value.length <= 10) {
@@ -147,22 +169,28 @@ export default function StatusPanel() {
     const maskedPart = '*'.repeat(Math.min(value.length - 10, 20)); // Limit mask length
     return `${maskedPart}${visiblePart}`;
   };
-  
+
   const toggleExpanded = () => {
     setExpanded(!expanded);
   };
-  
+
   const toggleEnvExpanded = () => {
     setEnvExpanded(!envExpanded);
   };
-  
-  // Get active environment variables (exclude legacy/unused ones)
+
+  // Get active environment variables
   const getActiveEnvVars = () => {
+    const afEnabled = process.env.NEXT_PUBLIC_AF_ENABLED === 'true';
     return [
       {
-        name: 'NEXT_PUBLIC_BE_URL',
-        value: process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010',
-        description: 'Backend API URL'
+        name: 'NEXT_PUBLIC_AF_ENABLED',
+        value: process.env.NEXT_PUBLIC_AF_ENABLED || 'false',
+        description: 'Azure Functions enabled (primary backend)'
+      },
+      {
+        name: afEnabled ? 'NEXT_PUBLIC_AF_URL' : 'NEXT_PUBLIC_BE_URL',
+        value: getBackendUrl(),
+        description: afEnabled ? 'Azure Functions API URL' : 'Legacy Backend API URL (deprecated)'
       },
       {
         name: 'NODE_ENV',
@@ -176,14 +204,14 @@ export default function StatusPanel() {
       }
     ];
   };
-  
+
   return (
     <Paper sx={{ p: 0, mb: 3, overflow: 'hidden' }}>
-      <Box 
-        sx={{ 
-          p: 2, 
-          display: 'flex', 
-          justifyContent: 'space-between', 
+      <Box
+        sx={{
+          p: 2,
+          display: 'flex',
+          justifyContent: 'space-between',
           alignItems: 'center',
           bgcolor: 'primary.main',
           color: 'white'
@@ -192,9 +220,9 @@ export default function StatusPanel() {
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <Typography variant="h6" sx={{ mr: 2 }}>System Status</Typography>
           {!loading && status && (
-            <Chip 
+            <Chip
               label={getOverallStatus().toUpperCase()}
-              color={getOverallStatus() === 'ok' ? 'success' : 
+              color={getOverallStatus() === 'ok' ? 'success' :
                     getOverallStatus() === 'warning' ? 'warning' : 'error'}
               size="small"
               sx={{ fontWeight: 'bold', color: 'white', borderColor: 'white', bgcolor: 'transparent' }}
@@ -203,7 +231,7 @@ export default function StatusPanel() {
           )}
         </Box>
         <Box>
-          <Button 
+          <Button
             color="inherit"
             size="small"
             onClick={toggleExpanded}
@@ -212,8 +240,8 @@ export default function StatusPanel() {
           >
             {expanded ? 'Hide Details' : 'Show Details'}
           </Button>
-          <Button 
-            variant="contained" 
+          <Button
+            variant="contained"
             size="small"
             onClick={fetchStatus}
             disabled={loading}
@@ -224,7 +252,7 @@ export default function StatusPanel() {
           </Button>
         </Box>
       </Box>
-      
+
       <Collapse in={expanded}>
         <Box sx={{ p: 0 }}>
           {loading ? (
@@ -237,19 +265,19 @@ export default function StatusPanel() {
                 <ListItemIcon>
                   {getStatusIcon(status.application?.status || 'ok')}
                 </ListItemIcon>
-                <ListItemText 
-                  primary="CalOps Application" 
-                  secondary={status.application?.message || `Version ${status.application?.version || '1.0.0'}`} 
+                <ListItemText
+                  primary="CalOps Application"
+                  secondary={status.application?.message || `Version ${status.application?.version || '1.0.0'}`}
                 />
                 <Box>{getStatusChip(status.application?.status || 'ok')}</Box>
               </ListItem>
-              
+
               <ListItem divider>
                 <ListItemIcon>
                   {getStatusIcon(status.backend?.status || 'unknown')}
                 </ListItemIcon>
-                <ListItemText 
-                  primary="Backend API" 
+                <ListItemText
+                  primary={`Backend API (${status.backend?.type || 'Unknown'})`}
                   secondary={
                     <>
                       <Typography variant="body2" component="span" display="block">
@@ -270,26 +298,26 @@ export default function StatusPanel() {
                 />
                 <Box>{getStatusChip(status.backend?.status || 'unknown')}</Box>
               </ListItem>
-              
+
               <ListItem>
                 <ListItemIcon>
                   <SettingsIcon color="primary" />
                 </ListItemIcon>
-                <ListItemText 
-                  primary="Environment Configuration" 
+                <ListItemText
+                  primary="Environment Configuration"
                   secondary={
                     <>
                       <Typography variant="body2" component="span" display="block" sx={{ mt: 0.5 }}>
-                        <strong>Backend URL:</strong> {maskEnvValue(status.backend.url)}
+                        <strong>Backend Type:</strong> {status.backend?.type || 'Unknown'}
+                      </Typography>
+                      <Typography variant="body2" component="span" display="block" sx={{ mt: 0.5 }}>
+                        <strong>Backend URL:</strong> {maskEnvValue(status.backend?.url)}
                       </Typography>
                       <Typography variant="body2" component="span" display="block" sx={{ mt: 0.5 }}>
                         <strong>App Version:</strong> {status.application?.version || 'N/A'}
                       </Typography>
-                      <Typography variant="body2" component="span" display="block" sx={{ mt: 0.5 }}>
-                        <strong>Authentication:</strong> Mock authentication (bypassed)
-                      </Typography>
                       <Box component="span" sx={{ mt: 1, display: 'block' }}>
-                        <Button 
+                        <Button
                           size="small"
                           onClick={toggleEnvExpanded}
                           endIcon={envExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
@@ -301,14 +329,14 @@ export default function StatusPanel() {
                     </>
                   }
                 />
-                <Chip 
-                  label="INFO" 
-                  color="info" 
-                  size="small" 
+                <Chip
+                  label="INFO"
+                  color="info"
+                  size="small"
                   sx={{ fontWeight: 'bold' }}
                 />
               </ListItem>
-              
+
               <Collapse in={envExpanded}>
                 <Box sx={{ px: 3, pb: 2 }}>
                   <Typography variant="subtitle2" gutterBottom>

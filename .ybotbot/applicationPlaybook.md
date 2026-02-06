@@ -69,11 +69,13 @@ CALOPS (Calendar Operations) is a Next.js 14 administrative dashboard that serve
 - **Styling**: Tailwind CSS + MUI theming
 
 #### Backend Integration
-- **API Proxy**: `/api/*` requests proxied to calendar-be (port 3010)
-- **Models Bridge**: Direct import from calendar-be models for consistency
-- **Environment Handling**: 
-  - Development: Local proxy configuration
-  - Production: NEXT_PUBLIC_BE_URL environment variable
+- **Primary Backend**: Azure Functions (calendar-be-af) on port 7071
+- **API Base URL**: `http://localhost:7071/api` (dev) / `https://calendarbeaf-prod-*.azurewebsites.net/api` (prod)
+- **Legacy Fallback**: calendar-be (Express.js port 3010) - DEPRECATED, no longer running
+- **Environment Variables**:
+  - `NEXT_PUBLIC_AF_ENABLED=true` - Enable Azure Functions
+  - `NEXT_PUBLIC_AF_URL` - Azure Functions endpoint
+  - `NEXT_PUBLIC_BE_URL` - Legacy fallback (deprecated)
 
 #### File Structure
 ```
@@ -99,12 +101,12 @@ CALOPS (Calendar Operations) is a Next.js 14 administrative dashboard that serve
   - CALOPS-28: New organizer type management
 
 #### Development Workflow
-- **Branches**: 
+- **Branches**:
   - main (primary)
   - PROD (production)
   - TEST (testing)
   - feature/CALOPS-XX-description
-- **TRACKING Integration**: All work documented in JIRA using MCP
+- **TRACKING Integration**: All work documented in JIRA using direct curl with macOS keychain auth
 
 ### Current Development Focus
 
@@ -120,7 +122,37 @@ CALOPS (Calendar Operations) is a Next.js 14 administrative dashboard that serve
 - Geocoding integration in progress (CALOPS-33)
 - Organizer type pages being added (CALOPS-28)
 
-## Backend System Design (Calendar-BE)
+## Backend System Design (Calendar-BE-AF - Azure Functions)
+
+**NOTE**: The backend has fully migrated from calendar-be (Express.js) to calendar-be-af (Azure Functions). The Express backend is DEPRECATED and no longer running.
+
+### Azure Functions Backend Overview
+- **Version**: 1.20.0
+- **Framework**: Azure Functions (Node.js 20)
+- **Local Port**: 7071 (via `func start`)
+- **Total Endpoints**: 73 HTTP functions + 1 timer trigger
+- **Route Prefix**: `/api`
+
+### Deployment Environments
+| Environment | URL |
+|-------------|-----|
+| Local Dev | http://localhost:7071 |
+| TEST | https://calendarbeaf-test-*.eastus-01.azurewebsites.net |
+| PROD | https://calendarbeaf-prod-*.azurewebsites.net |
+
+### Key API Endpoint Groups
+- **Health & Monitoring**: 5 endpoints (`/api/health/*`)
+- **Events**: 12 endpoints (`/api/events/*`)
+- **Venues**: 9 endpoints + 1 timer (`/api/venues/*`)
+- **Organizers**: 10 endpoints (`/api/organizers/*`)
+- **User Services**: 10 endpoints (`/api/userlogins/*`, `/api/user/*`)
+- **Geolocation**: 15 endpoints (`/api/geo/*`, `/api/masteredLocations/*`)
+- **Analytics**: 4 endpoints (`/api/analytics/*`, `/api/visitor/*`, `/api/frontend-logs/*`)
+
+### Authentication
+- Firebase Admin SDK for mutation endpoints
+- Public read endpoints for events/venues
+- Token verification on POST/PUT/DELETE operations
 
 ### Event Access Control Security Design
 
@@ -301,14 +333,24 @@ Example: A venue in Cambridge, MA (lat: 42.3736, lng: -71.1097) would be mapped 
 ## Project Management
 
 ### JIRA Integration
-- **Project**: CALBE (Calendar Backend)
+- **Project Keys**:
+  - CALOPS (Calendar Operations Dashboard)
+  - CALBEAF (Calendar Backend Azure Functions)
+  - TIEMPO (TangoTiempo Frontend)
 - **JIRA URL**: https://hdtsllc.atlassian.net
-- **Recent Issues**:
-  - CALBE-37: Event summary API for map explorer
-  - CALBE-36: cityIds filter returns empty for cities with no events
-  - CALBE-35: Multi-city filtering support for events API
-  - CALBE-33: Venue geocoding with automatic city detection
-  - CALBE-32: Winston + MongoDB logging integration
+- **Access Method**: Direct curl with macOS keychain auth (NO MCP)
+
+```bash
+# Get credentials from keychain
+JIRA_EMAIL="toby.balsley@gmail.com"
+JIRA_TOKEN=$(security find-generic-password -a "toby.balsley@gmail.com" -s "jira-api-token" -w 2>/dev/null)
+
+# Search issues
+curl -s -G -u "$JIRA_EMAIL:$JIRA_TOKEN" -H "Accept: application/json" \
+  --data-urlencode "jql=project=CALOPS ORDER BY updated DESC" \
+  --data-urlencode "maxResults=10" \
+  "https://hdtsllc.atlassian.net/rest/api/3/search/jql"
+```
 
 ### Git Branches
 - **Main Branch**: DEVL (for development)

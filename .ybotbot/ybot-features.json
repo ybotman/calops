@@ -28,13 +28,14 @@
   },
   "integrations": {
     "jira": {
-      "value": "MCP",
+      "value": "curl",
       "cloudId": "https://hdtsllc.atlassian.net",
-      "projectKey": "CALOPS"
+      "projectKey": "CALOPS",
+      "note": "Uses direct curl with macOS keychain auth (jira-api-token)"
     },
     "github": {
       "enabled": true
     }
   },
-  "createdAt": "2025-07-22T17:39:20.037Z"
+  "createdAt": "2025-08-08T00:10:26.904Z"
 }
