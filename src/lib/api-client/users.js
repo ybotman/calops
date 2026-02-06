@@ -5,9 +5,10 @@
 
 import axios from 'axios';
 import { processResponse, handleApiError, buildQueryString } from './utils';
+import { getApiBaseUrl } from '@/utils/apiConfig';
 
-// Base configuration - Use backend URL from environment
-const API_BASE_URL = process.env.NEXT_PUBLIC_BE_URL || 'https://calendarbe-test-bpg5caaqg5chbndu.eastus-01.azurewebsites.net';
+// Base configuration - Uses Azure Functions or legacy Express based on config
+const API_BASE_URL = getApiBaseUrl();
 
 /**
  * Users API client for interacting with user endpoints

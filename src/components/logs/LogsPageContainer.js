@@ -152,7 +152,11 @@ const LogsPageContainer = () => {
           errorMessage = 'Authentication error. You may not have permission to view logs.';
         }
       } else if (err.code === 'ERR_NETWORK') {
-        errorMessage = 'Cannot connect to backend server. Make sure the backend is running at ' + (process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010');
+        const afEnabled = process.env.NEXT_PUBLIC_AF_ENABLED === 'true';
+        const backendUrl = afEnabled
+          ? (process.env.NEXT_PUBLIC_AF_URL || 'http://localhost:7071')
+          : (process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010');
+        errorMessage = 'Cannot connect to backend server. Make sure the backend is running at ' + backendUrl;
       }
       
       setError(errorMessage);
@@ -326,8 +330,8 @@ const LogsPageContainer = () => {
             {error}
           </Typography>
           <Typography variant="caption" color="text.secondary">
-            The logs API endpoint may not be implemented yet in the backend. 
-            Check if the backend server at {process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010'} has the /api/logs endpoint ready.
+            The logs API endpoint may not be implemented yet in the backend.
+            Check if the backend server at {process.env.NEXT_PUBLIC_AF_ENABLED === 'true' ? (process.env.NEXT_PUBLIC_AF_URL || 'http://localhost:7071') : (process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010')} has the /api/logs endpoint ready.
           </Typography>
         </Alert>
       )}

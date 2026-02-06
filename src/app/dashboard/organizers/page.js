@@ -79,8 +79,12 @@ export default function OrganizersPage() {
   useEffect(() => {
     const fetchLocations = async () => {
       try {
-        const backendUrl = process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010';
-        
+        // Use Azure Functions if enabled, otherwise fallback to legacy Express
+        const afEnabled = process.env.NEXT_PUBLIC_AF_ENABLED === 'true';
+        const backendUrl = afEnabled
+          ? (process.env.NEXT_PUBLIC_AF_URL || 'http://localhost:7071')
+          : (process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010');
+
         // Fetch cities from backend directly
         const citiesResponse = await axios.get(`${backendUrl}/api/masteredLocations/cities`, {
           params: { appId: currentApp.id, isActive: true }

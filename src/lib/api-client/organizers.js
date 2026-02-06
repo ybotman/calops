@@ -4,12 +4,10 @@
  */
 
 import axios from 'axios';
+import { getApiBaseUrl } from '@/utils/apiConfig';
 
-// Base configuration
-// In development, use relative URLs to go through Next.js proxy
-// In production, use the backend URL from environment
-const isDevelopment = process.env.NODE_ENV === 'development';
-const API_BASE_URL = isDevelopment ? '' : (process.env.NEXT_PUBLIC_BE_URL || '');
+// Base configuration - Uses Azure Functions or legacy Express based on config
+const API_BASE_URL = getApiBaseUrl();
 
 const organizersApi = {
   /**

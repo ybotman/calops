@@ -117,9 +117,9 @@ export default function FirebaseImportPage() {
           <Box component="pre" sx={{ mt: 1, p: 1, bgcolor: 'grey.100', borderRadius: 1 }}>
             node scripts/import-firebase-users.js ./path/to/firebase-users.json
           </Box>
-          This script will try to use the backend API first (port 3010), and only fall back to direct MongoDB connection if the API is unavailable.
+          This script will try to use the backend API first (Azure Functions port 7071), and only fall back to direct MongoDB connection if the API is unavailable.
           <Box component="pre" sx={{ mt: 1, p: 1, bgcolor: 'grey.100', borderRadius: 1 }}>
-            API_URL="http://localhost:3010" node scripts/import-firebase-users.js ./path/to/firebase-users.json
+            API_URL="http://localhost:7071" node scripts/import-firebase-users.js ./path/to/firebase-users.json
           </Box>
           See scripts/FIREBASE_IMPORT_README.md for more details.
         </Typography>
