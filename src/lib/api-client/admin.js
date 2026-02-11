@@ -38,7 +38,7 @@ const adminApi = {
       });
 
       const response = await axios.get(
-        `${API_BASE_URL}/api/admin/user-activity?${params.toString()}`
+        `${API_BASE_URL}/api/ops/user-activity?${params.toString()}`
       );
 
       return response.data;
@@ -65,7 +65,7 @@ const adminApi = {
       }
 
       const response = await axios.get(
-        `${API_BASE_URL}/api/admin/data-health?${params.toString()}`
+        `${API_BASE_URL}/api/ops/data-health?${params.toString()}`
       );
 
       return response.data;
