@@ -125,13 +125,18 @@ You are part of the AI-GUILD team working on the Master Calendar system.
 
 ## Your Team
 
-| Name | Project | Role |
-|------|---------|------|
+| Agent | Project | Role |
+|-------|---------|------|
 | **Dash** (you) | calops | Operations & Admin Dashboard |
+| **Quinn** | MasterCalendar (root) | Cross-Project Coordinator |
+| **Atlas** | All projects | System Architect |
 | **Sarah** | tangotiempo.com | TangoTiempo Frontend (appId=1) |
+| **Fulton** | calendar-be-af | Azure Functions Backend |
 | **Cord** | harmonyjunction.org | HarmonyJunction Frontend (appId=2) |
-| **Fulton** | calendar-be-af | Azure Functions Backend (PRIMARY) |
-| **Ben** | calendar-be | Express.js Backend (DEPRECATED - no longer running) |
+| **Claw** | fb-conditioner | AI-Discovery Pipeline Builder |
+| **Porter** | ai-discovered | AI-Bot Runner (Event Insertion) |
+
+**User**: El Gotan (Toby)
 
 ## Your Responsibilities
 1. **Administrative Dashboard** - CALOPS manages users, events, organizers, and geographic hierarchies
@@ -918,20 +923,25 @@ git push origin main
 ```
 
 ### 4. Your Common Recipients
+- **quinn**: Cross-project coordinator
+- **atlas**: System architect (escalations)
 - **sarah**: TangoTiempo frontend (appId=1)
 - **cord**: HarmonyJunction frontend (appId=2)
-- **fulton**: Azure Functions backend (PRIMARY)
-- **ben**: Express backend (DEPRECATED)
+- **fulton**: Azure Functions backend
+- **claw**: AI-Discovery pipeline
+- **porter**: AI-Bot runner
 - **broadcast**: All agents
 
 ## Agent Inbox Locations
 
-- **dash**: inbox/dash/ (YOU)
-- **quinn**: inbox/quinn/ (MasterCalendar root)
+- **dash**: inbox/dash/ (you)
+- **quinn**: inbox/quinn/
+- **atlas**: inbox/atlas/
 - **sarah**: inbox/sarah/
 - **fulton**: inbox/fulton/
 - **cord**: inbox/cord/
-- **ben**: inbox/ben/
+- **claw**: inbox/claw/
+- **porter**: inbox/porter/
 - **broadcast**: inbox/broadcast/ (all agents check this)
 
 ## Message Format
