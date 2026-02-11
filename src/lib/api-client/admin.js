@@ -52,14 +52,20 @@ const adminApi = {
    * Get data health/quality issues
    * @param {Object} options - Request options
    * @param {string} options.appId - Application ID (default: "1")
+   * @param {boolean} options.refresh - Force cache refresh (default: false)
    * @returns {Promise<Object>} Data health issues
    */
   getDataHealth: async (options = {}) => {
-    const { appId = '1' } = options;
+    const { appId = '1', refresh = false } = options;
 
     try {
+      const params = new URLSearchParams({ appId });
+      if (refresh) {
+        params.append('refresh', 'true');
+      }
+
       const response = await axios.get(
-        `${API_BASE_URL}/api/admin/data-health?appId=${appId}`
+        `${API_BASE_URL}/api/admin/data-health?${params.toString()}`
       );
 
       return response.data;
