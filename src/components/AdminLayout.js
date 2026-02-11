@@ -37,10 +37,14 @@ import SchoolIcon from '@mui/icons-material/School';
 import HeadphonesIcon from '@mui/icons-material/Headphones';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import DescriptionIcon from '@mui/icons-material/Description';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import HealthAndSafetyIcon from '@mui/icons-material/HealthAndSafety';
 
 // Navigation items
 const mainNavItems = [
   { name: 'Dashboard', icon: <DashboardIcon />, href: '/dashboard' },
+  { name: 'User Activity', icon: <AccessTimeIcon />, href: '/dashboard/user-activity' },
+  { name: 'Data Health', icon: <HealthAndSafetyIcon />, href: '/dashboard/data-health' },
   { name: 'Users', icon: <PeopleIcon />, href: '/dashboard/users' },
   { name: 'Organizers', icon: <SchoolIcon />, href: '/dashboard/organizers' },
   { name: 'Venues', icon: <BusinessIcon />, href: '/dashboard/venues' },
@@ -287,9 +291,11 @@ export default function AdminLayout({ children }) {
         component="main"
         sx={{
           flexGrow: 1,
-          p: 3,
+          p: { xs: 1.5, sm: 2, md: 3 },
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           mt: '64px', // AppBar height
+          maxWidth: '100%',
+          overflow: 'hidden',
         }}
       >
         {children}

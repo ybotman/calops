@@ -273,7 +273,7 @@ export default function OrganizerTypeManagement({ typeFilter, pageTitle, typeLab
         </Box>
       </Box>
       
-      <Paper sx={{ height: 600, width: '100%' }}>
+      <Paper sx={{ height: 'calc(100vh - 350px)', minHeight: 400, width: '100%' }}>
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
             <CircularProgress />

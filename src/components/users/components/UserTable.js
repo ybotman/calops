@@ -207,9 +207,9 @@ const UserTable = ({
     }
   };
 
-  // Desktop DataGrid view
+  // Desktop DataGrid view - full width with flexible height
   const desktopView = (
-    <Box sx={{ height: 600, width: '100%' }}>
+    <Box sx={{ height: 'calc(100vh - 300px)', minHeight: 400, width: '100%' }}>
       {error && (
         <Typography color="error" sx={{ mb: 2 }}>
           Error: {error?.message || error?.toString() || 'An error occurred'}

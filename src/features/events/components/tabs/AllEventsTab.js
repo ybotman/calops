@@ -1,15 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { 
-  Box, 
-  Typography, 
-  Paper, 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableContainer, 
-  TableHead, 
+import {
+  Box,
+  Typography,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
   TableRow,
   TablePagination,
   IconButton,
@@ -28,6 +28,8 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import { format } from 'date-fns';
+import ResponsiveTableWrapper from '@/components/common/ResponsiveTableWrapper';
+import EventMobileCards from '../EventMobileCards';
 
 // Helper function to format date
 const formatDate = (dateStr) => {
@@ -132,14 +134,15 @@ const AllEventsTab = ({
     return (
       <Paper sx={{ p: 3, textAlign: 'center' }}>
         <Typography color="textSecondary">
-          No events found matching your filter criteria. 
+          No events found matching your filter criteria.
           {events && events.length === 0 && ' Try adjusting your filters for different results.'}
         </Typography>
       </Paper>
     );
   }
-  
-  return (
+
+  // Desktop table view
+  const desktopView = (
     <Box>
       <TableContainer component={Paper}>
         <Table>
@@ -161,10 +164,10 @@ const AllEventsTab = ({
                     {event.title}
                   </Typography>
                   <Typography variant="caption" color="textSecondary">
-                    {event.shortDescription?.substring(0, 50) || 
-                     event.description?.substring(0, 50) || 
+                    {event.shortDescription?.substring(0, 50) ||
+                     event.description?.substring(0, 50) ||
                      'No description'}
-                    {((event.shortDescription && event.shortDescription.length > 50) || 
+                    {((event.shortDescription && event.shortDescription.length > 50) ||
                       (event.description && event.description.length > 50)) && '...'}
                   </Typography>
                 </TableCell>
@@ -207,7 +210,7 @@ const AllEventsTab = ({
           </TableBody>
         </Table>
       </TableContainer>
-      
+
       {/* Pagination controls */}
       <TablePagination
         component="div"
@@ -218,7 +221,7 @@ const AllEventsTab = ({
         onRowsPerPageChange={(e) => onRowsPerPageChange && onRowsPerPageChange(parseInt(e.target.value, 10))}
         rowsPerPageOptions={[10, 25, 50, 100]}
       />
-      
+
       {/* Actions menu */}
       <Menu
         anchorEl={anchorEl}
@@ -257,6 +260,27 @@ const AllEventsTab = ({
         </MenuItem>
       </Menu>
     </Box>
+  );
+
+  // Mobile card view
+  const mobileView = (
+    <EventMobileCards
+      events={events}
+      loading={loading}
+      error={error}
+      onView={onView}
+      onEdit={onEdit}
+      onDelete={onDelete}
+      onToggleStatus={onToggleStatus}
+    />
+  );
+
+  return (
+    <ResponsiveTableWrapper
+      desktopView={desktopView}
+      mobileView={mobileView}
+      breakpoint="md"
+    />
   );
 };
 
