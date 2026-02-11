@@ -9,6 +9,7 @@ import venuesApi from './venues';
 import applicationsApi from './applications';
 import masteredLocationsApi from './mastered-locations';
 import organizersApi from './organizers';
+import adminApi from './admin';
 
 // Re-export individual APIs
 export {
@@ -17,7 +18,8 @@ export {
   venuesApi,
   applicationsApi,
   masteredLocationsApi,
-  organizersApi
+  organizersApi,
+  adminApi
 };
 
 // Default export with all APIs
@@ -27,5 +29,6 @@ export default {
   venues: venuesApi,
   applications: applicationsApi,
   masteredLocations: masteredLocationsApi,
-  organizers: organizersApi
+  organizers: organizersApi,
+  admin: adminApi
 };

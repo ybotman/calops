@@ -1,0 +1,73 @@
+/**
+ * Admin API client module
+ * Provides access to admin-only endpoints for CALOPS dashboard
+ */
+
+import axios from 'axios';
+import { getApiBaseUrl } from '@/utils/apiConfig';
+
+const API_BASE_URL = getApiBaseUrl();
+
+/**
+ * Admin API client for admin-specific endpoints
+ */
+const adminApi = {
+  /**
+   * Get user activity data (last logins, stale users, etc.)
+   * @param {Object} options - Request options
+   * @param {string} options.appId - Application ID (default: "1")
+   * @param {number} options.staleDays - Days threshold for stale users (default: 30)
+   * @param {number} options.limit - Max users to return (default: 100)
+   * @param {string} options.sort - Sort by "lastLogin" or "created" (default: "lastLogin")
+   * @returns {Promise<Object>} User activity data
+   */
+  getUserActivity: async (options = {}) => {
+    const {
+      appId = '1',
+      staleDays = 30,
+      limit = 100,
+      sort = 'lastLogin'
+    } = options;
+
+    try {
+      const params = new URLSearchParams({
+        appId,
+        staleDays: staleDays.toString(),
+        limit: limit.toString(),
+        sort
+      });
+
+      const response = await axios.get(
+        `${API_BASE_URL}/api/admin/user-activity?${params.toString()}`
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching user activity:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get data health/quality issues
+   * @param {Object} options - Request options
+   * @param {string} options.appId - Application ID (default: "1")
+   * @returns {Promise<Object>} Data health issues
+   */
+  getDataHealth: async (options = {}) => {
+    const { appId = '1' } = options;
+
+    try {
+      const response = await axios.get(
+        `${API_BASE_URL}/api/admin/data-health?appId=${appId}`
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching data health:', error);
+      throw error;
+    }
+  }
+};
+
+export default adminApi;

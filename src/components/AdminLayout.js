@@ -37,10 +37,12 @@ import SchoolIcon from '@mui/icons-material/School';
 import HeadphonesIcon from '@mui/icons-material/Headphones';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import DescriptionIcon from '@mui/icons-material/Description';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
 
 // Navigation items
 const mainNavItems = [
   { name: 'Dashboard', icon: <DashboardIcon />, href: '/dashboard' },
+  { name: 'User Activity', icon: <AccessTimeIcon />, href: '/dashboard/user-activity' },
   { name: 'Users', icon: <PeopleIcon />, href: '/dashboard/users' },
   { name: 'Organizers', icon: <SchoolIcon />, href: '/dashboard/organizers' },
   { name: 'Venues', icon: <BusinessIcon />, href: '/dashboard/venues' },
