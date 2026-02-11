@@ -278,14 +278,25 @@ const EventPage = () => {
   
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4">Events</Typography>
+      <Box sx={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        mb: 2,
+        flexWrap: { xs: 'wrap', sm: 'nowrap' },
+        gap: 1
+      }}>
+        <Typography variant="h4" sx={{ fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' } }}>
+          Events
+        </Typography>
         <Button
           variant="contained"
           color="primary"
           startIcon={<AddIcon />}
           onClick={() => console.log('Create new event clicked')}
           disabled={isLoadingLookups}
+          size="medium"
+          sx={{ whiteSpace: 'nowrap' }}
         >
           Create Event
         </Button>

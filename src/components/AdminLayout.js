@@ -287,9 +287,11 @@ export default function AdminLayout({ children }) {
         component="main"
         sx={{
           flexGrow: 1,
-          p: 3,
+          p: { xs: 1.5, sm: 2, md: 3 },
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           mt: '64px', // AppBar height
+          maxWidth: '100%',
+          overflow: 'hidden',
         }}
       >
         {children}

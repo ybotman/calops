@@ -874,7 +874,7 @@ export default function OrganizersPage() {
       
       <ResponsiveTableWrapper
         desktopView={
-          <Paper sx={{ height: 600, width: '100%' }}>
+          <Paper sx={{ height: 'calc(100vh - 320px)', minHeight: 400, width: '100%' }}>
             {loading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
                 <CircularProgress />

@@ -439,7 +439,7 @@ export default function GeoHierarchyPage() {
       </Box>
       
       <TabPanel value={tabValue} index={0}>
-        <Paper sx={{ height: 600, width: '100%' }}>
+        <Paper sx={{ height: 'calc(100vh - 380px)', minHeight: 350, width: '100%' }}>
           {loading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
               <CircularProgress />
@@ -458,7 +458,7 @@ export default function GeoHierarchyPage() {
       </TabPanel>
       
       <TabPanel value={tabValue} index={1}>
-        <Paper sx={{ height: 600, width: '100%' }}>
+        <Paper sx={{ height: 'calc(100vh - 380px)', minHeight: 350, width: '100%' }}>
           {loading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
               <CircularProgress />
@@ -477,7 +477,7 @@ export default function GeoHierarchyPage() {
       </TabPanel>
       
       <TabPanel value={tabValue} index={2}>
-        <Paper sx={{ height: 600, width: '100%' }}>
+        <Paper sx={{ height: 'calc(100vh - 380px)', minHeight: 350, width: '100%' }}>
           {loading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
               <CircularProgress />

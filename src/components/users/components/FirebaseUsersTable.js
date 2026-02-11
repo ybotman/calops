@@ -328,7 +328,7 @@ const FirebaseUsersTable = ({
       )}
 
       {/* Loading or Data Grid */}
-      <Box sx={{ height: 600, width: '100%' }}>
+      <Box sx={{ height: 'calc(100vh - 300px)', minHeight: 400, width: '100%' }}>
         {loading && filteredUsers.length === 0 ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
             <CircularProgress />
