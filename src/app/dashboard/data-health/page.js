@@ -23,7 +23,15 @@ import {
   Collapse,
   IconButton,
   useMediaQuery,
-  useTheme
+  useTheme,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -37,6 +45,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import BusinessIcon from '@mui/icons-material/Business';
 import { format } from 'date-fns';
 import { adminApi } from '@/lib/api-client/index';
+import { masteredLocationsApi, venuesApi } from '@/lib/api-client.js';
 import { useAppContext } from '@/lib/AppContext';
 
 /**
@@ -57,6 +66,20 @@ export default function DataHealthPage() {
   // UI state
   const [tabValue, setTabValue] = useState(0);
   const [expandedSection, setExpandedSection] = useState(null);
+
+  // Mastered city assignment state
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [selectedVenue, setSelectedVenue] = useState(null);
+  const [countries, setCountries] = useState([]);
+  const [regions, setRegions] = useState([]);
+  const [divisions, setDivisions] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [selectedCountry, setSelectedCountry] = useState('');
+  const [selectedRegion, setSelectedRegion] = useState('');
+  const [selectedDivision, setSelectedDivision] = useState('');
+  const [selectedCity, setSelectedCity] = useState('');
+  const [assignLoading, setAssignLoading] = useState(false);
+  const [assignError, setAssignError] = useState(null);
 
   // Fetch data health
   const fetchHealthData = useCallback(async (forceRefresh = false) => {
@@ -79,6 +102,107 @@ export default function DataHealthPage() {
   useEffect(() => {
     fetchHealthData();
   }, [fetchHealthData]);
+
+  // Open assign dialog and load countries
+  const handleOpenAssignDialog = async (venue) => {
+    setSelectedVenue(venue);
+    setAssignDialogOpen(true);
+    setAssignError(null);
+    setSelectedCountry('');
+    setSelectedRegion('');
+    setSelectedDivision('');
+    setSelectedCity('');
+    setRegions([]);
+    setDivisions([]);
+    setCities([]);
+
+    try {
+      const countriesData = await masteredLocationsApi.getCountries();
+      setCountries(countriesData.countries || countriesData || []);
+    } catch (err) {
+      console.error('Error loading countries:', err);
+      setAssignError('Failed to load countries');
+    }
+  };
+
+  // Handle country selection
+  const handleCountryChange = async (countryId) => {
+    setSelectedCountry(countryId);
+    setSelectedRegion('');
+    setSelectedDivision('');
+    setSelectedCity('');
+    setDivisions([]);
+    setCities([]);
+
+    if (countryId) {
+      try {
+        const regionsData = await masteredLocationsApi.getRegions(countryId);
+        setRegions(regionsData.regions || regionsData || []);
+      } catch (err) {
+        console.error('Error loading regions:', err);
+      }
+    } else {
+      setRegions([]);
+    }
+  };
+
+  // Handle region selection
+  const handleRegionChange = async (regionId) => {
+    setSelectedRegion(regionId);
+    setSelectedDivision('');
+    setSelectedCity('');
+    setCities([]);
+
+    if (regionId) {
+      try {
+        const divisionsData = await masteredLocationsApi.getDivisions(regionId);
+        setDivisions(divisionsData.divisions || divisionsData || []);
+      } catch (err) {
+        console.error('Error loading divisions:', err);
+      }
+    } else {
+      setDivisions([]);
+    }
+  };
+
+  // Handle division selection
+  const handleDivisionChange = async (divisionId) => {
+    setSelectedDivision(divisionId);
+    setSelectedCity('');
+
+    if (divisionId) {
+      try {
+        const citiesData = await masteredLocationsApi.getCities(divisionId);
+        setCities(citiesData.cities || citiesData || []);
+      } catch (err) {
+        console.error('Error loading cities:', err);
+      }
+    } else {
+      setCities([]);
+    }
+  };
+
+  // Assign mastered city to venue
+  const handleAssignMasteredCity = async () => {
+    if (!selectedVenue || !selectedCity) return;
+
+    setAssignLoading(true);
+    setAssignError(null);
+
+    try {
+      await venuesApi.updateVenue(selectedVenue._id, {
+        masteredCityId: selectedCity
+      });
+      setAssignDialogOpen(false);
+      // Refresh data health to update the list
+      fetchHealthData(true);
+    } catch (err) {
+      console.error('Error assigning mastered city:', err);
+      setAssignError(err.message || 'Failed to assign mastered city');
+    } finally {
+      setAssignLoading(false);
+    }
+  };
 
   // Issue categories with metadata
   const issueCategories = [
@@ -359,12 +483,20 @@ export default function DataHealthPage() {
           </>
         );
       case 'venuesMissingGeocoding':
+        return (
+          <>
+            <TableCell>Venue Name</TableCell>
+            <TableCell>Location</TableCell>
+            <TableCell>ID</TableCell>
+          </>
+        );
       case 'venuesMissingMasteredCity':
         return (
           <>
             <TableCell>Venue Name</TableCell>
-            <TableCell>Address</TableCell>
+            <TableCell>Location</TableCell>
             <TableCell>ID</TableCell>
+            <TableCell>Action</TableCell>
           </>
         );
       case 'organizersNotLinkedToUser':
@@ -409,13 +541,34 @@ export default function DataHealthPage() {
           </>
         );
       case 'venuesMissingGeocoding':
+        return (
+          <>
+            <TableCell>{issue.venueName || issue.name || 'Unnamed'}</TableCell>
+            <TableCell>{issue.city && issue.state ? `${issue.city}, ${issue.state}` : (issue.address || 'No location')}</TableCell>
+            <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
+              {issue._id?.slice(-8) || 'N/A'}
+            </TableCell>
+          </>
+        );
       case 'venuesMissingMasteredCity':
         return (
           <>
             <TableCell>{issue.venueName || issue.name || 'Unnamed'}</TableCell>
-            <TableCell>{issue.address || issue.streetAddress || 'No address'}</TableCell>
+            <TableCell>{issue.city && issue.state ? `${issue.city}, ${issue.state}` : (issue.address || 'No location')}</TableCell>
             <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
               {issue._id?.slice(-8) || 'N/A'}
+            </TableCell>
+            <TableCell>
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenAssignDialog(issue);
+                }}
+              >
+                Assign
+              </Button>
             </TableCell>
           </>
         );
@@ -540,6 +693,103 @@ export default function DataHealthPage() {
           )}
         </>
       )}
+
+      {/* Assign Mastered City Dialog */}
+      <Dialog open={assignDialogOpen} onClose={() => setAssignDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          Assign Mastered City
+          {selectedVenue && (
+            <Typography variant="body2" color="text.secondary">
+              Venue: {selectedVenue.name || selectedVenue.venueName}
+              {selectedVenue.city && selectedVenue.state && ` (${selectedVenue.city}, ${selectedVenue.state})`}
+            </Typography>
+          )}
+        </DialogTitle>
+        <DialogContent>
+          {assignError && (
+            <Alert severity="error" sx={{ mb: 2 }}>{assignError}</Alert>
+          )}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+            {/* Country */}
+            <FormControl fullWidth>
+              <InputLabel>Country</InputLabel>
+              <Select
+                value={selectedCountry}
+                label="Country"
+                onChange={(e) => handleCountryChange(e.target.value)}
+              >
+                <MenuItem value="">Select Country</MenuItem>
+                {countries.map(country => (
+                  <MenuItem key={country._id} value={country._id}>
+                    {country.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            {/* Region */}
+            <FormControl fullWidth disabled={!selectedCountry}>
+              <InputLabel>Region</InputLabel>
+              <Select
+                value={selectedRegion}
+                label="Region"
+                onChange={(e) => handleRegionChange(e.target.value)}
+              >
+                <MenuItem value="">Select Region</MenuItem>
+                {regions.map(region => (
+                  <MenuItem key={region._id} value={region._id}>
+                    {region.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            {/* Division */}
+            <FormControl fullWidth disabled={!selectedRegion}>
+              <InputLabel>Division</InputLabel>
+              <Select
+                value={selectedDivision}
+                label="Division"
+                onChange={(e) => handleDivisionChange(e.target.value)}
+              >
+                <MenuItem value="">Select Division</MenuItem>
+                {divisions.map(division => (
+                  <MenuItem key={division._id} value={division._id}>
+                    {division.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            {/* City */}
+            <FormControl fullWidth disabled={!selectedDivision}>
+              <InputLabel>City</InputLabel>
+              <Select
+                value={selectedCity}
+                label="City"
+                onChange={(e) => setSelectedCity(e.target.value)}
+              >
+                <MenuItem value="">Select City</MenuItem>
+                {cities.map(city => (
+                  <MenuItem key={city._id} value={city._id}>
+                    {city.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAssignDialogOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleAssignMasteredCity}
+            disabled={!selectedCity || assignLoading}
+          >
+            {assignLoading ? 'Assigning...' : 'Assign'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
