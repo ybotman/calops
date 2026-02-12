@@ -1273,6 +1273,106 @@ const geocodingApi = {
   }
 };
 
+// Mastered Locations API
+const masteredLocationsApi = {
+  getCountries: async () => {
+    try {
+      const response = await apiClient.get('/api/masteredLocations/countries');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching countries:', error);
+      throw error;
+    }
+  },
+
+  getRegions: async (countryId) => {
+    try {
+      const response = await apiClient.get(`/api/masteredLocations/regions?countryId=${countryId}&populate=true`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching regions:', error);
+      throw error;
+    }
+  },
+
+  getDivisions: async (regionId) => {
+    try {
+      const response = await apiClient.get(`/api/masteredLocations/divisions?regionId=${regionId}&populate=true`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching divisions:', error);
+      throw error;
+    }
+  },
+
+  getCities: async (divisionId) => {
+    try {
+      const response = await apiClient.get(`/api/masteredLocations/cities?divisionId=${divisionId}&populate=true`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching cities:', error);
+      throw error;
+    }
+  },
+
+  getNearestMastered: async (lat, lng) => {
+    try {
+      const response = await apiClient.get(`/api/masteredLocations/nearestMastered?lat=${lat}&lng=${lng}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching nearest mastered location:', error);
+      throw error;
+    }
+  }
+};
+
+// Venues API
+const venuesApi = {
+  getVenues: async (appId = '1', options = {}) => {
+    try {
+      appId = normalizeAppId(appId);
+      const params = new URLSearchParams({ appId, ...options });
+      const response = await apiClient.get(`/api/venues?${params.toString()}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching venues:', error);
+      throw error;
+    }
+  },
+
+  getVenue: async (venueId) => {
+    try {
+      const response = await apiClient.get(`/api/venues/${venueId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching venue:', error);
+      throw error;
+    }
+  },
+
+  updateVenue: async (venueId, updates) => {
+    try {
+      const response = await apiClient.patch(`/api/venues/${venueId}`, updates);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating venue:', error);
+      throw error;
+    }
+  }
+};
+
+export {
+  usersApi,
+  rolesApi,
+  organizersApi,
+  eventsApi,
+  debugApi,
+  logsApi,
+  geocodingApi,
+  masteredLocationsApi,
+  venuesApi
+};
+
 export default {
   users: usersApi,
   roles: rolesApi,
@@ -1280,5 +1380,7 @@ export default {
   events: eventsApi,
   debug: debugApi,
   logs: logsApi,
-  geocoding: geocodingApi
+  geocoding: geocodingApi,
+  masteredLocations: masteredLocationsApi,
+  venues: venuesApi
 };
