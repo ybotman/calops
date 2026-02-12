@@ -32,8 +32,11 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import WarningIcon from '@mui/icons-material/Warning';
 import ErrorIcon from '@mui/icons-material/Error';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CancelIcon from '@mui/icons-material/Cancel';
 import BusinessIcon from '@mui/icons-material/Business';
 import EventIcon from '@mui/icons-material/Event';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import SecurityIcon from '@mui/icons-material/Security';
 import { formatDistanceToNow, format } from 'date-fns';
 import { adminApi } from '@/lib/api-client/index';
 import { organizersApi, eventsApi } from '@/lib/api-client.js';
@@ -310,36 +313,199 @@ export default function UserActivityPage() {
                     <strong>Created:</strong> {format(new Date(user.createdAt), 'MMM d, yyyy')}
                   </Typography>
                 )}
-                {user.roleNames && user.roleNames.length > 0 && (
-                  <Box sx={{ mb: 1 }}>
-                    <strong>Roles:</strong>{' '}
-                    {user.roleNames.map(role => (
-                      <Chip key={role} label={role} size="small" sx={{ mr: 0.5 }} />
-                    ))}
-                  </Box>
+                {user.lastLoginAt && (
+                  <Typography variant="body2" sx={{ mb: 1 }}>
+                    <strong>Last Login:</strong> {format(new Date(user.lastLoginAt), 'MMM d, yyyy h:mm a')}
+                  </Typography>
+                )}
+                {user.loginCount > 0 && (
+                  <Typography variant="body2" sx={{ mb: 1 }}>
+                    <strong>Total Logins:</strong> {user.loginCount}
+                  </Typography>
                 )}
 
-                {/* Organizer info */}
+                {/* Roles with codes */}
+                {user.roleNames && user.roleNames.length > 0 && (
+                  <Paper variant="outlined" sx={{ p: 1.5, mt: 1.5, bgcolor: 'action.hover' }}>
+                    <Typography variant="subtitle2" sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <SecurityIcon fontSize="small" /> Roles
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                      {user.roleNames.map(role => {
+                        const roleCode = {
+                          'NamedUser': 'NU',
+                          'RegionalOrganizer': 'RO',
+                          'RegionalAdmin': 'RA',
+                          'SystemAdmin': 'SA',
+                          'SystemOwner': 'SO'
+                        }[role] || role;
+                        const roleColor = {
+                          'SystemOwner': 'error',
+                          'SystemAdmin': 'warning',
+                          'RegionalAdmin': 'info',
+                          'RegionalOrganizer': 'primary',
+                          'NamedUser': 'default'
+                        }[role] || 'default';
+                        return (
+                          <Chip
+                            key={role}
+                            label={`${roleCode} (${role})`}
+                            size="small"
+                            color={roleColor}
+                            variant="outlined"
+                          />
+                        );
+                      })}
+                    </Box>
+                  </Paper>
+                )}
+
+                {/* User Status Booleans (localUserInfo) */}
+                {user.localUserInfo && (
+                  <Paper variant="outlined" sx={{ p: 1.5, mt: 1.5, bgcolor: 'action.hover' }}>
+                    <Typography variant="subtitle2" sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <PersonIcon fontSize="small" /> User Status
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                      <Chip
+                        icon={user.localUserInfo.isApproved ? <CheckCircleIcon /> : <CancelIcon />}
+                        label="Approved"
+                        size="small"
+                        color={user.localUserInfo.isApproved ? 'success' : 'default'}
+                        variant="outlined"
+                      />
+                      <Chip
+                        icon={user.localUserInfo.isEnabled ? <CheckCircleIcon /> : <CancelIcon />}
+                        label="Enabled"
+                        size="small"
+                        color={user.localUserInfo.isEnabled ? 'success' : 'default'}
+                        variant="outlined"
+                      />
+                      <Chip
+                        icon={user.localUserInfo.isActive ? <CheckCircleIcon /> : <CancelIcon />}
+                        label="Active"
+                        size="small"
+                        color={user.localUserInfo.isActive ? 'success' : 'default'}
+                        variant="outlined"
+                      />
+                    </Box>
+                  </Paper>
+                )}
+
+                {/* Regional Organizer Info with Booleans */}
+                {user.regionalOrganizerInfo && (
+                  <Paper variant="outlined" sx={{ p: 1.5, mt: 1.5, bgcolor: 'action.hover' }}>
+                    <Typography variant="subtitle2" sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <BusinessIcon fontSize="small" /> Regional Organizer Status
+                    </Typography>
+                    {user.regionalOrganizerInfo.organizerId && (
+                      <Typography variant="body2" sx={{ mb: 1 }}>
+                        <strong>Organizer ID:</strong> {user.regionalOrganizerInfo.organizerId}
+                      </Typography>
+                    )}
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                      <Chip
+                        icon={user.regionalOrganizerInfo.isApproved ? <CheckCircleIcon /> : <CancelIcon />}
+                        label="Approved"
+                        size="small"
+                        color={user.regionalOrganizerInfo.isApproved ? 'success' : 'default'}
+                        variant="outlined"
+                      />
+                      <Chip
+                        icon={user.regionalOrganizerInfo.isEnabled ? <CheckCircleIcon /> : <CancelIcon />}
+                        label="Enabled"
+                        size="small"
+                        color={user.regionalOrganizerInfo.isEnabled ? 'success' : 'default'}
+                        variant="outlined"
+                      />
+                      <Chip
+                        icon={user.regionalOrganizerInfo.isActive ? <CheckCircleIcon /> : <CancelIcon />}
+                        label="Active"
+                        size="small"
+                        color={user.regionalOrganizerInfo.isActive ? 'success' : 'default'}
+                        variant="outlined"
+                      />
+                    </Box>
+                  </Paper>
+                )}
+
+                {/* Local Admin Info with Booleans */}
+                {user.localAdminInfo && (
+                  <Paper variant="outlined" sx={{ p: 1.5, mt: 1.5, bgcolor: 'action.hover' }}>
+                    <Typography variant="subtitle2" sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <AdminPanelSettingsIcon fontSize="small" /> Local Admin Status
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                      <Chip
+                        icon={user.localAdminInfo.isApproved ? <CheckCircleIcon /> : <CancelIcon />}
+                        label="Approved"
+                        size="small"
+                        color={user.localAdminInfo.isApproved ? 'success' : 'default'}
+                        variant="outlined"
+                      />
+                      <Chip
+                        icon={user.localAdminInfo.isEnabled ? <CheckCircleIcon /> : <CancelIcon />}
+                        label="Enabled"
+                        size="small"
+                        color={user.localAdminInfo.isEnabled ? 'success' : 'default'}
+                        variant="outlined"
+                      />
+                      <Chip
+                        icon={user.localAdminInfo.isActive ? <CheckCircleIcon /> : <CancelIcon />}
+                        label="Active"
+                        size="small"
+                        color={user.localAdminInfo.isActive ? 'success' : 'default'}
+                        variant="outlined"
+                      />
+                    </Box>
+                  </Paper>
+                )}
+
+                {/* Organizer details from API lookup */}
                 {details?.organizer && (
                   <Paper variant="outlined" sx={{ p: 1.5, mt: 1.5, bgcolor: 'action.hover' }}>
                     <Typography variant="subtitle2" sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <BusinessIcon fontSize="small" /> Organizer Info
+                      <BusinessIcon fontSize="small" /> Organizer Details
                     </Typography>
                     <Typography variant="body2">
                       <strong>Name:</strong> {details.organizer.fullName || details.organizer.shortName}
                     </Typography>
                     {details.organizer.organizerTypes && (
-                      <Box sx={{ mt: 0.5 }}>
-                        {details.organizer.organizerTypes.isTeacher && <Chip label="Teacher" size="small" sx={{ mr: 0.5 }} />}
-                        {details.organizer.organizerTypes.isDJ && <Chip label="DJ" size="small" sx={{ mr: 0.5 }} />}
-                        {details.organizer.organizerTypes.isVenue && <Chip label="Venue" size="small" sx={{ mr: 0.5 }} />}
-                        {details.organizer.organizerTypes.isOrchestra && <Chip label="Orchestra" size="small" sx={{ mr: 0.5 }} />}
+                      <Box sx={{ mt: 0.5, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                        <Chip
+                          icon={details.organizer.organizerTypes.isTeacher ? <CheckCircleIcon /> : <CancelIcon />}
+                          label="Teacher"
+                          size="small"
+                          color={details.organizer.organizerTypes.isTeacher ? 'primary' : 'default'}
+                          variant="outlined"
+                        />
+                        <Chip
+                          icon={details.organizer.organizerTypes.isDJ ? <CheckCircleIcon /> : <CancelIcon />}
+                          label="DJ"
+                          size="small"
+                          color={details.organizer.organizerTypes.isDJ ? 'primary' : 'default'}
+                          variant="outlined"
+                        />
+                        <Chip
+                          icon={details.organizer.organizerTypes.isVenue ? <CheckCircleIcon /> : <CancelIcon />}
+                          label="Venue"
+                          size="small"
+                          color={details.organizer.organizerTypes.isVenue ? 'primary' : 'default'}
+                          variant="outlined"
+                        />
+                        <Chip
+                          icon={details.organizer.organizerTypes.isOrchestra ? <CheckCircleIcon /> : <CancelIcon />}
+                          label="Orchestra"
+                          size="small"
+                          color={details.organizer.organizerTypes.isOrchestra ? 'primary' : 'default'}
+                          variant="outlined"
+                        />
                       </Box>
                     )}
                   </Paper>
                 )}
 
-                {/* Events */}
+                {/* Events - Date before title */}
                 {details?.events && details.events.length > 0 && (
                   <Paper variant="outlined" sx={{ p: 1.5, mt: 1.5, bgcolor: 'action.hover' }}>
                     <Typography variant="subtitle2" sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -347,12 +513,12 @@ export default function UserActivityPage() {
                     </Typography>
                     <Stack spacing={0.5}>
                       {details.events.slice(0, 5).map(event => (
-                        <Box key={event._id} sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Box key={event._id} sx={{ display: 'flex', gap: 1 }}>
+                          <Typography variant="body2" color="primary" sx={{ minWidth: 60, fontWeight: 'medium' }}>
+                            {event.startDate && format(new Date(event.startDate), 'MMM d')}
+                          </Typography>
                           <Typography variant="body2" noWrap sx={{ flex: 1 }}>
                             {event.title}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {event.startDate && format(new Date(event.startDate), 'MMM d')}
                           </Typography>
                         </Box>
                       ))}
@@ -360,7 +526,7 @@ export default function UserActivityPage() {
                   </Paper>
                 )}
 
-                {!details?.organizer && user.organizerId && (
+                {!details?.organizer && user.organizerId && !user.regionalOrganizerInfo && (
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                     Organizer ID: {user.organizerId} (details not found)
                   </Typography>
