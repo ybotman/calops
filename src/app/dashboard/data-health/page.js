@@ -90,6 +90,27 @@ export default function DataHealthPage() {
       description: 'Events that have no venue assigned'
     },
     {
+      key: 'eventsWithoutOwner',
+      label: 'Events Without Owner',
+      icon: <EventIcon />,
+      severity: 'error',
+      description: 'Events missing ownerOrganizerID'
+    },
+    {
+      key: 'eventsWithoutAuthor',
+      label: 'Events Without Author',
+      icon: <EventIcon />,
+      severity: 'warning',
+      description: 'Events missing authorOrganizerID'
+    },
+    {
+      key: 'eventsDenormalizedMismatch',
+      label: 'Events With Venue Mismatch',
+      icon: <EventIcon />,
+      severity: 'warning',
+      description: 'Events where denormalizedEventInfo does not match venue data'
+    },
+    {
       key: 'venuesMissingGeocoding',
       label: 'Venues Missing Geocoding',
       icon: <PlaceIcon />,
@@ -98,7 +119,7 @@ export default function DataHealthPage() {
     },
     {
       key: 'venuesMissingMasteredCity',
-      label: 'Venues Without City',
+      label: 'Venues Without Mastered City',
       icon: <PlaceIcon />,
       severity: 'warning',
       description: 'Venues not linked to a mastered city'
@@ -155,6 +176,9 @@ export default function DataHealthPage() {
     switch (tabIndex) {
       case 0: // Events
         return getCategoryCount('eventsWithoutVenue') +
+               getCategoryCount('eventsWithoutOwner') +
+               getCategoryCount('eventsWithoutAuthor') +
+               getCategoryCount('eventsDenormalizedMismatch') +
                getCategoryCount('expiredRecurringEventsStillActive') +
                getCategoryCount('eventsInPastStillActive');
       case 1: // Venues
@@ -173,7 +197,7 @@ export default function DataHealthPage() {
     switch (tabIndex) {
       case 0: // Events
         return issueCategories.filter(c =>
-          ['eventsWithoutVenue', 'expiredRecurringEventsStillActive', 'eventsInPastStillActive'].includes(c.key)
+          ['eventsWithoutVenue', 'eventsWithoutOwner', 'eventsWithoutAuthor', 'eventsDenormalizedMismatch', 'expiredRecurringEventsStillActive', 'eventsInPastStillActive'].includes(c.key)
         );
       case 1: // Venues
         return issueCategories.filter(c =>
@@ -322,6 +346,9 @@ export default function DataHealthPage() {
   const renderTableHeaders = (key) => {
     switch (key) {
       case 'eventsWithoutVenue':
+      case 'eventsWithoutOwner':
+      case 'eventsWithoutAuthor':
+      case 'eventsDenormalizedMismatch':
       case 'expiredRecurringEventsStillActive':
       case 'eventsInPastStillActive':
         return (
@@ -365,13 +392,16 @@ export default function DataHealthPage() {
   const renderTableRow = (key, issue) => {
     switch (key) {
       case 'eventsWithoutVenue':
+      case 'eventsWithoutOwner':
+      case 'eventsWithoutAuthor':
+      case 'eventsDenormalizedMismatch':
       case 'expiredRecurringEventsStillActive':
       case 'eventsInPastStillActive':
         return (
           <>
             <TableCell>{issue.title || 'Untitled'}</TableCell>
             <TableCell>
-              {issue.startDate ? format(new Date(issue.startDate), 'MMM d, yyyy') : 'No date'}
+              {(issue.startDate || issue.startDateTime) ? format(new Date(issue.startDate || issue.startDateTime), 'MMM d, yyyy') : 'No date'}
             </TableCell>
             <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
               {issue._id?.slice(-8) || 'N/A'}
