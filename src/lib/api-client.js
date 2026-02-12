@@ -1362,13 +1362,6 @@ const venuesApi = {
 };
 
 export {
-  usersApi,
-  rolesApi,
-  organizersApi,
-  eventsApi,
-  debugApi,
-  logsApi,
-  geocodingApi,
   masteredLocationsApi,
   venuesApi
 };
