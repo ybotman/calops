@@ -263,6 +263,13 @@ export default function DataHealthPage() {
       description: 'Users pointing to non-existent organizer records'
     },
     {
+      key: 'firebaseUsersWithoutUserlogin',
+      label: 'Firebase Users Without App Record',
+      icon: <PersonIcon />,
+      severity: 'error',
+      description: 'Firebase Auth accounts without a userlogins record'
+    },
+    {
       key: 'expiredRecurringEventsStillActive',
       label: 'Expired Recurring Events',
       icon: <EventIcon />,
@@ -310,7 +317,8 @@ export default function DataHealthPage() {
                getCategoryCount('venuesMissingMasteredCity');
       case 2: // Users & Organizers
         return getCategoryCount('organizersNotLinkedToUser') +
-               getCategoryCount('usersWithInvalidOrganizerId');
+               getCategoryCount('usersWithInvalidOrganizerId') +
+               getCategoryCount('firebaseUsersWithoutUserlogin');
       default:
         return 0;
     }
@@ -329,7 +337,7 @@ export default function DataHealthPage() {
         );
       case 2: // Users & Organizers
         return issueCategories.filter(c =>
-          ['organizersNotLinkedToUser', 'usersWithInvalidOrganizerId'].includes(c.key)
+          ['organizersNotLinkedToUser', 'usersWithInvalidOrganizerId', 'firebaseUsersWithoutUserlogin'].includes(c.key)
         );
       default:
         return [];
@@ -515,6 +523,15 @@ export default function DataHealthPage() {
             <TableCell>Invalid Organizer ID</TableCell>
           </>
         );
+      case 'firebaseUsersWithoutUserlogin':
+        return (
+          <>
+            <TableCell>Firebase UID</TableCell>
+            <TableCell>Email</TableCell>
+            <TableCell>Display Name</TableCell>
+            <TableCell>Last Sign In</TableCell>
+          </>
+        );
       default:
         return <TableCell>Item</TableCell>;
     }
@@ -598,6 +615,19 @@ export default function DataHealthPage() {
             <TableCell>{issue.email || 'No email'}</TableCell>
             <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem', color: 'error.main' }}>
               {issue.organizerId?.slice(-8) || 'N/A'}
+            </TableCell>
+          </>
+        );
+      case 'firebaseUsersWithoutUserlogin':
+        return (
+          <>
+            <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
+              {issue.firebaseUid?.slice(0, 12) || 'N/A'}...
+            </TableCell>
+            <TableCell>{issue.email || 'No email'}</TableCell>
+            <TableCell>{issue.displayName || 'No name'}</TableCell>
+            <TableCell>
+              {issue.lastSignIn ? format(new Date(issue.lastSignIn), 'MMM d, yyyy') : 'Never'}
             </TableCell>
           </>
         );
