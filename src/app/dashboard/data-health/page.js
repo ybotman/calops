@@ -249,6 +249,20 @@ export default function DataHealthPage() {
       description: 'Venues not linked to a mastered city'
     },
     {
+      key: 'eventsUsingInactiveVenue',
+      label: 'Events Using Inactive Venue',
+      icon: <EventIcon />,
+      severity: 'error',
+      description: 'Events referencing venues that are not active or not approved'
+    },
+    {
+      key: 'eventsWithBadVenueDenorm',
+      label: 'Events With Bad Venue Data',
+      icon: <EventIcon />,
+      severity: 'warning',
+      description: 'Events where denormalized city/state/coords do not match venue'
+    },
+    {
       key: 'organizersNotLinkedToUser',
       label: 'Organizers Without User',
       icon: <BusinessIcon />,
@@ -314,7 +328,9 @@ export default function DataHealthPage() {
                getCategoryCount('eventsInPastStillActive');
       case 1: // Venues
         return getCategoryCount('venuesMissingGeocoding') +
-               getCategoryCount('venuesMissingMasteredCity');
+               getCategoryCount('venuesMissingMasteredCity') +
+               getCategoryCount('eventsUsingInactiveVenue') +
+               getCategoryCount('eventsWithBadVenueDenorm');
       case 2: // Users & Organizers
         return getCategoryCount('organizersNotLinkedToUser') +
                getCategoryCount('usersWithInvalidOrganizerId') +
@@ -333,7 +349,7 @@ export default function DataHealthPage() {
         );
       case 1: // Venues
         return issueCategories.filter(c =>
-          ['venuesMissingGeocoding', 'venuesMissingMasteredCity'].includes(c.key)
+          ['venuesMissingGeocoding', 'venuesMissingMasteredCity', 'eventsUsingInactiveVenue', 'eventsWithBadVenueDenorm'].includes(c.key)
         );
       case 2: // Users & Organizers
         return issueCategories.filter(c =>
@@ -386,6 +402,52 @@ export default function DataHealthPage() {
           </Paper>
         </Grid>
       </Grid>
+    );
+  };
+
+  // Render venue quality metrics
+  const renderVenueMetrics = () => {
+    const metrics = healthData?.venueQualityMetrics;
+    if (!metrics || metrics.totalVenues === 0) return null;
+
+    return (
+      <Paper sx={{ p: 2, mb: 3 }}>
+        <Typography variant="subtitle1" fontWeight="medium" sx={{ mb: 1 }}>
+          Venue Data Quality
+        </Typography>
+        <Grid container spacing={2}>
+          <Grid item xs={6} sm={3}>
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="h5">{metrics.totalVenues}</Typography>
+              <Typography variant="caption" color="text.secondary">Total Venues</Typography>
+            </Box>
+          </Grid>
+          <Grid item xs={6} sm={3}>
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="h5" color={metrics.pctMasteredCity >= 90 ? 'success.main' : metrics.pctMasteredCity >= 70 ? 'warning.main' : 'error.main'}>
+                {metrics.pctMasteredCity}%
+              </Typography>
+              <Typography variant="caption" color="text.secondary">With Mastered City</Typography>
+            </Box>
+          </Grid>
+          <Grid item xs={6} sm={3}>
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="h5" color={metrics.pctGeocoding >= 90 ? 'success.main' : metrics.pctGeocoding >= 70 ? 'warning.main' : 'error.main'}>
+                {metrics.pctGeocoding}%
+              </Typography>
+              <Typography variant="caption" color="text.secondary">With Geocoding</Typography>
+            </Box>
+          </Grid>
+          <Grid item xs={6} sm={3}>
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="h5" color="text.secondary">
+                {metrics.withMasteredCity}/{metrics.withGeocoding}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">Mastered/Geocoded</Typography>
+            </Box>
+          </Grid>
+        </Grid>
+      </Paper>
     );
   };
 
@@ -507,6 +569,23 @@ export default function DataHealthPage() {
             <TableCell>Action</TableCell>
           </>
         );
+      case 'eventsUsingInactiveVenue':
+        return (
+          <>
+            <TableCell>Event Title</TableCell>
+            <TableCell>Venue</TableCell>
+            <TableCell>Status</TableCell>
+            <TableCell>Date</TableCell>
+          </>
+        );
+      case 'eventsWithBadVenueDenorm':
+        return (
+          <>
+            <TableCell>Event Title</TableCell>
+            <TableCell>Venue</TableCell>
+            <TableCell>Issues</TableCell>
+          </>
+        );
       case 'organizersNotLinkedToUser':
         return (
           <>
@@ -586,6 +665,30 @@ export default function DataHealthPage() {
               >
                 Assign
               </Button>
+            </TableCell>
+          </>
+        );
+      case 'eventsUsingInactiveVenue':
+        return (
+          <>
+            <TableCell>{issue.title || 'Untitled'}</TableCell>
+            <TableCell>{issue.venueName || 'Unknown'}</TableCell>
+            <TableCell>
+              {issue.venueIsActive === false && <Chip label="Inactive" size="small" color="error" sx={{ mr: 0.5 }} />}
+              {issue.venueIsApproved === false && <Chip label="Not Approved" size="small" color="warning" />}
+            </TableCell>
+            <TableCell>
+              {issue.startDateTime ? format(new Date(issue.startDateTime), 'MMM d, yyyy') : 'No date'}
+            </TableCell>
+          </>
+        );
+      case 'eventsWithBadVenueDenorm':
+        return (
+          <>
+            <TableCell>{issue.title || 'Untitled'}</TableCell>
+            <TableCell>{issue.venueName || 'Unknown'}</TableCell>
+            <TableCell sx={{ fontSize: '0.75rem' }}>
+              {issue.issues || 'Unknown issues'}
             </TableCell>
           </>
         );
@@ -679,6 +782,9 @@ export default function DataHealthPage() {
         <>
           {/* Summary cards */}
           {renderSummary()}
+
+          {/* Venue quality metrics */}
+          {renderVenueMetrics()}
 
           {/* Tabs */}
           <Paper sx={{ mb: 2 }}>
