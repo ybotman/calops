@@ -14,14 +14,14 @@ import {
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { useAppContext } from '@/lib/AppContext';
-import apiClient from '@/lib/api-client';
+import { adminApi } from '@/lib/api-client/index';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 /**
  * Visitor Heatmap Page
- * Shows a 7x24 matrix (day of week × hour) of user activity
+ * Shows a 7x24 matrix (day of week × hour) of user last login times
  */
 export default function VisitorHeatmapPage() {
   const { currentApp } = useAppContext();
@@ -30,44 +30,48 @@ export default function VisitorHeatmapPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [heatmapData, setHeatmapData] = useState(null);
-  const [timeRange, setTimeRange] = useState('30d');
+  const [timeRange, setTimeRange] = useState('all');
 
-  // Fetch log data and aggregate by day/hour
+  // Fetch user activity data and aggregate by day/hour
   const fetchHeatmapData = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
-      // Calculate date range
-      const endDate = new Date();
-      const startDate = new Date();
-      const days = timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : 90;
-      startDate.setDate(startDate.getDate() - days);
-
-      // Fetch logs for the time period
-      const response = await apiClient.logs.getLogs({
+      // Fetch user activity data
+      const response = await adminApi.getUserActivity({
         appId,
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-        pageSize: 5000 // Get as many as possible for aggregation
+        staleDays: 365,
+        limit: 1000,
+        sort: 'lastLogin'
       });
 
-      const logs = response.logs || [];
+      const users = response.users || [];
+
+      // Calculate date filter
+      const now = new Date();
+      const filterDays = timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : timeRange === '90d' ? 90 : 9999;
+      const cutoffDate = new Date(now.getTime() - filterDays * 24 * 60 * 60 * 1000);
 
       // Initialize 7x24 matrix with zeros
       const matrix = DAYS.map(() => HOURS.map(() => 0));
       let maxCount = 0;
+      let totalUsers = 0;
 
-      // Aggregate by day of week and hour
-      logs.forEach(log => {
-        const timestamp = log.timestamp || log.createdAt;
+      // Aggregate by day of week and hour of last login
+      users.forEach(user => {
+        const timestamp = user.lastLoginAt;
         if (timestamp) {
           const date = new Date(timestamp);
-          const dayOfWeek = date.getDay(); // 0-6 (Sun-Sat)
-          const hour = date.getHours(); // 0-23
-          matrix[dayOfWeek][hour]++;
-          if (matrix[dayOfWeek][hour] > maxCount) {
-            maxCount = matrix[dayOfWeek][hour];
+          // Apply time filter
+          if (date >= cutoffDate) {
+            const dayOfWeek = date.getDay(); // 0-6 (Sun-Sat)
+            const hour = date.getHours(); // 0-23
+            matrix[dayOfWeek][hour]++;
+            totalUsers++;
+            if (matrix[dayOfWeek][hour] > maxCount) {
+              maxCount = matrix[dayOfWeek][hour];
+            }
           }
         }
       });
@@ -75,9 +79,8 @@ export default function VisitorHeatmapPage() {
       setHeatmapData({
         matrix,
         maxCount,
-        totalLogs: logs.length,
-        startDate,
-        endDate
+        totalUsers,
+        totalInDb: users.length
       });
     } catch (err) {
       console.error('Error fetching heatmap data:', err);
@@ -127,6 +130,7 @@ export default function VisitorHeatmapPage() {
             <ToggleButton value="7d">7 Days</ToggleButton>
             <ToggleButton value="30d">30 Days</ToggleButton>
             <ToggleButton value="90d">90 Days</ToggleButton>
+            <ToggleButton value="all">All Time</ToggleButton>
           </ToggleButtonGroup>
           <Button
             variant="outlined"
@@ -157,7 +161,8 @@ export default function VisitorHeatmapPage() {
       {!loading && heatmapData && (
         <Paper sx={{ p: 3 }}>
           <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2 }}>
-            Activity by Day of Week &amp; Hour (UTC) — {heatmapData.totalLogs.toLocaleString()} events
+            Last Login Times by Day &amp; Hour (local) — {heatmapData.totalUsers.toLocaleString()} users
+            {heatmapData.totalInDb !== heatmapData.totalUsers && ` (${heatmapData.totalInDb} total)`}
           </Typography>
 
           {/* Hour labels */}
