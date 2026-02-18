@@ -64,8 +64,14 @@ const useFirebaseUsers = (options = {}) => {
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          // Response body empty or not JSON
+        }
+        throw new Error(errorMessage);
       }
       
       const data = await response.json();
