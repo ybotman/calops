@@ -40,15 +40,7 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import HealthAndSafetyIcon from '@mui/icons-material/HealthAndSafety';
 
-// Navigation items - Data section
-const dataNavItems = [
-  { name: 'Users', icon: <PeopleIcon />, href: '/dashboard/users' },
-  { name: 'Organizers', icon: <SchoolIcon />, href: '/dashboard/organizers' },
-  { name: 'Venues', icon: <BusinessIcon />, href: '/dashboard/venues' },
-  { name: 'Events', icon: <EventIcon />, href: '/dashboard/events' },
-];
-
-// Navigation items - Dashboard/Admin section
+// Navigation items - Dashboard/Admin section (first)
 const dashboardNavItems = [
   { name: 'Dashboard', icon: <DashboardIcon />, href: '/dashboard' },
   { name: 'User Activity', icon: <AccessTimeIcon />, href: '/dashboard/user-activity' },
@@ -56,9 +48,17 @@ const dashboardNavItems = [
   { name: 'Data Health', icon: <HealthAndSafetyIcon />, href: '/dashboard/data-health' },
 ];
 
+// Navigation items - Data section
+const dataNavItems = [
+  { name: 'Users', icon: <PeopleIcon />, href: '/dashboard/users' },
+  { name: 'Organizers', icon: <SchoolIcon />, href: '/dashboard/organizers' },
+  { name: 'Venues', icon: <BusinessIcon />, href: '/dashboard/venues' },
+  { name: 'Events', icon: <EventIcon />, href: '/dashboard/events' },
+  { name: 'Geo Hierarchy', icon: <LocationOnIcon />, href: '/dashboard/geo-hierarchy' },
+];
+
 // Navigation items - Other
 const otherNavItems = [
-  { name: 'Geo Hierarchy', icon: <LocationOnIcon />, href: '/dashboard/geo-hierarchy' },
   { name: 'Admin Guide', icon: <MenuBookIcon />, href: '/dashboard/admin-guide' },
 ];
 
@@ -133,12 +133,12 @@ export default function AdminLayout({ children }) {
       </Toolbar>
       <Divider />
 
-      {/* Data Section */}
+      {/* Dashboard/Admin Section (first) */}
       <Typography variant="overline" sx={{ px: 2, pt: 2, color: 'text.secondary', fontWeight: 'bold' }}>
-        Data
+        Dashboard
       </Typography>
       <List dense>
-        {dataNavItems.map((item) => (
+        {dashboardNavItems.map((item) => (
           <ListItem key={item.name} disablePadding>
             <ListItemButton component="a" href={item.href}>
               <ListItemIcon>{item.icon}</ListItemIcon>
@@ -150,12 +150,12 @@ export default function AdminLayout({ children }) {
 
       <Divider sx={{ my: 1 }} />
 
-      {/* Dashboard/Admin Section */}
+      {/* Data Section */}
       <Typography variant="overline" sx={{ px: 2, pt: 1, color: 'text.secondary', fontWeight: 'bold' }}>
-        Dashboard
+        Data
       </Typography>
       <List dense>
-        {dashboardNavItems.map((item) => (
+        {dataNavItems.map((item) => (
           <ListItem key={item.name} disablePadding>
             <ListItemButton component="a" href={item.href}>
               <ListItemIcon>{item.icon}</ListItemIcon>
