@@ -9,6 +9,8 @@ import {
   CircularProgress,
   Alert,
   Button,
+  ToggleButton,
+  ToggleButtonGroup,
   Tooltip
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -60,6 +62,7 @@ export default function VisitorHeatmapPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [heatmapData, setHeatmapData] = useState(null);
+  const [timeRange, setTimeRange] = useState('all');
 
   // Fetch heatmap data from backend
   const fetchHeatmapData = useCallback(async () => {
@@ -67,7 +70,8 @@ export default function VisitorHeatmapPage() {
     setError(null);
 
     try {
-      const response = await axios.get('/api/analytics/visitor-heatmap');
+      const params = timeRange !== 'all' ? `?days=${timeRange}` : '';
+      const response = await axios.get(`/api/analytics/visitor-heatmap${params}`);
       const data = response.data;
 
       console.log('Heatmap API response:', data);
@@ -126,7 +130,7 @@ export default function VisitorHeatmapPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [timeRange]);
 
   useEffect(() => {
     fetchHeatmapData();
@@ -158,14 +162,27 @@ export default function VisitorHeatmapPage() {
         <Typography variant="h4">
           Visitor Heatmap
         </Typography>
-        <Button
-          variant="outlined"
-          startIcon={<RefreshIcon />}
-          onClick={fetchHeatmapData}
-          disabled={loading}
-        >
-          Refresh
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <ToggleButtonGroup
+            value={timeRange}
+            exclusive
+            onChange={(e, v) => v && setTimeRange(v)}
+            size="small"
+          >
+            <ToggleButton value="30">30d</ToggleButton>
+            <ToggleButton value="60">60d</ToggleButton>
+            <ToggleButton value="90">90d</ToggleButton>
+            <ToggleButton value="all">All</ToggleButton>
+          </ToggleButtonGroup>
+          <Button
+            variant="outlined"
+            startIcon={<RefreshIcon />}
+            onClick={fetchHeatmapData}
+            disabled={loading}
+          >
+            Refresh
+          </Button>
+        </Box>
       </Box>
 
       {/* Error */}
