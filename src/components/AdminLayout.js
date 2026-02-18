@@ -39,11 +39,13 @@ import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import DescriptionIcon from '@mui/icons-material/Description';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import HealthAndSafetyIcon from '@mui/icons-material/HealthAndSafety';
+import GridOnIcon from '@mui/icons-material/GridOn';
 
 // Navigation items - Dashboard/Admin section (first)
 const dashboardNavItems = [
   { name: 'Dashboard', icon: <DashboardIcon />, href: '/dashboard' },
   { name: 'User Activity', icon: <AccessTimeIcon />, href: '/dashboard/user-activity' },
+  { name: 'Visitor Heatmap', icon: <GridOnIcon />, href: '/dashboard/analytics/visitor-heatmap' },
   { name: 'Logs', icon: <DescriptionIcon />, href: '/dashboard/logs' },
   { name: 'Data Health', icon: <HealthAndSafetyIcon />, href: '/dashboard/data-health' },
 ];
