@@ -204,84 +204,29 @@ export default function DataHealthPage() {
     }
   };
 
-  // Issue categories with metadata
+  // Issue categories with metadata - keys must match backend response
   const issueCategories = [
+    // Events tab
     {
       key: 'eventsWithoutVenue',
       label: 'Events Without Venue',
       icon: <EventIcon />,
-      severity: 'warning',
-      description: 'Events that have no venue assigned'
-    },
-    {
-      key: 'eventsWithoutOwner',
-      label: 'Events Without Owner',
-      icon: <EventIcon />,
       severity: 'error',
-      description: 'Events missing ownerOrganizerID'
-    },
-    {
-      key: 'eventsWithoutAuthor',
-      label: 'Events Without Author',
-      icon: <EventIcon />,
-      severity: 'warning',
-      description: 'Events missing authorOrganizerID'
-    },
-    {
-      key: 'eventsDenormalizedMismatch',
-      label: 'Events With Venue Mismatch',
-      icon: <EventIcon />,
-      severity: 'warning',
-      description: 'Events where denormalizedEventInfo does not match venue data'
-    },
-    {
-      key: 'venuesMissingGeocoding',
-      label: 'Venues Missing Geocoding',
-      icon: <PlaceIcon />,
-      severity: 'warning',
-      description: 'Venues without latitude/longitude coordinates'
-    },
-    {
-      key: 'venuesMissingMasteredCity',
-      label: 'Venues Without Mastered City',
-      icon: <PlaceIcon />,
-      severity: 'warning',
-      description: 'Venues not linked to a mastered city'
+      description: 'Events that have no venue assigned'
     },
     {
       key: 'eventsUsingInactiveVenue',
       label: 'Events Using Inactive Venue',
       icon: <EventIcon />,
       severity: 'error',
-      description: 'Events referencing venues that are not active or not approved'
+      description: 'Events linked to inactive or unapproved venues'
     },
     {
       key: 'eventsWithBadVenueDenorm',
-      label: 'Events With Bad Venue Data',
+      label: 'Events With Venue Mismatch',
       icon: <EventIcon />,
       severity: 'warning',
-      description: 'Events where denormalized city/state/coords do not match venue'
-    },
-    {
-      key: 'organizersNotLinkedToUser',
-      label: 'Organizers Without User',
-      icon: <BusinessIcon />,
-      severity: 'info',
-      description: 'Organizer records not linked to a user account'
-    },
-    {
-      key: 'usersWithInvalidOrganizerId',
-      label: 'Users With Invalid Organizer',
-      icon: <PersonIcon />,
-      severity: 'error',
-      description: 'Users pointing to non-existent organizer records'
-    },
-    {
-      key: 'firebaseUsersWithoutUserlogin',
-      label: 'Firebase Users Without App Record',
-      icon: <PersonIcon />,
-      severity: 'error',
-      description: 'Firebase Auth accounts without a userlogins record'
+      description: 'Events where denormalized info does not match venue data'
     },
     {
       key: 'expiredRecurringEventsStillActive',
@@ -296,6 +241,66 @@ export default function DataHealthPage() {
       icon: <EventIcon />,
       severity: 'warning',
       description: 'Single events in the past that are still marked active'
+    },
+    // Venues tab
+    {
+      key: 'venuesMissingGeocoding',
+      label: 'Venues Missing Geocoding',
+      icon: <PlaceIcon />,
+      severity: 'warning',
+      description: 'Venues without latitude/longitude coordinates'
+    },
+    {
+      key: 'venuesMissingMasteredCity',
+      label: 'Venues Without Mastered City',
+      icon: <PlaceIcon />,
+      severity: 'warning',
+      description: 'Venues not linked to a mastered city'
+    },
+    // Organizers tab
+    {
+      key: 'organizersNotLinkedToUser',
+      label: 'Organizers Without User',
+      icon: <BusinessIcon />,
+      severity: 'info',
+      description: 'Organizer records not linked to a user account'
+    },
+    // Users tab
+    {
+      key: 'usersWithInvalidOrganizerId',
+      label: 'Users With Invalid Organizer',
+      icon: <PersonIcon />,
+      severity: 'error',
+      description: 'Users pointing to non-existent organizer records'
+    },
+    {
+      key: 'userloginsDuplicateEmail',
+      label: 'Duplicate Emails in UserLogins',
+      icon: <PersonIcon />,
+      severity: 'warning',
+      description: 'Multiple userlogin records with the same email'
+    },
+    // Firebase tab
+    {
+      key: 'firebaseUsersWithoutUserlogin',
+      label: 'Firebase Without UserLogin',
+      icon: <PersonIcon />,
+      severity: 'error',
+      description: 'Firebase Auth accounts without a userlogins record'
+    },
+    {
+      key: 'firebaseUsersWithoutEmail',
+      label: 'Firebase Without Email',
+      icon: <PersonIcon />,
+      severity: 'warning',
+      description: 'Firebase accounts that have no email address'
+    },
+    {
+      key: 'firebaseUsersDuplicateEmail',
+      label: 'Duplicate Firebase Emails',
+      icon: <PersonIcon />,
+      severity: 'error',
+      description: 'Multiple Firebase accounts with the same email'
     }
   ];
 
@@ -309,10 +314,10 @@ export default function DataHealthPage() {
     }
   };
 
-  // Get count for a category
+  // Get count for a category - data is at root level, not under 'issues'
   const getCategoryCount = (key) => {
-    if (!healthData?.issues) return 0;
-    const issues = healthData.issues[key];
+    if (!healthData) return 0;
+    const issues = healthData[key];
     return Array.isArray(issues) ? issues.length : 0;
   };
 
@@ -321,20 +326,22 @@ export default function DataHealthPage() {
     switch (tabIndex) {
       case 0: // Events
         return getCategoryCount('eventsWithoutVenue') +
-               getCategoryCount('eventsWithoutOwner') +
-               getCategoryCount('eventsWithoutAuthor') +
-               getCategoryCount('eventsDenormalizedMismatch') +
+               getCategoryCount('eventsUsingInactiveVenue') +
+               getCategoryCount('eventsWithBadVenueDenorm') +
                getCategoryCount('expiredRecurringEventsStillActive') +
                getCategoryCount('eventsInPastStillActive');
       case 1: // Venues
         return getCategoryCount('venuesMissingGeocoding') +
-               getCategoryCount('venuesMissingMasteredCity') +
-               getCategoryCount('eventsUsingInactiveVenue') +
-               getCategoryCount('eventsWithBadVenueDenorm');
-      case 2: // Users & Organizers
-        return getCategoryCount('organizersNotLinkedToUser') +
-               getCategoryCount('usersWithInvalidOrganizerId') +
-               getCategoryCount('firebaseUsersWithoutUserlogin');
+               getCategoryCount('venuesMissingMasteredCity');
+      case 2: // Organizers
+        return getCategoryCount('organizersNotLinkedToUser');
+      case 3: // Users
+        return getCategoryCount('usersWithInvalidOrganizerId') +
+               getCategoryCount('userloginsDuplicateEmail');
+      case 4: // Firebase
+        return getCategoryCount('firebaseUsersWithoutUserlogin') +
+               getCategoryCount('firebaseUsersWithoutEmail') +
+               getCategoryCount('firebaseUsersDuplicateEmail');
       default:
         return 0;
     }
@@ -345,15 +352,23 @@ export default function DataHealthPage() {
     switch (tabIndex) {
       case 0: // Events
         return issueCategories.filter(c =>
-          ['eventsWithoutVenue', 'eventsWithoutOwner', 'eventsWithoutAuthor', 'eventsDenormalizedMismatch', 'expiredRecurringEventsStillActive', 'eventsInPastStillActive'].includes(c.key)
+          ['eventsWithoutVenue', 'eventsUsingInactiveVenue', 'eventsWithBadVenueDenorm', 'expiredRecurringEventsStillActive', 'eventsInPastStillActive'].includes(c.key)
         );
       case 1: // Venues
         return issueCategories.filter(c =>
-          ['venuesMissingGeocoding', 'venuesMissingMasteredCity', 'eventsUsingInactiveVenue', 'eventsWithBadVenueDenorm'].includes(c.key)
+          ['venuesMissingGeocoding', 'venuesMissingMasteredCity'].includes(c.key)
         );
-      case 2: // Users & Organizers
+      case 2: // Organizers
         return issueCategories.filter(c =>
-          ['organizersNotLinkedToUser', 'usersWithInvalidOrganizerId', 'firebaseUsersWithoutUserlogin'].includes(c.key)
+          ['organizersNotLinkedToUser'].includes(c.key)
+        );
+      case 3: // Users
+        return issueCategories.filter(c =>
+          ['usersWithInvalidOrganizerId', 'userloginsDuplicateEmail'].includes(c.key)
+        );
+      case 4: // Firebase
+        return issueCategories.filter(c =>
+          ['firebaseUsersWithoutUserlogin', 'firebaseUsersWithoutEmail', 'firebaseUsersDuplicateEmail'].includes(c.key)
         );
       default:
         return [];
@@ -405,55 +420,9 @@ export default function DataHealthPage() {
     );
   };
 
-  // Render venue quality metrics
-  const renderVenueMetrics = () => {
-    const metrics = healthData?.venueQualityMetrics;
-    if (!metrics || metrics.totalVenues === 0) return null;
-
-    return (
-      <Paper sx={{ p: 2, mb: 3 }}>
-        <Typography variant="subtitle1" fontWeight="medium" sx={{ mb: 1 }}>
-          Venue Data Quality
-        </Typography>
-        <Grid container spacing={2}>
-          <Grid item xs={6} sm={3}>
-            <Box sx={{ textAlign: 'center' }}>
-              <Typography variant="h5">{metrics.totalVenues}</Typography>
-              <Typography variant="caption" color="text.secondary">Total Venues</Typography>
-            </Box>
-          </Grid>
-          <Grid item xs={6} sm={3}>
-            <Box sx={{ textAlign: 'center' }}>
-              <Typography variant="h5" color={metrics.pctMasteredCity >= 90 ? 'success.main' : metrics.pctMasteredCity >= 70 ? 'warning.main' : 'error.main'}>
-                {metrics.pctMasteredCity}%
-              </Typography>
-              <Typography variant="caption" color="text.secondary">With Mastered City</Typography>
-            </Box>
-          </Grid>
-          <Grid item xs={6} sm={3}>
-            <Box sx={{ textAlign: 'center' }}>
-              <Typography variant="h5" color={metrics.pctGeocoding >= 90 ? 'success.main' : metrics.pctGeocoding >= 70 ? 'warning.main' : 'error.main'}>
-                {metrics.pctGeocoding}%
-              </Typography>
-              <Typography variant="caption" color="text.secondary">With Geocoding</Typography>
-            </Box>
-          </Grid>
-          <Grid item xs={6} sm={3}>
-            <Box sx={{ textAlign: 'center' }}>
-              <Typography variant="h5" color="text.secondary">
-                {metrics.withMasteredCity}/{metrics.withGeocoding}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">Mastered/Geocoded</Typography>
-            </Box>
-          </Grid>
-        </Grid>
-      </Paper>
-    );
-  };
-
   // Render issue category section
   const renderIssueSection = (category) => {
-    const issues = healthData?.issues?.[category.key] || [];
+    const issues = healthData?.[category.key] || [];
     const isExpanded = expandedSection === category.key;
     const count = issues.length;
 
@@ -540,15 +509,30 @@ export default function DataHealthPage() {
   const renderTableHeaders = (key) => {
     switch (key) {
       case 'eventsWithoutVenue':
-      case 'eventsWithoutOwner':
-      case 'eventsWithoutAuthor':
-      case 'eventsDenormalizedMismatch':
       case 'expiredRecurringEventsStillActive':
       case 'eventsInPastStillActive':
         return (
           <>
             <TableCell>Event Title</TableCell>
             <TableCell>Date</TableCell>
+            <TableCell>ID</TableCell>
+          </>
+        );
+      case 'eventsUsingInactiveVenue':
+        return (
+          <>
+            <TableCell>Event Title</TableCell>
+            <TableCell>Venue</TableCell>
+            <TableCell>Venue Status</TableCell>
+            <TableCell>ID</TableCell>
+          </>
+        );
+      case 'eventsWithBadVenueDenorm':
+        return (
+          <>
+            <TableCell>Event Title</TableCell>
+            <TableCell>Venue</TableCell>
+            <TableCell>Issues</TableCell>
             <TableCell>ID</TableCell>
           </>
         );
@@ -569,23 +553,6 @@ export default function DataHealthPage() {
             <TableCell>Action</TableCell>
           </>
         );
-      case 'eventsUsingInactiveVenue':
-        return (
-          <>
-            <TableCell>Event Title</TableCell>
-            <TableCell>Venue</TableCell>
-            <TableCell>Status</TableCell>
-            <TableCell>Date</TableCell>
-          </>
-        );
-      case 'eventsWithBadVenueDenorm':
-        return (
-          <>
-            <TableCell>Event Title</TableCell>
-            <TableCell>Venue</TableCell>
-            <TableCell>Issues</TableCell>
-          </>
-        );
       case 'organizersNotLinkedToUser':
         return (
           <>
@@ -603,12 +570,29 @@ export default function DataHealthPage() {
           </>
         );
       case 'firebaseUsersWithoutUserlogin':
+      case 'firebaseUsersWithoutEmail':
         return (
           <>
             <TableCell>Firebase UID</TableCell>
             <TableCell>Email</TableCell>
             <TableCell>Display Name</TableCell>
             <TableCell>Last Sign In</TableCell>
+          </>
+        );
+      case 'firebaseUsersDuplicateEmail':
+        return (
+          <>
+            <TableCell>Email</TableCell>
+            <TableCell>Count</TableCell>
+            <TableCell>Firebase UIDs</TableCell>
+          </>
+        );
+      case 'userloginsDuplicateEmail':
+        return (
+          <>
+            <TableCell>Email</TableCell>
+            <TableCell>Count</TableCell>
+            <TableCell>User IDs</TableCell>
           </>
         );
       default:
@@ -620,16 +604,43 @@ export default function DataHealthPage() {
   const renderTableRow = (key, issue) => {
     switch (key) {
       case 'eventsWithoutVenue':
-      case 'eventsWithoutOwner':
-      case 'eventsWithoutAuthor':
-      case 'eventsDenormalizedMismatch':
       case 'expiredRecurringEventsStillActive':
       case 'eventsInPastStillActive':
         return (
           <>
             <TableCell>{issue.title || 'Untitled'}</TableCell>
             <TableCell>
-              {(issue.startDate || issue.startDateTime) ? format(new Date(issue.startDate || issue.startDateTime), 'MMM d, yyyy') : 'No date'}
+              {(issue.startDate || issue.startDateTime || issue.rruleEndDate) ? format(new Date(issue.startDate || issue.startDateTime || issue.rruleEndDate), 'MMM d, yyyy') : 'No date'}
+            </TableCell>
+            <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
+              {issue._id?.slice(-8) || 'N/A'}
+            </TableCell>
+          </>
+        );
+      case 'eventsUsingInactiveVenue':
+        return (
+          <>
+            <TableCell>{issue.title || 'Untitled'}</TableCell>
+            <TableCell>{issue.venueName || 'Unknown'}</TableCell>
+            <TableCell>
+              <Chip
+                label={issue.venueIsActive === false ? 'Inactive' : 'Not Approved'}
+                size="small"
+                color="error"
+              />
+            </TableCell>
+            <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
+              {issue._id?.slice(-8) || 'N/A'}
+            </TableCell>
+          </>
+        );
+      case 'eventsWithBadVenueDenorm':
+        return (
+          <>
+            <TableCell>{issue.title || 'Untitled'}</TableCell>
+            <TableCell>{issue.venueName || 'Unknown'}</TableCell>
+            <TableCell sx={{ fontSize: '0.75rem', color: 'warning.main' }}>
+              {issue.issues || 'Unknown issues'}
             </TableCell>
             <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
               {issue._id?.slice(-8) || 'N/A'}
@@ -668,30 +679,6 @@ export default function DataHealthPage() {
             </TableCell>
           </>
         );
-      case 'eventsUsingInactiveVenue':
-        return (
-          <>
-            <TableCell>{issue.title || 'Untitled'}</TableCell>
-            <TableCell>{issue.venueName || 'Unknown'}</TableCell>
-            <TableCell>
-              {issue.venueIsActive === false && <Chip label="Inactive" size="small" color="error" sx={{ mr: 0.5 }} />}
-              {issue.venueIsApproved === false && <Chip label="Not Approved" size="small" color="warning" />}
-            </TableCell>
-            <TableCell>
-              {issue.startDateTime ? format(new Date(issue.startDateTime), 'MMM d, yyyy') : 'No date'}
-            </TableCell>
-          </>
-        );
-      case 'eventsWithBadVenueDenorm':
-        return (
-          <>
-            <TableCell>{issue.title || 'Untitled'}</TableCell>
-            <TableCell>{issue.venueName || 'Unknown'}</TableCell>
-            <TableCell sx={{ fontSize: '0.75rem' }}>
-              {issue.issues || 'Unknown issues'}
-            </TableCell>
-          </>
-        );
       case 'organizersNotLinkedToUser':
         return (
           <>
@@ -722,6 +709,7 @@ export default function DataHealthPage() {
           </>
         );
       case 'firebaseUsersWithoutUserlogin':
+      case 'firebaseUsersWithoutEmail':
         return (
           <>
             <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
@@ -731,6 +719,26 @@ export default function DataHealthPage() {
             <TableCell>{issue.displayName || 'No name'}</TableCell>
             <TableCell>
               {issue.lastSignIn ? format(new Date(issue.lastSignIn), 'MMM d, yyyy') : 'Never'}
+            </TableCell>
+          </>
+        );
+      case 'firebaseUsersDuplicateEmail':
+        return (
+          <>
+            <TableCell>{issue.email || 'No email'}</TableCell>
+            <TableCell>{issue.count}</TableCell>
+            <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
+              {issue.uids || 'N/A'}
+            </TableCell>
+          </>
+        );
+      case 'userloginsDuplicateEmail':
+        return (
+          <>
+            <TableCell>{issue.email || 'No email'}</TableCell>
+            <TableCell>{issue.count}</TableCell>
+            <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
+              {issue.userIds || 'N/A'}
             </TableCell>
           </>
         );
@@ -783,9 +791,6 @@ export default function DataHealthPage() {
           {/* Summary cards */}
           {renderSummary()}
 
-          {/* Venue quality metrics */}
-          {renderVenueMetrics()}
-
           {/* Tabs */}
           <Paper sx={{ mb: 2 }}>
             <Tabs
@@ -794,7 +799,8 @@ export default function DataHealthPage() {
                 setTabValue(v);
                 setExpandedSection(null);
               }}
-              variant={isMobile ? 'fullWidth' : 'standard'}
+              variant={isMobile ? 'scrollable' : 'standard'}
+              scrollButtons="auto"
               sx={{ borderBottom: 1, borderColor: 'divider' }}
             >
               <Tab
@@ -808,7 +814,17 @@ export default function DataHealthPage() {
                 iconPosition="start"
               />
               <Tab
-                label={`Users (${getTabIssueCount(2)})`}
+                label={`Organizers (${getTabIssueCount(2)})`}
+                icon={<BusinessIcon />}
+                iconPosition="start"
+              />
+              <Tab
+                label={`Users (${getTabIssueCount(3)})`}
+                icon={<PersonIcon />}
+                iconPosition="start"
+              />
+              <Tab
+                label={`Firebase (${getTabIssueCount(4)})`}
                 icon={<PersonIcon />}
                 iconPosition="start"
               />
