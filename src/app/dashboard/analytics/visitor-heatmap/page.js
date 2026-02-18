@@ -14,7 +14,8 @@ import {
 import RefreshIcon from '@mui/icons-material/Refresh';
 import axios from 'axios';
 
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 /**
@@ -35,15 +36,22 @@ export default function VisitorHeatmapPage() {
       const response = await axios.get('/api/analytics/visitor-heatmap');
       const data = response.data;
 
+      console.log('Heatmap API response:', data);
+
       if (data.success && data.data) {
-        const { matrix, peak, sources, byDay } = data.data;
+        const { heatmap, peak, sources, totals } = data.data;
+
+        // Convert heatmap object {Sunday: [...], Monday: [...]} to 7x24 array
+        const matrix = DAYS.map(day => heatmap[day] || Array(24).fill(0));
 
         // Find max count for color scaling
         let maxCount = 0;
         matrix.forEach(row => {
-          row.forEach(count => {
-            if (count > maxCount) maxCount = count;
-          });
+          if (Array.isArray(row)) {
+            row.forEach(count => {
+              if (count > maxCount) maxCount = count;
+            });
+          }
         });
 
         setHeatmapData({
@@ -51,7 +59,7 @@ export default function VisitorHeatmapPage() {
           maxCount,
           peak,
           sources,
-          byDay
+          totals
         });
       } else {
         throw new Error('Invalid response format');
@@ -144,7 +152,7 @@ export default function VisitorHeatmapPage() {
             <Grid item xs={12} sm={6} md={3}>
               <Paper sx={{ p: 2, textAlign: 'center', borderTop: '4px solid #9c27b0' }}>
                 <Typography variant="h6">
-                  {heatmapData.peak?.day} @ {heatmapData.peak?.hour}:00
+                  {heatmapData.peak?.timestamp || `${heatmapData.peak?.day} @ ${heatmapData.peak?.hour}:00`}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   Peak ({heatmapData.peak?.count} hits)
@@ -176,8 +184,8 @@ export default function VisitorHeatmapPage() {
           </Box>
 
           {/* Matrix rows */}
-          {DAYS.map((day, dayIndex) => (
-            <Box key={day} sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+          {DAY_LABELS.map((dayLabel, dayIndex) => (
+            <Box key={dayLabel} sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
               {/* Day label */}
               <Typography
                 sx={{
@@ -187,7 +195,7 @@ export default function VisitorHeatmapPage() {
                   color: 'text.secondary'
                 }}
               >
-                {day}
+                {dayLabel}
               </Typography>
 
               {/* Hour cells */}
@@ -196,7 +204,7 @@ export default function VisitorHeatmapPage() {
                 return (
                   <Tooltip
                     key={hour}
-                    title={`${day} ${hour}:00 — ${count} events`}
+                    title={`${DAYS[dayIndex]} ${hour}:00 — ${count} events`}
                     arrow
                   >
                     <Box
