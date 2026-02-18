@@ -845,8 +845,16 @@ export default function OrganizersPage() {
       headerName: 'Created',
       width: 100,
       renderCell: (params) => {
-        if (!params.value) return <span>-</span>;
-        const date = new Date(params.value);
+        // Use createdAt if available, otherwise extract from MongoDB ObjectId
+        let date;
+        if (params.value) {
+          date = new Date(params.value);
+        } else if (params.row._id && typeof params.row._id === 'string' && params.row._id.length === 24) {
+          // Extract timestamp from MongoDB ObjectId (first 8 hex chars = seconds since epoch)
+          const timestamp = parseInt(params.row._id.substring(0, 8), 16) * 1000;
+          date = new Date(timestamp);
+        }
+        if (!date) return <span>-</span>;
         return <span style={{ fontSize: '0.85em' }}>{date.toLocaleDateString()}</span>;
       }
     },
