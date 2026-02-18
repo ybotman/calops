@@ -18,6 +18,40 @@ const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
+// UTC offset for Eastern Time (EST = -5, EDT = -4)
+// TODO: Make this dynamic based on DST
+const ET_OFFSET = -5;
+
+/**
+ * Convert UTC heatmap to Eastern Time
+ * Shifts hours and handles day wraparound
+ */
+function convertToEasternTime(utcMatrix) {
+  // Initialize new matrix
+  const etMatrix = DAYS.map(() => Array(24).fill(0));
+
+  utcMatrix.forEach((dayData, utcDayIndex) => {
+    dayData.forEach((count, utcHour) => {
+      // Convert UTC hour to ET
+      let etHour = utcHour + ET_OFFSET;
+      let etDayIndex = utcDayIndex;
+
+      // Handle day wraparound
+      if (etHour < 0) {
+        etHour += 24;
+        etDayIndex = (utcDayIndex - 1 + 7) % 7;
+      } else if (etHour >= 24) {
+        etHour -= 24;
+        etDayIndex = (utcDayIndex + 1) % 7;
+      }
+
+      etMatrix[etDayIndex][etHour] += count;
+    });
+  });
+
+  return etMatrix;
+}
+
 /**
  * Visitor Heatmap Page
  * Shows a 7x24 matrix (day of week × hour) of visitor activity
@@ -41,8 +75,30 @@ export default function VisitorHeatmapPage() {
       if (data.success && data.data) {
         const { heatmap, peak, sources, totals } = data.data;
 
-        // Convert heatmap object {Sunday: [...], Monday: [...]} to 7x24 array
-        const matrix = DAYS.map(day => heatmap[day] || Array(24).fill(0));
+        // Convert heatmap object {Sunday: [...], Monday: [...]} to 7x24 array (UTC)
+        const utcMatrix = DAYS.map(day => heatmap[day] || Array(24).fill(0));
+
+        // Convert to Eastern Time
+        const matrix = convertToEasternTime(utcMatrix);
+
+        // Convert peak time to ET
+        let etPeak = { ...peak };
+        if (peak) {
+          let etHour = peak.hour + ET_OFFSET;
+          let etDayIndex = DAYS.indexOf(peak.day);
+          if (etHour < 0) {
+            etHour += 24;
+            etDayIndex = (etDayIndex - 1 + 7) % 7;
+          }
+          const period = etHour >= 12 ? 'PM' : 'AM';
+          const displayHour = etHour % 12 || 12;
+          etPeak = {
+            ...peak,
+            day: DAYS[etDayIndex],
+            hour: etHour,
+            timestamp: `${DAYS[etDayIndex]} at ${displayHour}:00 ${period} ET`
+          };
+        }
 
         // Find max count for color scaling
         let maxCount = 0;
@@ -57,7 +113,7 @@ export default function VisitorHeatmapPage() {
         setHeatmapData({
           matrix,
           maxCount,
-          peak,
+          peak: etPeak,
           sources,
           totals
         });
@@ -163,7 +219,7 @@ export default function VisitorHeatmapPage() {
 
           <Paper sx={{ p: 3 }}>
             <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2 }}>
-              Activity by Day of Week &amp; Hour (UTC)
+              Activity by Day of Week &amp; Hour (Eastern Time)
             </Typography>
 
           {/* Hour labels */}
