@@ -274,11 +274,33 @@ export default function DataHealthPage() {
       description: 'Users pointing to non-existent organizer records'
     },
     {
+      key: 'userloginsDuplicateEmail',
+      label: 'Duplicate Emails in UserLogins',
+      icon: <PersonIcon />,
+      severity: 'warning',
+      description: 'Multiple userlogin records with the same email'
+    },
+    // Firebase tab
+    {
       key: 'firebaseUsersWithoutUserlogin',
-      label: 'Firebase Users Without App Record',
+      label: 'Firebase Without UserLogin',
       icon: <PersonIcon />,
       severity: 'error',
       description: 'Firebase Auth accounts without a userlogins record'
+    },
+    {
+      key: 'firebaseUsersWithoutEmail',
+      label: 'Firebase Without Email',
+      icon: <PersonIcon />,
+      severity: 'warning',
+      description: 'Firebase accounts that have no email address'
+    },
+    {
+      key: 'firebaseUsersDuplicateEmail',
+      label: 'Duplicate Firebase Emails',
+      icon: <PersonIcon />,
+      severity: 'error',
+      description: 'Multiple Firebase accounts with the same email'
     }
   ];
 
@@ -292,10 +314,10 @@ export default function DataHealthPage() {
     }
   };
 
-  // Get count for a category
+  // Get count for a category - data is at root level, not under 'issues'
   const getCategoryCount = (key) => {
-    if (!healthData?.issues) return 0;
-    const issues = healthData.issues[key];
+    if (!healthData) return 0;
+    const issues = healthData[key];
     return Array.isArray(issues) ? issues.length : 0;
   };
 
@@ -315,7 +337,11 @@ export default function DataHealthPage() {
         return getCategoryCount('organizersNotLinkedToUser');
       case 3: // Users
         return getCategoryCount('usersWithInvalidOrganizerId') +
-               getCategoryCount('firebaseUsersWithoutUserlogin');
+               getCategoryCount('userloginsDuplicateEmail');
+      case 4: // Firebase
+        return getCategoryCount('firebaseUsersWithoutUserlogin') +
+               getCategoryCount('firebaseUsersWithoutEmail') +
+               getCategoryCount('firebaseUsersDuplicateEmail');
       default:
         return 0;
     }
@@ -338,7 +364,11 @@ export default function DataHealthPage() {
         );
       case 3: // Users
         return issueCategories.filter(c =>
-          ['usersWithInvalidOrganizerId', 'firebaseUsersWithoutUserlogin'].includes(c.key)
+          ['usersWithInvalidOrganizerId', 'userloginsDuplicateEmail'].includes(c.key)
+        );
+      case 4: // Firebase
+        return issueCategories.filter(c =>
+          ['firebaseUsersWithoutUserlogin', 'firebaseUsersWithoutEmail', 'firebaseUsersDuplicateEmail'].includes(c.key)
         );
       default:
         return [];
@@ -392,7 +422,7 @@ export default function DataHealthPage() {
 
   // Render issue category section
   const renderIssueSection = (category) => {
-    const issues = healthData?.issues?.[category.key] || [];
+    const issues = healthData?.[category.key] || [];
     const isExpanded = expandedSection === category.key;
     const count = issues.length;
 
@@ -540,12 +570,29 @@ export default function DataHealthPage() {
           </>
         );
       case 'firebaseUsersWithoutUserlogin':
+      case 'firebaseUsersWithoutEmail':
         return (
           <>
             <TableCell>Firebase UID</TableCell>
             <TableCell>Email</TableCell>
             <TableCell>Display Name</TableCell>
             <TableCell>Last Sign In</TableCell>
+          </>
+        );
+      case 'firebaseUsersDuplicateEmail':
+        return (
+          <>
+            <TableCell>Email</TableCell>
+            <TableCell>Count</TableCell>
+            <TableCell>Firebase UIDs</TableCell>
+          </>
+        );
+      case 'userloginsDuplicateEmail':
+        return (
+          <>
+            <TableCell>Email</TableCell>
+            <TableCell>Count</TableCell>
+            <TableCell>User IDs</TableCell>
           </>
         );
       default:
@@ -662,6 +709,7 @@ export default function DataHealthPage() {
           </>
         );
       case 'firebaseUsersWithoutUserlogin':
+      case 'firebaseUsersWithoutEmail':
         return (
           <>
             <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
@@ -671,6 +719,26 @@ export default function DataHealthPage() {
             <TableCell>{issue.displayName || 'No name'}</TableCell>
             <TableCell>
               {issue.lastSignIn ? format(new Date(issue.lastSignIn), 'MMM d, yyyy') : 'Never'}
+            </TableCell>
+          </>
+        );
+      case 'firebaseUsersDuplicateEmail':
+        return (
+          <>
+            <TableCell>{issue.email || 'No email'}</TableCell>
+            <TableCell>{issue.count}</TableCell>
+            <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
+              {issue.uids || 'N/A'}
+            </TableCell>
+          </>
+        );
+      case 'userloginsDuplicateEmail':
+        return (
+          <>
+            <TableCell>{issue.email || 'No email'}</TableCell>
+            <TableCell>{issue.count}</TableCell>
+            <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
+              {issue.userIds || 'N/A'}
             </TableCell>
           </>
         );
@@ -752,6 +820,11 @@ export default function DataHealthPage() {
               />
               <Tab
                 label={`Users (${getTabIssueCount(3)})`}
+                icon={<PersonIcon />}
+                iconPosition="start"
+              />
+              <Tab
+                label={`Firebase (${getTabIssueCount(4)})`}
                 icon={<PersonIcon />}
                 iconPosition="start"
               />
