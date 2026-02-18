@@ -5,90 +5,64 @@ import {
   Box,
   Typography,
   Paper,
+  Grid,
   CircularProgress,
   Alert,
   Button,
-  ToggleButton,
-  ToggleButtonGroup,
   Tooltip
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import { useAppContext } from '@/lib/AppContext';
-import { adminApi } from '@/lib/api-client/index';
+import axios from 'axios';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 /**
  * Visitor Heatmap Page
- * Shows a 7x24 matrix (day of week × hour) of user last login times
+ * Shows a 7x24 matrix (day of week × hour) of visitor activity
  */
 export default function VisitorHeatmapPage() {
-  const { currentApp } = useAppContext();
-  const appId = currentApp?.id || '1';
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [heatmapData, setHeatmapData] = useState(null);
-  const [timeRange, setTimeRange] = useState('all');
 
-  // Fetch user activity data and aggregate by day/hour
+  // Fetch heatmap data from backend
   const fetchHeatmapData = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
-      // Fetch user activity data
-      const response = await adminApi.getUserActivity({
-        appId,
-        staleDays: 365,
-        limit: 1000,
-        sort: 'lastLogin'
-      });
+      const response = await axios.get('/api/analytics/visitor-heatmap');
+      const data = response.data;
 
-      const users = response.users || [];
+      if (data.success && data.data) {
+        const { matrix, peak, sources, byDay } = data.data;
 
-      // Calculate date filter
-      const now = new Date();
-      const filterDays = timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : timeRange === '90d' ? 90 : 9999;
-      const cutoffDate = new Date(now.getTime() - filterDays * 24 * 60 * 60 * 1000);
+        // Find max count for color scaling
+        let maxCount = 0;
+        matrix.forEach(row => {
+          row.forEach(count => {
+            if (count > maxCount) maxCount = count;
+          });
+        });
 
-      // Initialize 7x24 matrix with zeros
-      const matrix = DAYS.map(() => HOURS.map(() => 0));
-      let maxCount = 0;
-      let totalUsers = 0;
-
-      // Aggregate by day of week and hour of last login
-      users.forEach(user => {
-        const timestamp = user.lastLoginAt;
-        if (timestamp) {
-          const date = new Date(timestamp);
-          // Apply time filter
-          if (date >= cutoffDate) {
-            const dayOfWeek = date.getDay(); // 0-6 (Sun-Sat)
-            const hour = date.getHours(); // 0-23
-            matrix[dayOfWeek][hour]++;
-            totalUsers++;
-            if (matrix[dayOfWeek][hour] > maxCount) {
-              maxCount = matrix[dayOfWeek][hour];
-            }
-          }
-        }
-      });
-
-      setHeatmapData({
-        matrix,
-        maxCount,
-        totalUsers,
-        totalInDb: users.length
-      });
+        setHeatmapData({
+          matrix,
+          maxCount,
+          peak,
+          sources,
+          byDay
+        });
+      } else {
+        throw new Error('Invalid response format');
+      }
     } catch (err) {
       console.error('Error fetching heatmap data:', err);
       setError(err.message || 'Failed to load heatmap data');
     } finally {
       setLoading(false);
     }
-  }, [appId, timeRange]);
+  }, []);
 
   useEffect(() => {
     fetchHeatmapData();
@@ -120,27 +94,14 @@ export default function VisitorHeatmapPage() {
         <Typography variant="h4">
           Visitor Heatmap
         </Typography>
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-          <ToggleButtonGroup
-            value={timeRange}
-            exclusive
-            onChange={(e, v) => v && setTimeRange(v)}
-            size="small"
-          >
-            <ToggleButton value="7d">7 Days</ToggleButton>
-            <ToggleButton value="30d">30 Days</ToggleButton>
-            <ToggleButton value="90d">90 Days</ToggleButton>
-            <ToggleButton value="all">All Time</ToggleButton>
-          </ToggleButtonGroup>
-          <Button
-            variant="outlined"
-            startIcon={<RefreshIcon />}
-            onClick={fetchHeatmapData}
-            disabled={loading}
-          >
-            Refresh
-          </Button>
-        </Box>
+        <Button
+          variant="outlined"
+          startIcon={<RefreshIcon />}
+          onClick={fetchHeatmapData}
+          disabled={loading}
+        >
+          Refresh
+        </Button>
       </Box>
 
       {/* Error */}
@@ -159,11 +120,43 @@ export default function VisitorHeatmapPage() {
 
       {/* Heatmap */}
       {!loading && heatmapData && (
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2 }}>
-            Last Login Times by Day &amp; Hour (local) — {heatmapData.totalUsers.toLocaleString()} users
-            {heatmapData.totalInDb !== heatmapData.totalUsers && ` (${heatmapData.totalInDb} total)`}
-          </Typography>
+        <>
+          {/* Summary Cards */}
+          <Grid container spacing={2} sx={{ mb: 3 }}>
+            <Grid item xs={12} sm={6} md={3}>
+              <Paper sx={{ p: 2, textAlign: 'center', borderTop: '4px solid #1976d2' }}>
+                <Typography variant="h4">{heatmapData.sources?.total?.toLocaleString() || 0}</Typography>
+                <Typography variant="body2" color="text.secondary">Total Events</Typography>
+              </Paper>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Paper sx={{ p: 2, textAlign: 'center', borderTop: '4px solid #2e7d32' }}>
+                <Typography variant="h4">{heatmapData.sources?.userLogins?.toLocaleString() || 0}</Typography>
+                <Typography variant="body2" color="text.secondary">User Logins</Typography>
+              </Paper>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Paper sx={{ p: 2, textAlign: 'center', borderTop: '4px solid #ed6c02' }}>
+                <Typography variant="h4">{heatmapData.sources?.anonymousVisitors?.toLocaleString() || 0}</Typography>
+                <Typography variant="body2" color="text.secondary">Anonymous Visitors</Typography>
+              </Paper>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Paper sx={{ p: 2, textAlign: 'center', borderTop: '4px solid #9c27b0' }}>
+                <Typography variant="h6">
+                  {heatmapData.peak?.day} @ {heatmapData.peak?.hour}:00
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Peak ({heatmapData.peak?.count} hits)
+                </Typography>
+              </Paper>
+            </Grid>
+          </Grid>
+
+          <Paper sx={{ p: 3 }}>
+            <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2 }}>
+              Activity by Day of Week &amp; Hour (UTC)
+            </Typography>
 
           {/* Hour labels */}
           <Box sx={{ display: 'flex', mb: 0.5, ml: 5 }}>
@@ -244,6 +237,7 @@ export default function VisitorHeatmapPage() {
             <Typography variant="caption" color="text.secondary">More</Typography>
           </Box>
         </Paper>
+        </>
       )}
     </Box>
   );
