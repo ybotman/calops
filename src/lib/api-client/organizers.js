@@ -36,12 +36,12 @@ const organizersApi = {
     
     // If we need all fields (like for editing), don't use select
     if (includeAllFields) {
-      // Request all fields by specifying them explicitly
-      const allFields = '_id appId fullName shortName description isActive isEnabled isVisible wantRender isRendered ' +
-                       'publicContactInfo organizerTypes images delegatedOrganizerIds ' +
-                       'organizerRegion masteredRegionId masteredDivisionId masteredCityId ' +
-                       'firebaseUserId linkedUserLogin organizerBannerImage organizerProfileImage ' +
-                       'organizerLandscapeImage organizerLogoImage btcNiceName updatedAt';
+      // Request all fields by specifying them explicitly (comma-separated for backend parsing)
+      const allFields = '_id,appId,fullName,shortName,description,isActive,isEnabled,isVisible,wantRender,isRendered,' +
+                       'publicContactInfo,organizerTypes,images,delegatedOrganizerIds,' +
+                       'organizerRegion,masteredRegionId,masteredDivisionId,masteredCityId,' +
+                       'firebaseUserId,linkedUserLogin,organizerBannerImage,organizerProfileImage,' +
+                       'organizerLandscapeImage,organizerLogoImage,btcNiceName,updatedAt';
       params.select = allFields;
     }
     
