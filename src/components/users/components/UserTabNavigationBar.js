@@ -16,9 +16,13 @@ const UserTabNavigationBar = ({
   onSearchChange,
   tabs = [
     { label: 'All Users', id: 'all-users' },
-    { label: 'Organizers', id: 'organizers' },
-    { label: 'Admins', id: 'admins' },
-    { label: 'Firebase', id: 'firebase' }
+    { label: 'NU', id: 'named-user' },
+    { label: 'RO', id: 'regional-organizer' },
+    { label: 'RA', id: 'regional-admin' },
+    { label: 'SA', id: 'system-admin' },
+    { label: 'FB+User', id: 'firebase-with-user' },
+    { label: 'FB Only', id: 'firebase-only' },
+    { label: 'User Only', id: 'user-only' }
   ]
 }) => {
   const handleTabChange = (_, newValue) => {

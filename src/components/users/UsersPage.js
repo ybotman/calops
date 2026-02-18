@@ -126,12 +126,12 @@ const UsersPage = ({
     // TODO: Implement UserLogin creation for unmatched Firebase users
   };
 
-  // Fetch Firebase users when switching to Firebase tab
+  // Fetch Firebase users when switching to Firebase-related tabs
   const handleTabChange = (newTabValue) => {
     setTabValue(newTabValue);
-    
-    // Fetch Firebase users when switching to Firebase tab (index 3)
-    if (newTabValue === 3 && !firebaseUsersHook.lastUpdated) {
+
+    // Fetch Firebase users when switching to Firebase Only tab (index 6)
+    if (newTabValue === 6 && !firebaseUsersHook.lastUpdated) {
       firebaseUsersHook.fetchFirebaseUsers();
     }
   };
@@ -151,6 +151,7 @@ const UsersPage = ({
       />
       
       <SwipeableTabs value={tabValue} onChange={handleTabChange}>
+        {/* Tab 0: All Users */}
         <TabPanel value={tabValue} index={0}>
           <UserTable
             users={filteredUsers}
@@ -163,8 +164,23 @@ const UsersPage = ({
             selectedUser={selectedUser}
           />
         </TabPanel>
-        
+
+        {/* Tab 1: Named Users (NU) */}
         <TabPanel value={tabValue} index={1}>
+          <UserTable
+            users={filteredUsers}
+            loading={loading}
+            onEdit={handleEditUser}
+            onDelete={deleteUser}
+            pagination={pagination}
+            onPaginationChange={handlePaginationChange}
+            error={error}
+            selectedUser={selectedUser}
+          />
+        </TabPanel>
+
+        {/* Tab 2: Regional Organizers (RO) */}
+        <TabPanel value={tabValue} index={2}>
           <UserTable
             users={filteredUsers}
             loading={loading || organizerLoading}
@@ -178,8 +194,9 @@ const UsersPage = ({
             selectedUser={selectedUser}
           />
         </TabPanel>
-        
-        <TabPanel value={tabValue} index={2}>
+
+        {/* Tab 3: Regional Admins (RA) */}
+        <TabPanel value={tabValue} index={3}>
           <UserTable
             users={filteredUsers}
             loading={loading}
@@ -191,8 +208,37 @@ const UsersPage = ({
             selectedUser={selectedUser}
           />
         </TabPanel>
-        
-        <TabPanel value={tabValue} index={3}>
+
+        {/* Tab 4: System Admins (SA) */}
+        <TabPanel value={tabValue} index={4}>
+          <UserTable
+            users={filteredUsers}
+            loading={loading}
+            onEdit={handleEditUser}
+            onDelete={deleteUser}
+            pagination={pagination}
+            onPaginationChange={handlePaginationChange}
+            error={error}
+            selectedUser={selectedUser}
+          />
+        </TabPanel>
+
+        {/* Tab 5: Firebase + User (users with Firebase accounts) */}
+        <TabPanel value={tabValue} index={5}>
+          <UserTable
+            users={filteredUsers}
+            loading={loading}
+            onEdit={handleEditUser}
+            onDelete={deleteUser}
+            pagination={pagination}
+            onPaginationChange={handlePaginationChange}
+            error={error}
+            selectedUser={selectedUser}
+          />
+        </TabPanel>
+
+        {/* Tab 6: Firebase Only (Firebase accounts without UserLogin) */}
+        <TabPanel value={tabValue} index={6}>
           <FirebaseUsersTable
             firebaseUsers={firebaseUsersHook.firebaseUsers}
             stats={firebaseUsersHook.stats}
@@ -201,7 +247,21 @@ const UsersPage = ({
             onRefresh={firebaseUsersHook.refresh}
             onViewDetails={handleFirebaseViewDetails}
             onCreateUserLogin={handleCreateUserLogin}
-            filter="all"
+            filter="unmatched"
+          />
+        </TabPanel>
+
+        {/* Tab 7: User Only (UserLogin without Firebase) */}
+        <TabPanel value={tabValue} index={7}>
+          <UserTable
+            users={filteredUsers}
+            loading={loading}
+            onEdit={handleEditUser}
+            onDelete={deleteUser}
+            pagination={pagination}
+            onPaginationChange={handlePaginationChange}
+            error={error}
+            selectedUser={selectedUser}
           />
         </TabPanel>
       </SwipeableTabs>

@@ -225,34 +225,50 @@ const useUsers = (options = {}) => {
    * @param {string} [term] - Search term to filter by (defaults to current searchTerm)
    * @param {number} [tab] - Tab value to filter by (defaults to current tabValue)
    */
+  /**
+   * Helper to check if user has a specific role
+   */
+  const userHasRole = useCallback((user, roleName) => {
+    return user.roleIds?.some(role => {
+      if (typeof role === 'object') {
+        return role.roleName === roleName;
+      }
+      if (typeof role === 'string') {
+        const matchedRole = roles.find(r => r._id === role);
+        return matchedRole?.roleName === roleName;
+      }
+      return false;
+    });
+  }, [roles]);
+
   const filterUsers = useCallback((term = searchTerm, tab = tabValue) => {
     try {
       let filtered = users;
-      
-      // Apply tab filtering
-      if (tab === 1) { // Organizers
-        filtered = filtered.filter(user => user.regionalOrganizerInfo?.organizerId);
-      } else if (tab === 2) { // Admins
-        filtered = filtered.filter(user => 
-          user.roleIds?.some(role => {
-            if (typeof role === 'object') {
-              return role.roleName === 'SystemAdmin' || 
-                     role.roleName === 'RegionalAdmin' ||
-                     role.roleNameCode === 'SYA' ||
-                     role.roleNameCode === 'RGA';
-            }
-            // If it's a string, we need to check against the roles array
-            if (typeof role === 'string') {
-              const matchedRole = roles.find(r => r._id === role);
-              return matchedRole && 
-                     (matchedRole.roleName === 'SystemAdmin' || 
-                      matchedRole.roleName === 'RegionalAdmin' ||
-                      matchedRole.roleNameCode === 'SYA' ||
-                      matchedRole.roleNameCode === 'RGA');
-            }
-            return false;
-          })
-        );
+
+      // Apply tab filtering based on new structure:
+      // 0: All Users, 1: NU, 2: RO, 3: RA, 4: SA, 5: FB+User, 6: FB Only, 7: User Only
+      switch (tab) {
+        case 1: // Named User (NU)
+          filtered = filtered.filter(user => userHasRole(user, 'NamedUser'));
+          break;
+        case 2: // Regional Organizer (RO)
+          filtered = filtered.filter(user => userHasRole(user, 'RegionalOrganizer'));
+          break;
+        case 3: // Regional Admin (RA)
+          filtered = filtered.filter(user => userHasRole(user, 'RegionalAdmin'));
+          break;
+        case 4: // System Admin (SA)
+          filtered = filtered.filter(user => userHasRole(user, 'SystemAdmin'));
+          break;
+        case 5: // Firebase with User (has both firebaseUserId and is in userlogins)
+          // This shows users that have Firebase accounts linked
+          filtered = filtered.filter(user => user.firebaseUserId);
+          break;
+        case 6: // Firebase Only - handled separately in FirebaseUsersTable
+        case 7: // User Only - users without Firebase accounts
+          filtered = filtered.filter(user => !user.firebaseUserId);
+          break;
+        // case 0 is All Users - no filtering
       }
       
       // Apply search term filtering
