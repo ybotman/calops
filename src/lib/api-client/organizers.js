@@ -41,7 +41,7 @@ const organizersApi = {
                        'publicContactInfo,organizerTypes,images,delegatedOrganizerIds,' +
                        'organizerRegion,masteredRegionId,masteredDivisionId,masteredCityId,' +
                        'firebaseUserId,linkedUserLogin,organizerBannerImage,organizerProfileImage,' +
-                       'organizerLandscapeImage,organizerLogoImage,btcNiceName,updatedAt';
+                       'organizerLandscapeImage,organizerLogoImage,btcNiceName,createdAt,updatedAt';
       params.select = allFields;
     }
     

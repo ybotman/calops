@@ -73,6 +73,7 @@ export default function OrganizersPage() {
   const [cities, setCities] = useState([]);
   const [divisions, setDivisions] = useState([]);
   const [firebaseUsers, setFirebaseUsers] = useState({});
+  const [eventCounts, setEventCounts] = useState({});
   
 
   // Fetch mastered locations when component mounts
@@ -135,7 +136,7 @@ export default function OrganizersPage() {
               if (user && user._id && linkedUserIds.includes(user._id)) {
                 // Build display name from available user info
                 let displayName = 'Unknown User';
-                
+
                 // Try different sources for the display name
                 if (user.localUserInfo?.loginUserName && user.localUserInfo.loginUserName.trim()) {
                   displayName = user.localUserInfo.loginUserName;
@@ -153,15 +154,23 @@ export default function OrganizersPage() {
                 } else if (user.email) {
                   displayName = user.email;
                 }
-                
-                firebaseUserMap[user._id] = displayName || 'Unknown User';
+
+                // Get email from available sources
+                const email = user.firebaseUserInfo?.email || user.email || null;
+
+                // Store displayName, email, and lastLogin
+                firebaseUserMap[user._id] = {
+                  displayName: displayName || 'Unknown User',
+                  email: email,
+                  lastLogin: user.updatedAt || user.createdAt || null
+                };
               }
             });
           } catch (error) {
             console.warn('Error fetching user data:', error);
           }
         }
-        
+
         // Log any missing users
         const missingUsers = linkedUserIds.filter(id => !firebaseUserMap[id]);
         if (missingUsers.length > 0) {
@@ -171,25 +180,53 @@ export default function OrganizersPage() {
         setFirebaseUsers(firebaseUserMap);
         
         // Process organizers data
-        const processedOrganizers = organizersData.map(organizer => ({
-          ...organizer,
-          id: organizer._id, // For DataGrid key
-          displayName: organizer.fullName || organizer.name || 'Unnamed Organizer',
-          shortDisplayName: organizer.shortName || 'No short name',
-          status: organizer.isActive ? 'Active' : 'Inactive',
-          wantRender: organizer.wantRender ? 'Yes' : 'No',
-          isRendered: organizer.isRendered ? 'Yes' : 'No',
-          enabled: organizer.isEnabled ? 'Yes' : 'No',
-          visible: organizer.isVisible ? 'Yes' : 'No',
-          userConnected: organizer.linkedUserLogin ? 'Yes' : 'No',
-          linkedUserLogin: organizer.linkedUserLogin, // Store the ID for column renderer
-          userConnectedName: organizer.linkedUserLogin ? firebaseUserMap[organizer.linkedUserLogin] || null : '-',
-        }));
+        const processedOrganizers = organizersData.map(organizer => {
+          const userData = organizer.linkedUserLogin ? firebaseUserMap[organizer.linkedUserLogin] : null;
+          return {
+            ...organizer,
+            id: organizer._id, // For DataGrid key
+            displayName: organizer.fullName || organizer.name || 'Unnamed Organizer',
+            shortDisplayName: organizer.shortName || 'No short name',
+            status: organizer.isActive ? 'Active' : 'Inactive',
+            wantRender: organizer.wantRender ? 'Yes' : 'No',
+            isRendered: organizer.isRendered ? 'Yes' : 'No',
+            enabled: organizer.isEnabled ? 'Yes' : 'No',
+            visible: organizer.isVisible ? 'Yes' : 'No',
+            userConnected: organizer.linkedUserLogin ? 'Yes' : 'No',
+            linkedUserLogin: organizer.linkedUserLogin, // Store the ID for column renderer
+            userConnectedName: userData?.displayName || (organizer.linkedUserLogin ? null : '-'),
+            userConnectedEmail: userData?.email || null,
+            userLastLogin: userData?.lastLogin || null,
+          };
+        });
         
         console.log(`Processed ${processedOrganizers.length} organizers successfully`);
         setOrganizers(processedOrganizers);
         setFilteredOrganizers(processedOrganizers);
         setLoading(false);
+
+        // Fetch event counts for all organizers in parallel (non-blocking)
+        const afEnabled = process.env.NEXT_PUBLIC_AF_ENABLED === 'true';
+        const backendUrl = afEnabled
+          ? (process.env.NEXT_PUBLIC_AF_URL || 'http://localhost:7071')
+          : (process.env.NEXT_PUBLIC_BE_URL || 'http://localhost:3010');
+
+        const countPromises = processedOrganizers.map(async (org) => {
+          try {
+            const response = await axios.get(`${backendUrl}/api/events/count`, {
+              params: { appId, ownerId: org._id }
+            });
+            return { id: org._id, count: response.data.count || 0 };
+          } catch {
+            return { id: org._id, count: 0 };
+          }
+        });
+
+        Promise.all(countPromises).then(counts => {
+          const countsMap = {};
+          counts.forEach(c => { countsMap[c.id] = c.count; });
+          setEventCounts(countsMap);
+        });
       } catch (error) {
         console.error('Error fetching organizers:', error);
         setLoading(false);
@@ -221,7 +258,7 @@ export default function OrganizersPage() {
           allUsers.forEach(user => {
             if (user && user._id && linkedUserIds.includes(user._id)) {
               let displayName = 'Unknown User';
-              
+
               // Try different sources for the display name
               if (user.localUserInfo?.loginUserName && user.localUserInfo.loginUserName.trim()) {
                 displayName = user.localUserInfo.loginUserName;
@@ -239,32 +276,45 @@ export default function OrganizersPage() {
               } else if (user.email) {
                 displayName = user.email;
               }
-              
-              firebaseUserMap[user._id] = displayName || 'Unknown User';
+
+              // Get email from available sources
+              const email = user.firebaseUserInfo?.email || user.email || null;
+
+              // Store displayName, email, and lastLogin
+              firebaseUserMap[user._id] = {
+                displayName: displayName || 'Unknown User',
+                email: email,
+                lastLogin: user.updatedAt || user.createdAt || null
+              };
             }
           });
         } catch (error) {
           console.warn('Error fetching user data:', error);
         }
       }
-      
+
       setFirebaseUsers(firebaseUserMap);
-      
+
       // Process organizers data
-      const processedOrganizers = organizersData.map(organizer => ({
-        ...organizer,
-        id: organizer._id,
-        displayName: organizer.fullName || organizer.name || 'Unnamed Organizer',
-        shortDisplayName: organizer.shortName || 'No short name',
-        status: organizer.isActive ? 'Active' : 'Inactive',
-        wantRender: organizer.wantRender ? 'Yes' : 'No',
-        isRendered: organizer.isRendered ? 'Yes' : 'No',
-        enabled: organizer.isEnabled ? 'Yes' : 'No',
-        visible: organizer.isVisible ? 'Yes' : 'No',
-        userConnected: organizer.linkedUserLogin ? 'Yes' : 'No',
-        linkedUserLogin: organizer.linkedUserLogin, // Store the ID for column renderer
-        userConnectedName: organizer.linkedUserLogin ? firebaseUserMap[organizer.linkedUserLogin] || null : '-',
-      }));
+      const processedOrganizers = organizersData.map(organizer => {
+        const userData = organizer.linkedUserLogin ? firebaseUserMap[organizer.linkedUserLogin] : null;
+        return {
+          ...organizer,
+          id: organizer._id,
+          displayName: organizer.fullName || organizer.name || 'Unnamed Organizer',
+          shortDisplayName: organizer.shortName || 'No short name',
+          status: organizer.isActive ? 'Active' : 'Inactive',
+          wantRender: organizer.wantRender ? 'Yes' : 'No',
+          isRendered: organizer.isRendered ? 'Yes' : 'No',
+          enabled: organizer.isEnabled ? 'Yes' : 'No',
+          visible: organizer.isVisible ? 'Yes' : 'No',
+          userConnected: organizer.linkedUserLogin ? 'Yes' : 'No',
+          linkedUserLogin: organizer.linkedUserLogin, // Store the ID for column renderer
+          userConnectedName: userData?.displayName || (organizer.linkedUserLogin ? null : '-'),
+          userConnectedEmail: userData?.email || null,
+          userLastLogin: userData?.lastLogin || null,
+        };
+      });
       
       setOrganizers(processedOrganizers);
       setFilteredOrganizers(processedOrganizers);
@@ -725,32 +775,92 @@ export default function OrganizersPage() {
         );
       }
     },
-    { 
-      field: 'userConnectedName', 
-      headerName: 'Connected User', 
+    {
+      field: 'eventCount',
+      headerName: 'Events',
+      width: 70,
+      align: 'center',
+      headerAlign: 'center',
+      renderCell: (params) => {
+        const count = eventCounts[params.row._id];
+        if (count === undefined) {
+          return <span style={{ color: 'gray' }}>...</span>;
+        }
+        return <span>{count}</span>;
+      }
+    },
+    {
+      field: 'userConnectedName',
+      headerName: 'Connected User',
       width: 150,
       renderCell: (params) => {
         // No linked user
         if (!params.row.linkedUserLogin) {
           return <span>-</span>;
         }
-        
+
         // Try to get the name from the processed value first
         if (params.value && params.value !== '-') {
           return <span>{params.value}</span>;
         }
-        
+
         // If no processed value, try to find it in firebaseUsers state
-        const userName = firebaseUsers[params.row.linkedUserLogin];
-        if (userName) {
-          return <span>{userName}</span>;
+        const userData = firebaseUsers[params.row.linkedUserLogin];
+        if (userData?.displayName) {
+          return <span>{userData.displayName}</span>;
         }
-        
+
         // Still loading
         return <span style={{ color: 'gray', fontStyle: 'italic' }}>Not found</span>;
       }
     },
-    { 
+    {
+      field: 'userConnectedEmail',
+      headerName: 'User Email',
+      width: 180,
+      renderCell: (params) => {
+        if (!params.row.linkedUserLogin) return <span>-</span>;
+        if (params.value) {
+          return <span style={{ fontSize: '0.85em' }}>{params.value}</span>;
+        }
+        const userData = firebaseUsers[params.row.linkedUserLogin];
+        if (userData?.email) {
+          return <span style={{ fontSize: '0.85em' }}>{userData.email}</span>;
+        }
+        return <span>-</span>;
+      }
+    },
+    {
+      field: 'userLastLogin',
+      headerName: 'User Last Login',
+      width: 110,
+      renderCell: (params) => {
+        if (!params.value) return <span>-</span>;
+        const date = new Date(params.value);
+        return <span style={{ fontSize: '0.85em' }}>{date.toLocaleDateString()}</span>;
+      }
+    },
+    {
+      field: 'createdAt',
+      headerName: 'Created',
+      width: 100,
+      renderCell: (params) => {
+        if (!params.value) return <span>-</span>;
+        const date = new Date(params.value);
+        return <span style={{ fontSize: '0.85em' }}>{date.toLocaleDateString()}</span>;
+      }
+    },
+    {
+      field: 'updatedAt',
+      headerName: 'Updated',
+      width: 100,
+      renderCell: (params) => {
+        if (!params.value) return <span>-</span>;
+        const date = new Date(params.value);
+        return <span style={{ fontSize: '0.85em' }}>{date.toLocaleDateString()}</span>;
+      }
+    },
+    {
       field: 'actions', 
       headerName: 'Actions', 
       width: 180,
