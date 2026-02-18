@@ -106,6 +106,14 @@ export default function UserActivityPage() {
         users = activityData.users || [];
     }
 
+    // Sort by lastLoginAt descending (newest first)
+    users = [...users].sort((a, b) => {
+      if (!a.lastLoginAt && !b.lastLoginAt) return 0;
+      if (!a.lastLoginAt) return 1;
+      if (!b.lastLoginAt) return -1;
+      return new Date(b.lastLoginAt) - new Date(a.lastLoginAt);
+    });
+
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       users = users.filter(user =>
@@ -232,65 +240,58 @@ export default function UserActivityPage() {
     );
   };
 
-  // Render user card
+  // Render compact user row
   const renderUserCard = (user) => {
     const isExpanded = expandedUser === user.firebaseUserId;
     const details = userDetails[user.firebaseUserId];
     const statusColor = getStatusColor(user.daysSinceLogin, user.lastLoginAt);
 
     return (
-      <Card key={user.firebaseUserId} sx={{ mb: 1 }}>
-        <CardContent sx={{ pb: 1 }}>
-          {/* Main user info row */}
-          <Box
+      <Paper
+        key={user.firebaseUserId}
+        sx={{
+          mb: 0.5,
+          p: 1,
+          cursor: 'pointer',
+          '&:hover': { bgcolor: 'action.hover' }
+        }}
+        onClick={() => handleExpandUser(user)}
+        elevation={0}
+        variant="outlined"
+      >
+        {/* Compact single line */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography variant="body2" sx={{ minWidth: 90, color: 'text.secondary', fontSize: '0.75rem' }}>
+            {user.lastLoginAt ? format(new Date(user.lastLoginAt), 'MMM d, h:mm a') : 'Never'}
+          </Typography>
+          <Typography variant="body2" fontWeight="medium" sx={{ flex: 1, minWidth: 150 }} noWrap>
+            {user.displayName || 'Unnamed'}
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ flex: 1, minWidth: 180 }} noWrap>
+            {user.email || '-'}
+          </Typography>
+          {user.organizerId && (
+            <Chip label="Org" size="small" color="primary" sx={{ height: 20, fontSize: '0.65rem' }} />
+          )}
+          <Chip
+            label={user.loginCount || 0}
+            size="small"
+            sx={{ height: 20, minWidth: 30, fontSize: '0.65rem' }}
+          />
+          <Box sx={{
+            width: 8,
+            height: 8,
+            borderRadius: '50%',
+            bgcolor: statusColor === 'success' ? 'success.main' : statusColor === 'warning' ? 'warning.main' : 'error.main'
+          }} />
+          <ExpandMoreIcon
             sx={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'flex-start',
-              cursor: 'pointer'
+              fontSize: 18,
+              transform: isExpanded ? 'rotate(180deg)' : 'none',
+              transition: 'transform 0.2s'
             }}
-            onClick={() => handleExpandUser(user)}
-          >
-            <Box sx={{ flex: 1 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                <PersonIcon fontSize="small" color="action" />
-                <Typography variant="subtitle1" fontWeight="medium">
-                  {user.displayName || 'Unnamed User'}
-                </Typography>
-                {user.organizerId && (
-                  <Chip
-                    icon={<BusinessIcon sx={{ fontSize: 14 }} />}
-                    label="Organizer"
-                    size="small"
-                    color="primary"
-                    variant="outlined"
-                  />
-                )}
-              </Box>
-              <Typography variant="body2" color="text.secondary">
-                {user.email || 'No email'}
-              </Typography>
-            </Box>
-
-            <Box sx={{ textAlign: 'right', minWidth: 120 }}>
-              <Chip
-                icon={<AccessTimeIcon sx={{ fontSize: 14 }} />}
-                label={formatLastLogin(user.lastLoginAt)}
-                size="small"
-                color={statusColor}
-                variant="outlined"
-              />
-              {user.loginCount > 0 && (
-                <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 0.5 }}>
-                  {user.loginCount} login{user.loginCount !== 1 ? 's' : ''}
-                </Typography>
-              )}
-            </Box>
-
-            <IconButton size="small" sx={{ ml: 1 }}>
-              {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-            </IconButton>
-          </Box>
+          />
+        </Box>
 
           {/* Expanded details */}
           <Collapse in={isExpanded} timeout="auto" unmountOnExit>
@@ -534,8 +535,7 @@ export default function UserActivityPage() {
               </Box>
             )}
           </Collapse>
-        </CardContent>
-      </Card>
+      </Paper>
     );
   };
 
@@ -637,7 +637,18 @@ export default function UserActivityPage() {
                 </Typography>
               </Paper>
             ) : (
-              filteredUsers.map(user => renderUserCard(user))
+              <>
+                {/* Header row */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1, py: 0.5, borderBottom: 1, borderColor: 'divider', mb: 0.5 }}>
+                  <Typography variant="caption" sx={{ minWidth: 90, fontWeight: 'bold' }}>Last Login</Typography>
+                  <Typography variant="caption" sx={{ flex: 1, minWidth: 150, fontWeight: 'bold' }}>Name</Typography>
+                  <Typography variant="caption" sx={{ flex: 1, minWidth: 180, fontWeight: 'bold' }}>Email</Typography>
+                  <Typography variant="caption" sx={{ width: 35, fontWeight: 'bold' }}>Org</Typography>
+                  <Typography variant="caption" sx={{ width: 30, fontWeight: 'bold' }}>#</Typography>
+                  <Typography variant="caption" sx={{ width: 26, fontWeight: 'bold' }}></Typography>
+                </Box>
+                {filteredUsers.map(user => renderUserCard(user))}
+              </>
             )}
           </Box>
 
