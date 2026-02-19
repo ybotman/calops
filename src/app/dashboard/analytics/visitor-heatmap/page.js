@@ -32,6 +32,7 @@ export default function VisitorHeatmapPage() {
   const [error, setError] = useState(null);
   const [heatmapData, setHeatmapData] = useState(null);
   const [timeRange, setTimeRange] = useState('3M');
+  const [sourceFilter, setSourceFilter] = useState('all'); // 'all', 'logins', 'visitors'
 
   // Handle time range button click
   const handleTimeRangeChange = (event, newValue) => {
@@ -41,16 +42,30 @@ export default function VisitorHeatmapPage() {
     }
   };
 
+  // Handle source filter change
+  const handleSourceFilterChange = (event, newValue) => {
+    if (newValue) {
+      console.log(`[Heatmap] Source filter changed: ${sourceFilter} → ${newValue}`);
+      setSourceFilter(newValue);
+    }
+  };
+
   // Fetch heatmap data from backend
   const fetchHeatmapData = useCallback(async () => {
-    console.log(`[Heatmap] Fetching data for range: ${timeRange}`);
+    console.log(`[Heatmap] Fetching data for range: ${timeRange}, source: ${sourceFilter}`);
     setLoading(true);
     setError(null);
 
     try {
+      // Build query params based on source filter
+      const includeLogins = sourceFilter === 'all' || sourceFilter === 'logins';
+      const includeVisitors = sourceFilter === 'all' || sourceFilter === 'visitors';
+
       // API uses range param with values: 1H, 1D, 1W, 1M, 3M, 1Yr, All
       // Add timestamp to bust browser/CDN cache
-      const response = await axios.get(`/api/analytics/visitor-heatmap?range=${timeRange}&_t=${Date.now()}`);
+      const response = await axios.get(
+        `/api/analytics/visitor-heatmap?range=${timeRange}&includeLogins=${includeLogins}&includeVisitors=${includeVisitors}&_t=${Date.now()}`
+      );
       const data = response.data;
 
       console.log(`[Heatmap] API response for range=${timeRange}:`, {
@@ -104,7 +119,7 @@ export default function VisitorHeatmapPage() {
     } finally {
       setLoading(false);
     }
-  }, [timeRange]);
+  }, [timeRange, sourceFilter]);
 
   useEffect(() => {
     fetchHeatmapData();
@@ -136,7 +151,7 @@ export default function VisitorHeatmapPage() {
         <Typography variant="h4">
           Visitor Heatmap
         </Typography>
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
           <ToggleButtonGroup
             value={timeRange}
             exclusive
@@ -150,6 +165,17 @@ export default function VisitorHeatmapPage() {
             <ToggleButton value="3M">3M</ToggleButton>
             <ToggleButton value="1Yr">1Yr</ToggleButton>
             <ToggleButton value="All">All</ToggleButton>
+          </ToggleButtonGroup>
+          <ToggleButtonGroup
+            value={sourceFilter}
+            exclusive
+            onChange={handleSourceFilterChange}
+            size="small"
+            color="secondary"
+          >
+            <ToggleButton value="all">All</ToggleButton>
+            <ToggleButton value="logins">Logins</ToggleButton>
+            <ToggleButton value="visitors">Visitors</ToggleButton>
           </ToggleButtonGroup>
           <Button
             variant="outlined"
