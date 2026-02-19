@@ -73,10 +73,7 @@ export default function VisitorHeatmapPage() {
       case '1w': return 'days=7';
       case '1m': return 'days=30';
       case '3m': return 'days=90';
-      case 'ytd':
-        const startOfYear = new Date(now.getFullYear(), 0, 1);
-        const daysSinceYearStart = Math.ceil((now - startOfYear) / (1000 * 60 * 60 * 24));
-        return `days=${daysSinceYearStart}`;
+      case '1y': return 'days=365';
       case 'all': return '';
       default: return 'days=30';
     }
@@ -193,7 +190,7 @@ export default function VisitorHeatmapPage() {
             <ToggleButton value="1w">1W</ToggleButton>
             <ToggleButton value="1m">1M</ToggleButton>
             <ToggleButton value="3m">3M</ToggleButton>
-            <ToggleButton value="ytd">YTD</ToggleButton>
+            <ToggleButton value="1y">1Yr</ToggleButton>
             <ToggleButton value="all">All</ToggleButton>
           </ToggleButtonGroup>
           <Button
