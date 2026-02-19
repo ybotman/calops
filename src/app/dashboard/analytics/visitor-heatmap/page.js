@@ -373,21 +373,40 @@ export default function VisitorHeatmapPage() {
             </Box>
           ))}
 
-          {/* Legend */}
-          <Box sx={{ display: 'flex', alignItems: 'center', mt: 3, gap: 1 }}>
-            <Typography variant="caption" color="text.secondary">Less</Typography>
-            {['#f5f5f5', '#c8e6c9', '#81c784', '#4caf50', '#388e3c', '#1b5e20'].map((color, i) => (
-              <Box
-                key={i}
-                sx={{
-                  width: 16,
-                  height: 16,
-                  backgroundColor: color,
-                  borderRadius: 0.5
-                }}
-              />
-            ))}
-            <Typography variant="caption" color="text.secondary">More</Typography>
+          {/* Legend with scale */}
+          <Box sx={{ display: 'flex', alignItems: 'center', mt: 3, gap: 0.5 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ mr: 1 }}>Scale:</Typography>
+            {[
+              { color: '#f5f5f5', threshold: 0 },
+              { color: '#c8e6c9', threshold: 0.2 },
+              { color: '#81c784', threshold: 0.4 },
+              { color: '#4caf50', threshold: 0.6 },
+              { color: '#388e3c', threshold: 0.8 },
+              { color: '#1b5e20', threshold: 1.0 }
+            ].map(({ color, threshold }, i) => {
+              const value = Math.round(heatmapData.maxCount * threshold);
+              return (
+                <Tooltip key={i} title={`${value}+ events`} arrow>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <Box
+                      sx={{
+                        width: 20,
+                        height: 16,
+                        backgroundColor: color,
+                        borderRadius: 0.5,
+                        border: '1px solid #e0e0e0'
+                      }}
+                    />
+                    <Typography variant="caption" sx={{ fontSize: '0.6rem', color: 'text.secondary' }}>
+                      {value}
+                    </Typography>
+                  </Box>
+                </Tooltip>
+              );
+            })}
+            <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+              (max: {heatmapData.maxCount})
+            </Typography>
           </Box>
         </Paper>
         </>
