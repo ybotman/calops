@@ -45,6 +45,11 @@ export default function StatusPanel() {
   const [expanded, setExpanded] = useState(false);
   const [envExpanded, setEnvExpanded] = useState(false);
 
+  // Frontend version info from build-time env vars
+  const feVersion = process.env.NEXT_PUBLIC_APP_VERSION || 'unknown';
+  const feAppName = process.env.NEXT_PUBLIC_APP_NAME || 'calops';
+  const feBuildTime = process.env.NEXT_PUBLIC_BUILD_TIME || 'unknown';
+
   const fetchStatus = async () => {
     try {
       setLoading(true);
@@ -54,26 +59,40 @@ export default function StatusPanel() {
       // Fetch backend health status
       // Azure Functions uses /api/health, Express uses /health
       const healthPath = backendType === 'Azure Functions' ? '/api/health' : '/health';
-      const response = await fetch(`${backendUrl}${healthPath}`);
+      const versionPath = backendType === 'Azure Functions' ? '/api/health/version' : '/health/version';
 
-      if (!response.ok) {
-        throw new Error(`Backend health check failed: ${response.status} ${response.statusText}`);
+      // Fetch both health and version endpoints
+      const [healthResponse, versionResponse] = await Promise.all([
+        fetch(`${backendUrl}${healthPath}`),
+        fetch(`${backendUrl}${versionPath}`).catch(() => null)
+      ]);
+
+      if (!healthResponse.ok) {
+        throw new Error(`Backend health check failed: ${healthResponse.status} ${healthResponse.statusText}`);
       }
 
-      const backendData = await response.json();
+      const backendData = await healthResponse.json();
+      const versionData = versionResponse?.ok ? await versionResponse.json() : null;
 
       // Format status data to match expected structure
       const formattedStatus = {
         application: {
           status: 'ok',
-          version: '1.0.0',
+          version: feVersion,
+          name: feAppName,
+          buildTime: feBuildTime,
           message: 'CalOps application running'
         },
         backend: {
-          status: backendData.status === 'ok' ? 'ok' : 'error',
+          status: backendData.status === 'ok' || backendData.status === 'healthy' ? 'ok' : 'error',
           type: backendType,
           url: backendUrl,
-          message: `${backendType} ${backendData.status === 'ok' ? 'connected' : 'disconnected'}`,
+          version: versionData?.version || backendData?.version || 'unknown',
+          name: versionData?.name || 'calendar-be-af',
+          node: versionData?.node || 'unknown',
+          uptime: backendData?.uptime ? `${Math.round(backendData.uptime / 60)} min` : 'unknown',
+          environment: versionData?.environment?.functionApp || backendData?.environment || 'unknown',
+          message: `${backendType} ${backendData.status === 'ok' || backendData.status === 'healthy' ? 'connected' : 'disconnected'}`,
           apiMessage: `DB: ${backendData.dbConnected ? 'Connected' : 'Disconnected'}, Firebase: ${backendData.firebaseConnected ? 'Connected' : 'Disconnected'}`,
           ...backendData
         }
@@ -92,13 +111,16 @@ export default function StatusPanel() {
       setStatus({
         application: {
           status: 'ok',
-          version: '1.0.0',
+          version: feVersion,
+          name: feAppName,
+          buildTime: feBuildTime,
           message: 'CalOps application running'
         },
         backend: {
           status: 'error',
           type: backendType,
           url: backendUrl,
+          version: 'unknown',
           message: `${backendType} connection failed`,
           fallbackMessage: err.message
         }
@@ -183,6 +205,16 @@ export default function StatusPanel() {
     const afEnabled = process.env.NEXT_PUBLIC_AF_ENABLED === 'true';
     return [
       {
+        name: 'NEXT_PUBLIC_APP_VERSION',
+        value: feVersion,
+        description: 'CalOps frontend version (from package.json)'
+      },
+      {
+        name: 'NEXT_PUBLIC_BUILD_TIME',
+        value: feBuildTime,
+        description: 'Build timestamp'
+      },
+      {
         name: 'NEXT_PUBLIC_AF_ENABLED',
         value: process.env.NEXT_PUBLIC_AF_ENABLED || 'false',
         description: 'Azure Functions enabled (primary backend)'
@@ -199,7 +231,7 @@ export default function StatusPanel() {
       },
       {
         name: 'VERCEL_ENV',
-        value: process.env.VERCEL_ENV || 'N/A',
+        value: process.env.VERCEL_ENV || process.env.NEXT_PUBLIC_VERCEL_ENV || 'N/A',
         description: 'Vercel deployment environment'
       }
     ];
@@ -214,20 +246,32 @@ export default function StatusPanel() {
           justifyContent: 'space-between',
           alignItems: 'center',
           bgcolor: 'primary.main',
-          color: 'white'
+          color: 'white',
+          flexWrap: 'wrap',
+          gap: 1
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <Typography variant="h6" sx={{ mr: 2 }}>System Status</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+          <Typography variant="h6" sx={{ mr: 1 }}>System Status</Typography>
           {!loading && status && (
-            <Chip
-              label={getOverallStatus().toUpperCase()}
-              color={getOverallStatus() === 'ok' ? 'success' :
-                    getOverallStatus() === 'warning' ? 'warning' : 'error'}
-              size="small"
-              sx={{ fontWeight: 'bold', color: 'white', borderColor: 'white', bgcolor: 'transparent' }}
-              variant="outlined"
-            />
+            <>
+              <Chip
+                label={getOverallStatus().toUpperCase()}
+                color={getOverallStatus() === 'ok' ? 'success' :
+                      getOverallStatus() === 'warning' ? 'warning' : 'error'}
+                size="small"
+                sx={{ fontWeight: 'bold', color: 'white', borderColor: 'white', bgcolor: 'transparent' }}
+                variant="outlined"
+              />
+              <Typography variant="body2" sx={{ mx: 1, opacity: 0.9 }}>|</Typography>
+              <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                FE: v{status.application?.version || feVersion}
+              </Typography>
+              <Typography variant="body2" sx={{ mx: 0.5, opacity: 0.7 }}>•</Typography>
+              <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                BE: v{status.backend?.version || 'unknown'}
+              </Typography>
+            </>
           )}
         </Box>
         <Box>
@@ -266,8 +310,17 @@ export default function StatusPanel() {
                   {getStatusIcon(status.application?.status || 'ok')}
                 </ListItemIcon>
                 <ListItemText
-                  primary="CalOps Application"
-                  secondary={status.application?.message || `Version ${status.application?.version || '1.0.0'}`}
+                  primary={`CalOps Frontend (v${status.application?.version || feVersion})`}
+                  secondary={
+                    <>
+                      <Typography variant="body2" component="span" display="block">
+                        {status.application?.message || 'Running'}
+                      </Typography>
+                      <Typography variant="caption" component="span" display="block" sx={{ mt: 0.5 }}>
+                        Build: {status.application?.buildTime ? new Date(status.application.buildTime).toLocaleString() : 'unknown'}
+                      </Typography>
+                    </>
+                  }
                 />
                 <Box>{getStatusChip(status.application?.status || 'ok')}</Box>
               </ListItem>
@@ -277,15 +330,21 @@ export default function StatusPanel() {
                   {getStatusIcon(status.backend?.status || 'unknown')}
                 </ListItemIcon>
                 <ListItemText
-                  primary={`Backend API (${status.backend?.type || 'Unknown'})`}
+                  primary={`Backend API: ${status.backend?.name || 'calendar-be-af'} (v${status.backend?.version || 'unknown'})`}
                   secondary={
                     <>
                       <Typography variant="body2" component="span" display="block">
                         {status.backend?.message || status.backend?.url || 'Checking backend connection...'}
                       </Typography>
+                      <Typography variant="caption" component="span" display="block" sx={{ mt: 0.5 }}>
+                        Type: {status.backend?.type || 'Unknown'} | Uptime: {status.backend?.uptime || 'unknown'} | Node: {status.backend?.node || 'unknown'}
+                      </Typography>
+                      <Typography variant="caption" component="span" display="block" sx={{ mt: 0.5 }}>
+                        Environment: {status.backend?.environment || 'unknown'}
+                      </Typography>
                       {status.backend?.fallbackMessage && (
-                        <Typography variant="caption" component="span" display="block" sx={{ mt: 0.5 }}>
-                          {status.backend.fallbackMessage}
+                        <Typography variant="caption" component="span" display="block" sx={{ mt: 0.5, color: 'error.main' }}>
+                          Error: {status.backend.fallbackMessage}
                         </Typography>
                       )}
                       {status.backend?.apiMessage && (
