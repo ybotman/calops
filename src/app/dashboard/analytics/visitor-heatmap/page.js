@@ -20,8 +20,36 @@ const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
-// Note: Backend returns data in local time by default (timeType='local')
-// No timezone conversion needed - data is already in user's local time
+// Boston/Eastern Time offset (EST = -5, EDT = -4)
+// TODO: Make dynamic based on DST
+const ET_OFFSET = -5;
+
+/**
+ * Convert UTC heatmap to Boston/Eastern Time
+ * Shifts hours and handles day wraparound
+ */
+function convertToEasternTime(utcMatrix) {
+  const etMatrix = DAYS.map(() => Array(24).fill(0));
+
+  utcMatrix.forEach((dayData, utcDayIndex) => {
+    dayData.forEach((count, utcHour) => {
+      let etHour = utcHour + ET_OFFSET;
+      let etDayIndex = utcDayIndex;
+
+      if (etHour < 0) {
+        etHour += 24;
+        etDayIndex = (utcDayIndex - 1 + 7) % 7;
+      } else if (etHour >= 24) {
+        etHour -= 24;
+        etDayIndex = (utcDayIndex + 1) % 7;
+      }
+
+      etMatrix[etDayIndex][etHour] += count;
+    });
+  });
+
+  return etMatrix;
+}
 
 /**
  * Visitor Heatmap Page
@@ -33,6 +61,7 @@ export default function VisitorHeatmapPage() {
   const [heatmapData, setHeatmapData] = useState(null);
   const [timeRange, setTimeRange] = useState('3M');
   const [sourceFilter, setSourceFilter] = useState('all'); // 'all', 'logins', 'visitors'
+  const [timezoneMode, setTimezoneMode] = useState('boston'); // 'boston' or 'local'
 
   // Handle time range button click
   const handleTimeRangeChange = (event, newValue) => {
@@ -50,9 +79,17 @@ export default function VisitorHeatmapPage() {
     }
   };
 
+  // Handle timezone mode change
+  const handleTimezoneModeChange = (event, newValue) => {
+    if (newValue) {
+      console.log(`[Heatmap] Timezone mode changed: ${timezoneMode} → ${newValue}`);
+      setTimezoneMode(newValue);
+    }
+  };
+
   // Fetch heatmap data from backend
   const fetchHeatmapData = useCallback(async () => {
-    console.log(`[Heatmap] Fetching data for range: ${timeRange}, source: ${sourceFilter}`);
+    console.log(`[Heatmap] Fetching data for range: ${timeRange}, source: ${sourceFilter}, timezone: ${timezoneMode}`);
     setLoading(true);
     setError(null);
 
@@ -61,10 +98,13 @@ export default function VisitorHeatmapPage() {
       const includeLogins = sourceFilter === 'all' || sourceFilter === 'logins';
       const includeVisitors = sourceFilter === 'all' || sourceFilter === 'visitors';
 
+      // Boston mode uses UTC (zulu) and converts to ET; Local mode uses stored local time
+      const timeType = timezoneMode === 'boston' ? 'zulu' : 'local';
+
       // API uses range param with values: 1H, 1D, 1W, 1M, 3M, 1Yr, All
       // Add timestamp to bust browser/CDN cache
       const response = await axios.get(
-        `/api/analytics/visitor-heatmap?range=${timeRange}&includeLogins=${includeLogins}&includeVisitors=${includeVisitors}&_t=${Date.now()}`
+        `/api/analytics/visitor-heatmap?range=${timeRange}&includeLogins=${includeLogins}&includeVisitors=${includeVisitors}&timeType=${timeType}&_t=${Date.now()}`
       );
       const data = response.data;
 
@@ -79,17 +119,36 @@ export default function VisitorHeatmapPage() {
         const { heatmap, peak, sources, totals } = data.data;
 
         // Convert heatmap object {Sunday: [...], Monday: [...]} to 7x24 array
-        // Backend returns local time by default, no conversion needed
-        const matrix = DAYS.map(day => heatmap[day] || Array(24).fill(0));
+        const rawMatrix = DAYS.map(day => heatmap[day] || Array(24).fill(0));
 
-        // Format peak time for display (already in local time from backend)
+        // If Boston mode, convert UTC to Eastern Time; otherwise use as-is (local)
+        const matrix = timezoneMode === 'boston' ? convertToEasternTime(rawMatrix) : rawMatrix;
+
+        // Format peak time for display
         let displayPeak = { ...peak };
         if (peak) {
-          const period = peak.hour >= 12 ? 'PM' : 'AM';
-          const displayHour = peak.hour % 12 || 12;
+          let displayHour = peak.hour;
+          let displayDay = peak.day;
+
+          // Convert peak to ET if in Boston mode
+          if (timezoneMode === 'boston') {
+            displayHour = peak.hour + ET_OFFSET;
+            let dayIndex = DAYS.indexOf(peak.day);
+            if (displayHour < 0) {
+              displayHour += 24;
+              dayIndex = (dayIndex - 1 + 7) % 7;
+            }
+            displayDay = DAYS[dayIndex];
+          }
+
+          const period = displayHour >= 12 ? 'PM' : 'AM';
+          const hour12 = displayHour % 12 || 12;
+          const tzLabel = timezoneMode === 'boston' ? ' ET' : '';
           displayPeak = {
             ...peak,
-            timestamp: `${peak.day} at ${displayHour}:00 ${period}`
+            day: displayDay,
+            hour: displayHour,
+            timestamp: `${displayDay} at ${hour12}:00 ${period}${tzLabel}`
           };
         }
 
@@ -119,7 +178,7 @@ export default function VisitorHeatmapPage() {
     } finally {
       setLoading(false);
     }
-  }, [timeRange, sourceFilter]);
+  }, [timeRange, sourceFilter, timezoneMode]);
 
   useEffect(() => {
     fetchHeatmapData();
@@ -176,6 +235,16 @@ export default function VisitorHeatmapPage() {
             <ToggleButton value="all">All</ToggleButton>
             <ToggleButton value="logins">Logins</ToggleButton>
             <ToggleButton value="visitors">Visitors</ToggleButton>
+          </ToggleButtonGroup>
+          <ToggleButtonGroup
+            value={timezoneMode}
+            exclusive
+            onChange={handleTimezoneModeChange}
+            size="small"
+            color="primary"
+          >
+            <ToggleButton value="boston">Boston</ToggleButton>
+            <ToggleButton value="local">Local</ToggleButton>
           </ToggleButtonGroup>
           <Button
             variant="outlined"
@@ -239,7 +308,7 @@ export default function VisitorHeatmapPage() {
 
           <Paper sx={{ p: 3 }}>
             <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2 }}>
-              Activity by Day of Week &amp; Hour (Local Time)
+              Activity by Day of Week &amp; Hour ({timezoneMode === 'boston' ? 'Boston/Eastern Time' : 'User Local Time'})
             </Typography>
 
           {/* Hour labels */}
