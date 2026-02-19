@@ -62,7 +62,7 @@ export default function EventCreationPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [data, setData] = useState(null);
-  const [timeRange, setTimeRange] = useState('90');
+  const [timeRange, setTimeRange] = useState('3M');
   const [timezoneMode, setTimezoneMode] = useState('boston'); // 'boston' or 'local'
 
   const fetchData = useCallback(async () => {
@@ -72,7 +72,8 @@ export default function EventCreationPage() {
     try {
       // Boston mode uses UTC and converts; Local mode requests local time
       const timeType = timezoneMode === 'boston' ? 'zulu' : 'local';
-      const response = await axios.get(`/api/analytics/event-creation?appId=${appId}&days=${timeRange}&timeType=${timeType}`);
+      // Use range param (1H, 1D, 1W, 1M, 3M, 1Yr, All) - same as visitor heatmap
+      const response = await axios.get(`/api/analytics/event-creation?appId=${appId}&range=${timeRange}&timeType=${timeType}&_t=${Date.now()}`);
       const result = response.data;
 
       if (result.success && result.data) {
@@ -143,10 +144,13 @@ export default function EventCreationPage() {
             onChange={(e, v) => v && setTimeRange(v)}
             size="small"
           >
-            <ToggleButton value="30">30d</ToggleButton>
-            <ToggleButton value="60">60d</ToggleButton>
-            <ToggleButton value="90">90d</ToggleButton>
-            <ToggleButton value="365">1yr</ToggleButton>
+            <ToggleButton value="1H">1H</ToggleButton>
+            <ToggleButton value="1D">1D</ToggleButton>
+            <ToggleButton value="1W">1W</ToggleButton>
+            <ToggleButton value="1M">1M</ToggleButton>
+            <ToggleButton value="3M">3M</ToggleButton>
+            <ToggleButton value="1Yr">1Yr</ToggleButton>
+            <ToggleButton value="All">All</ToggleButton>
           </ToggleButtonGroup>
           <ToggleButtonGroup
             value={timezoneMode}
