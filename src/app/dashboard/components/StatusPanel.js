@@ -74,6 +74,16 @@ export default function StatusPanel() {
       const backendData = await healthResponse.json();
       const versionData = versionResponse?.ok ? await versionResponse.json() : null;
 
+      // Calculate uptime in days from seconds
+      // versionData has uptime.processSeconds, backendData has raw uptime in seconds
+      const uptimeSeconds = versionData?.uptime?.processSeconds || backendData?.uptime || 0;
+      const uptimeDays = (uptimeSeconds / 86400).toFixed(1);
+      const uptimeFormatted = uptimeSeconds > 0 ? `${uptimeDays} days` : 'unknown';
+
+      // Backend health indicates DB/Firebase connectivity (API can't respond without them)
+      const isHealthy = backendData.status === 'ok' || backendData.status === 'healthy';
+      const dbStatus = isHealthy ? 'Connected' : 'Disconnected';
+
       // Format status data to match expected structure
       const formattedStatus = {
         application: {
@@ -84,17 +94,18 @@ export default function StatusPanel() {
           message: 'CalOps application running'
         },
         backend: {
-          status: backendData.status === 'ok' || backendData.status === 'healthy' ? 'ok' : 'error',
+          // Spread raw backend data first, then override with formatted values
+          ...backendData,
+          status: isHealthy ? 'ok' : 'error',
           type: backendType,
           url: backendUrl,
           version: versionData?.version || backendData?.version || 'unknown',
           name: versionData?.name || 'calendar-be-af',
           node: versionData?.node || 'unknown',
-          uptime: backendData?.uptime ? `${Math.round(backendData.uptime / 60)} min` : 'unknown',
+          uptime: uptimeFormatted,
           environment: versionData?.environment?.functionApp || backendData?.environment || 'unknown',
-          message: `${backendType} ${backendData.status === 'ok' || backendData.status === 'healthy' ? 'connected' : 'disconnected'}`,
-          apiMessage: `DB: ${backendData.dbConnected ? 'Connected' : 'Disconnected'}, Firebase: ${backendData.firebaseConnected ? 'Connected' : 'Disconnected'}`,
-          ...backendData
+          message: `${backendType} ${isHealthy ? 'connected' : 'disconnected'}`,
+          apiMessage: `DB: ${dbStatus}, Firebase: ${dbStatus}`
         }
       };
 
