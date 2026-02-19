@@ -449,6 +449,9 @@ START OF FILE: YBOTBOT-COMMANDS.md
 - **Directives <text>** or **Commands <text>**
   List all the directives (this list) to the user with a mini description. Compressed list but all directives.
 
+- **SHOFF** (Self-Handoff)
+  Trigger the self-handoff protocol. Write a handoff file for your future self documenting: current status, what was done, next steps, key decisions, and important context. Commit and push to agent-messages repo.
+
 - **Retrospective** or **Self-Diagnose**
   Triggers the Self-Introspective Analysis Mode - Session Review & Learning mode. Purpose is to help "future me" by documenting what went wrong and what worked, creating a learning system that improves over time.
 
