@@ -64,17 +64,32 @@ export default function VisitorHeatmapPage() {
   const [heatmapData, setHeatmapData] = useState(null);
   const [timeRange, setTimeRange] = useState('3M');
 
+  // Handle time range button click
+  const handleTimeRangeChange = (event, newValue) => {
+    if (newValue) {
+      console.log(`[Heatmap] Time range button clicked: ${timeRange} → ${newValue}`);
+      setTimeRange(newValue);
+    }
+  };
+
   // Fetch heatmap data from backend
   const fetchHeatmapData = useCallback(async () => {
+    console.log(`[Heatmap] Fetching data for range: ${timeRange}`);
     setLoading(true);
     setError(null);
 
     try {
       // API uses range param with values: 1H, 1D, 1W, 1M, 3M, 1Yr, All
-      const response = await axios.get(`/api/analytics/visitor-heatmap?range=${timeRange}`);
+      // Add timestamp to bust browser/CDN cache
+      const response = await axios.get(`/api/analytics/visitor-heatmap?range=${timeRange}&_t=${Date.now()}`);
       const data = response.data;
 
-      console.log('Heatmap API response:', data);
+      console.log(`[Heatmap] API response for range=${timeRange}:`, {
+        total: data.data?.sources?.total,
+        userLogins: data.data?.sources?.userLogins,
+        anonymous: data.data?.sources?.anonymousVisitors,
+        metadata: data.data?.metadata
+      });
 
       if (data.success && data.data) {
         const { heatmap, peak, sources, totals } = data.data;
@@ -166,7 +181,7 @@ export default function VisitorHeatmapPage() {
           <ToggleButtonGroup
             value={timeRange}
             exclusive
-            onChange={(e, v) => v && setTimeRange(v)}
+            onChange={handleTimeRangeChange}
             size="small"
           >
             <ToggleButton value="1H">1H</ToggleButton>
