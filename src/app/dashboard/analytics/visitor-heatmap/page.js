@@ -62,7 +62,22 @@ export default function VisitorHeatmapPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [heatmapData, setHeatmapData] = useState(null);
-  const [timeRange, setTimeRange] = useState('all');
+  const [timeRange, setTimeRange] = useState('1m');
+
+  // Convert time range to days/hours for API
+  const getTimeParams = () => {
+    const now = new Date();
+    switch (timeRange) {
+      case '1h': return 'hours=1';
+      case '1d': return 'days=1';
+      case '1w': return 'days=7';
+      case '1m': return 'days=30';
+      case '3m': return 'days=90';
+      case '1y': return 'days=365';
+      case 'all': return '';
+      default: return 'days=30';
+    }
+  };
 
   // Fetch heatmap data from backend
   const fetchHeatmapData = useCallback(async () => {
@@ -70,8 +85,9 @@ export default function VisitorHeatmapPage() {
     setError(null);
 
     try {
-      const params = timeRange !== 'all' ? `?days=${timeRange}` : '';
-      const response = await axios.get(`/api/analytics/visitor-heatmap${params}`);
+      const params = getTimeParams();
+      const queryString = params ? `?${params}` : '';
+      const response = await axios.get(`/api/analytics/visitor-heatmap${queryString}`);
       const data = response.data;
 
       console.log('Heatmap API response:', data);
@@ -169,9 +185,12 @@ export default function VisitorHeatmapPage() {
             onChange={(e, v) => v && setTimeRange(v)}
             size="small"
           >
-            <ToggleButton value="30">30d</ToggleButton>
-            <ToggleButton value="60">60d</ToggleButton>
-            <ToggleButton value="90">90d</ToggleButton>
+            <ToggleButton value="1h">1H</ToggleButton>
+            <ToggleButton value="1d">1D</ToggleButton>
+            <ToggleButton value="1w">1W</ToggleButton>
+            <ToggleButton value="1m">1M</ToggleButton>
+            <ToggleButton value="3m">3M</ToggleButton>
+            <ToggleButton value="1y">1Yr</ToggleButton>
             <ToggleButton value="all">All</ToggleButton>
           </ToggleButtonGroup>
           <Button

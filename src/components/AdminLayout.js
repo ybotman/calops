@@ -47,6 +47,7 @@ const dashboardNavItems = [
   { name: 'User Activity', icon: <AccessTimeIcon />, href: '/dashboard/user-activity' },
   { name: 'Visitor Heatmap', icon: <GridOnIcon />, href: '/dashboard/analytics/visitor-heatmap' },
   { name: 'Event Creation', icon: <GridOnIcon />, href: '/dashboard/analytics/event-creation' },
+  { name: 'Activity Tracking', icon: <AccessTimeIcon />, href: '/dashboard/analytics/activity-tracking' },
   { name: 'Logs', icon: <DescriptionIcon />, href: '/dashboard/logs' },
   { name: 'Data Health', icon: <HealthAndSafetyIcon />, href: '/dashboard/data-health' },
 ];
