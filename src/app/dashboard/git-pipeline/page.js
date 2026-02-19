@@ -25,15 +25,16 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import WarningIcon from '@mui/icons-material/Warning';
 import GitHubIcon from '@mui/icons-material/GitHub';
+import AddIcon from '@mui/icons-material/Add';
 
-// Repository configuration
+// Repository configuration - TANGOTIEMPO first, then BE-AF, then CALOPS
 const REPOS = [
   {
-    name: 'CALOPS',
+    name: 'TANGOTIEMPO',
     owner: 'ybotman',
-    repo: 'calops',
-    branches: { dev: 'main', test: 'TEST', prod: 'PROD' },
-    color: '#2196f3'
+    repo: 'TangoTiempo.com',
+    branches: { dev: 'DEVL', test: 'TEST', prod: 'PROD' },
+    color: '#ff9800'
   },
   {
     name: 'CALENDAR-BE-AF',
@@ -43,23 +44,27 @@ const REPOS = [
     color: '#4caf50'
   },
   {
-    name: 'TANGOTIEMPO',
+    name: 'CALOPS',
     owner: 'ybotman',
-    repo: 'TangoTiempo.com',
-    branches: { dev: 'DEVL', test: 'TEST', prod: 'PROD' },
-    color: '#ff9800'
+    repo: 'calops',
+    branches: { dev: 'main', test: 'TEST', prod: 'PROD' },
+    color: '#2196f3'
   }
 ];
 
 const GITHUB_API = 'https://api.github.com';
+const DEFAULT_COMMITS = 10;
+const MORE_COMMITS = 25;
 
 export default function GitPipelinePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [repoData, setRepoData] = useState([]);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [commitCounts, setCommitCounts] = useState({});
+  const [loadingMore, setLoadingMore] = useState({});
 
-  const fetchBranchData = useCallback(async (repoConfig) => {
+  const fetchBranchData = useCallback(async (repoConfig, perPage = DEFAULT_COMMITS) => {
     const { owner, repo, branches } = repoConfig;
     const branchData = {};
 
@@ -79,7 +84,7 @@ export default function GitPipelinePage() {
 
         // Get recent commits for this branch
         const commitsRes = await fetch(
-          `${GITHUB_API}/repos/${owner}/${repo}/commits?sha=${branchName}&per_page=10`
+          `${GITHUB_API}/repos/${owner}/${repo}/commits?sha=${branchName}&per_page=${perPage}`
         );
         const commits = commitsRes.ok ? await commitsRes.json() : [];
 
@@ -105,7 +110,7 @@ export default function GitPipelinePage() {
           author: branch.commit.commit.author.name,
           date: branch.commit.commit.author.date,
           version,
-          commits: commits.slice(0, 10).map(c => ({
+          commits: commits.map(c => ({
             sha: c.sha.substring(0, 7),
             message: c.commit.message.split('\n')[0].substring(0, 70),
             author: c.commit.author.name,
@@ -185,12 +190,74 @@ export default function GitPipelinePage() {
 
       setRepoData(results);
       setLastUpdated(new Date());
+
+      // Initialize commit counts
+      const counts = {};
+      results.forEach(repo => {
+        counts[repo.name] = { dev: DEFAULT_COMMITS, test: DEFAULT_COMMITS, prod: DEFAULT_COMMITS };
+      });
+      setCommitCounts(counts);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
   }, [fetchBranchData, compareBranches]);
+
+  const fetchMoreCommits = useCallback(async (repoName, env) => {
+    const loadingKey = `${repoName}-${env}`;
+    setLoadingMore(prev => ({ ...prev, [loadingKey]: true }));
+
+    try {
+      const repoConfig = REPOS.find(r => r.name === repoName);
+      if (!repoConfig) return;
+
+      const { owner, repo, branches } = repoConfig;
+      const branchName = branches[env];
+      const newCount = (commitCounts[repoName]?.[env] || DEFAULT_COMMITS) + MORE_COMMITS;
+
+      const commitsRes = await fetch(
+        `${GITHUB_API}/repos/${owner}/${repo}/commits?sha=${branchName}&per_page=${newCount}`
+      );
+
+      if (commitsRes.ok) {
+        const commits = await commitsRes.json();
+
+        setRepoData(prev => prev.map(r => {
+          if (r.name === repoName) {
+            return {
+              ...r,
+              branches: {
+                ...r.branches,
+                [env]: {
+                  ...r.branches[env],
+                  commits: commits.map(c => ({
+                    sha: c.sha.substring(0, 7),
+                    message: c.commit.message.split('\n')[0].substring(0, 70),
+                    author: c.commit.author.name,
+                    date: c.commit.author.date
+                  }))
+                }
+              }
+            };
+          }
+          return r;
+        }));
+
+        setCommitCounts(prev => ({
+          ...prev,
+          [repoName]: {
+            ...prev[repoName],
+            [env]: newCount
+          }
+        }));
+      }
+    } catch (err) {
+      console.error('Error fetching more commits:', err);
+    } finally {
+      setLoadingMore(prev => ({ ...prev, [loadingKey]: false }));
+    }
+  }, [commitCounts]);
 
   useEffect(() => {
     fetchAllData();
@@ -277,7 +344,7 @@ export default function GitPipelinePage() {
               <TableHead>
                 <TableRow sx={{ bgcolor: 'grey.100' }}>
                   <TableCell sx={{ fontWeight: 'bold' }}>Project</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>DEVL/main</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>DEVL</TableCell>
                   <TableCell sx={{ fontWeight: 'bold' }}>TEST</TableCell>
                   <TableCell sx={{ fontWeight: 'bold' }}>PROD</TableCell>
                   <TableCell sx={{ fontWeight: 'bold' }}>Pipeline</TableCell>
@@ -378,24 +445,28 @@ export default function GitPipelinePage() {
             <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
               {['dev', 'test', 'prod'].map((env) => {
                 const branch = repo.branches[env];
-                const envLabel = env === 'dev' ?
-                  (repo.branches.dev === 'DEVL' ? 'DEVL' : 'main') :
-                  env.toUpperCase();
+                const loadingKey = `${repo.name}-${env}`;
+                const isLoadingMore = loadingMore[loadingKey];
+                const currentCount = commitCounts[repo.name]?.[env] || DEFAULT_COMMITS;
 
                 return (
-                  <Paper key={env} sx={{ flex: 1, minWidth: 280, p: 2 }} variant="outlined">
+                  <Paper key={env} sx={{ flex: 1, minWidth: 300, p: 2 }} variant="outlined">
                     <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-                      {envLabel}
+                      {env === 'dev' ? 'DEVL' : env.toUpperCase()}
                       {branch?.version && (
                         <Chip label={`v${branch.version}`} size="small" sx={{ ml: 1 }} />
                       )}
+                      <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                        ({branch?.commits?.length || 0} commits)
+                      </Typography>
                     </Typography>
-                    {branch?.commits?.slice(0, 5).map((commit, idx) => (
+
+                    {branch?.commits?.slice(0, currentCount).map((commit, idx) => (
                       <Box
-                        key={commit.sha}
+                        key={`${commit.sha}-${idx}`}
                         sx={{
                           py: 0.5,
-                          borderBottom: idx < 4 ? '1px solid' : 'none',
+                          borderBottom: idx < (branch.commits.length - 1) ? '1px solid' : 'none',
                           borderColor: 'divider'
                         }}
                       >
@@ -411,6 +482,18 @@ export default function GitPipelinePage() {
                         </Typography>
                       </Box>
                     ))}
+
+                    <Button
+                      size="small"
+                      startIcon={isLoadingMore ? <CircularProgress size={14} /> : <AddIcon />}
+                      onClick={() => fetchMoreCommits(repo.name, env)}
+                      disabled={isLoadingMore}
+                      sx={{ mt: 1, textTransform: 'none' }}
+                      fullWidth
+                      variant="outlined"
+                    >
+                      {isLoadingMore ? 'Loading...' : `Get More (+${MORE_COMMITS})`}
+                    </Button>
                   </Paper>
                 );
               })}
