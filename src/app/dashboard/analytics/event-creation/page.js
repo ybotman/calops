@@ -63,21 +63,26 @@ export default function EventCreationPage() {
   const [error, setError] = useState(null);
   const [data, setData] = useState(null);
   const [timeRange, setTimeRange] = useState('90');
+  const [timezoneMode, setTimezoneMode] = useState('boston'); // 'boston' or 'local'
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await axios.get(`/api/analytics/event-creation?appId=${appId}&days=${timeRange}`);
+      // Boston mode uses UTC and converts; Local mode requests local time
+      const timeType = timezoneMode === 'boston' ? 'zulu' : 'local';
+      const response = await axios.get(`/api/analytics/event-creation?appId=${appId}&days=${timeRange}&timeType=${timeType}`);
       const result = response.data;
 
       if (result.success && result.data) {
         const { byDayOfWeek, byHour, topOrganizers, peak, totals } = result.data;
 
-        // Convert byDayOfWeek object to array and then to ET
-        const utcMatrix = DAYS.map(day => byDayOfWeek?.[day] || Array(24).fill(0));
-        const matrix = convertToEasternTime(utcMatrix);
+        // Convert byDayOfWeek object to array
+        const rawMatrix = DAYS.map(day => byDayOfWeek?.[day] || Array(24).fill(0));
+
+        // Convert to ET if in Boston mode, otherwise use as-is
+        const matrix = timezoneMode === 'boston' ? convertToEasternTime(rawMatrix) : rawMatrix;
 
         // Find max for color scaling
         let maxCount = 0;
@@ -100,7 +105,7 @@ export default function EventCreationPage() {
     } finally {
       setLoading(false);
     }
-  }, [appId, timeRange]);
+  }, [appId, timeRange, timezoneMode]);
 
   useEffect(() => {
     fetchData();
@@ -131,7 +136,7 @@ export default function EventCreationPage() {
         <Typography variant="h4">
           Event Creation Analytics
         </Typography>
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
           <ToggleButtonGroup
             value={timeRange}
             exclusive
@@ -142,6 +147,16 @@ export default function EventCreationPage() {
             <ToggleButton value="60">60d</ToggleButton>
             <ToggleButton value="90">90d</ToggleButton>
             <ToggleButton value="365">1yr</ToggleButton>
+          </ToggleButtonGroup>
+          <ToggleButtonGroup
+            value={timezoneMode}
+            exclusive
+            onChange={(e, v) => v && setTimezoneMode(v)}
+            size="small"
+            color="primary"
+          >
+            <ToggleButton value="boston">Boston</ToggleButton>
+            <ToggleButton value="local">Local</ToggleButton>
           </ToggleButtonGroup>
           <Button
             variant="outlined"
@@ -203,7 +218,7 @@ export default function EventCreationPage() {
             <Grid item xs={12} md={8}>
               <Paper sx={{ p: 3 }}>
                 <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2 }}>
-                  Event Creation by Day &amp; Hour (Eastern Time)
+                  Event Creation by Day &amp; Hour ({timezoneMode === 'boston' ? 'Boston/Eastern Time' : 'User Local Time'})
                 </Typography>
 
                 {/* Hour labels */}
@@ -262,13 +277,40 @@ export default function EventCreationPage() {
                   </Box>
                 ))}
 
-                {/* Legend */}
-                <Box sx={{ display: 'flex', alignItems: 'center', mt: 3, gap: 1 }}>
-                  <Typography variant="caption" color="text.secondary">Less</Typography>
-                  {['#f5f5f5', '#bbdefb', '#64b5f6', '#2196f3', '#1976d2', '#0d47a1'].map((color, i) => (
-                    <Box key={i} sx={{ width: 16, height: 16, backgroundColor: color, borderRadius: 0.5 }} />
-                  ))}
-                  <Typography variant="caption" color="text.secondary">More</Typography>
+                {/* Legend with scale */}
+                <Box sx={{ display: 'flex', alignItems: 'center', mt: 3, gap: 0.5 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ mr: 1 }}>Scale:</Typography>
+                  {[
+                    { color: '#f5f5f5', threshold: 0 },
+                    { color: '#bbdefb', threshold: 0.2 },
+                    { color: '#64b5f6', threshold: 0.4 },
+                    { color: '#2196f3', threshold: 0.6 },
+                    { color: '#1976d2', threshold: 0.8 },
+                    { color: '#0d47a1', threshold: 1.0 }
+                  ].map(({ color, threshold }, i) => {
+                    const value = Math.round(data.maxCount * threshold);
+                    return (
+                      <Tooltip key={i} title={`${value}+ events`} arrow>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                          <Box
+                            sx={{
+                              width: 20,
+                              height: 16,
+                              backgroundColor: color,
+                              borderRadius: 0.5,
+                              border: '1px solid #e0e0e0'
+                            }}
+                          />
+                          <Typography variant="caption" sx={{ fontSize: '0.6rem', color: 'text.secondary' }}>
+                            {value}
+                          </Typography>
+                        </Box>
+                      </Tooltip>
+                    );
+                  })}
+                  <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                    (max: {data.maxCount})
+                  </Typography>
                 </Box>
               </Paper>
             </Grid>
