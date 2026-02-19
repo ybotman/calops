@@ -43,10 +43,10 @@ import { organizersApi, eventsApi } from '@/lib/api-client.js';
 import { useAppContext } from '@/lib/AppContext';
 
 /**
- * User Activity Page
+ * User Logins Page
  * Shows users sorted by last login with drill-down to user details
  */
-export default function UserActivityPage() {
+export default function UserLoginsPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { currentApp } = useAppContext();
@@ -553,7 +553,7 @@ export default function UserActivityPage() {
         gap: 1
       }}>
         <Typography variant="h4" sx={{ fontSize: { xs: '1.5rem', sm: '2rem' } }}>
-          User Activity
+          User Logins
         </Typography>
         <Button
           variant="outlined"

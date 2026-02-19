@@ -45,7 +45,7 @@ import GitHubIcon from '@mui/icons-material/GitHub';
 // Navigation items - Dashboard/Admin section (first)
 const dashboardNavItems = [
   { name: 'Dashboard', icon: <DashboardIcon />, href: '/dashboard' },
-  { name: 'User Activity', icon: <AccessTimeIcon />, href: '/dashboard/user-activity' },
+  { name: 'User Logins', icon: <AccessTimeIcon />, href: '/dashboard/user-logins' },
   { name: 'Visitor Heatmap', icon: <GridOnIcon />, href: '/dashboard/analytics/visitor-heatmap' },
   { name: 'Event Creation', icon: <GridOnIcon />, href: '/dashboard/analytics/event-creation' },
   { name: 'Activity Tracking', icon: <AccessTimeIcon />, href: '/dashboard/analytics/activity-tracking' },
