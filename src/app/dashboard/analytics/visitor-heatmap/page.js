@@ -71,7 +71,8 @@ export default function VisitorHeatmapPage() {
 
     try {
       // API uses range param with values: 1H, 1D, 1W, 1M, 3M, 1Yr, All
-      const response = await axios.get(`/api/analytics/visitor-heatmap?range=${timeRange}`);
+      // Add timestamp to bust browser/CDN cache
+      const response = await axios.get(`/api/analytics/visitor-heatmap?range=${timeRange}&_t=${Date.now()}`);
       const data = response.data;
 
       console.log('Heatmap API response:', data);
