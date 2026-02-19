@@ -62,7 +62,7 @@ export default function VisitorHeatmapPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [heatmapData, setHeatmapData] = useState(null);
-  const [timeRange, setTimeRange] = useState('all');
+  const [timeRange, setTimeRange] = useState('3M');
 
   // Fetch heatmap data from backend
   const fetchHeatmapData = useCallback(async () => {
@@ -70,8 +70,8 @@ export default function VisitorHeatmapPage() {
     setError(null);
 
     try {
-      const params = timeRange !== 'all' ? `?days=${timeRange}` : '';
-      const response = await axios.get(`/api/analytics/visitor-heatmap${params}`);
+      // API uses range param with values: 1H, 1D, 1W, 1M, 3M, 1Yr, All
+      const response = await axios.get(`/api/analytics/visitor-heatmap?range=${timeRange}`);
       const data = response.data;
 
       console.log('Heatmap API response:', data);
@@ -169,10 +169,13 @@ export default function VisitorHeatmapPage() {
             onChange={(e, v) => v && setTimeRange(v)}
             size="small"
           >
-            <ToggleButton value="30">30d</ToggleButton>
-            <ToggleButton value="60">60d</ToggleButton>
-            <ToggleButton value="90">90d</ToggleButton>
-            <ToggleButton value="all">All</ToggleButton>
+            <ToggleButton value="1H">1H</ToggleButton>
+            <ToggleButton value="1D">1D</ToggleButton>
+            <ToggleButton value="1W">1W</ToggleButton>
+            <ToggleButton value="1M">1M</ToggleButton>
+            <ToggleButton value="3M">3M</ToggleButton>
+            <ToggleButton value="1Yr">1Yr</ToggleButton>
+            <ToggleButton value="All">All</ToggleButton>
           </ToggleButtonGroup>
           <Button
             variant="outlined"
