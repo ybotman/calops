@@ -25,12 +25,13 @@ import { useAppContext } from '@/lib/AppContext';
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
+const DOM_LABELS = Array.from({ length: 31 }, (_, i) => i + 1); // 1-31
 
 // UTC offset for Eastern Time
 const ET_OFFSET = -5;
 
 /**
- * Convert UTC heatmap to Eastern Time
+ * Convert UTC heatmap to Eastern Time (for DOW view)
  */
 function convertToEasternTime(utcMatrix) {
   const etMatrix = DAYS.map(() => Array(24).fill(0));
@@ -52,8 +53,35 @@ function convertToEasternTime(utcMatrix) {
 }
 
 /**
+ * Convert UTC DOM heatmap to Eastern Time
+ */
+function convertDomToEasternTime(utcDomHour) {
+  const etMatrix = {};
+  for (let d = 1; d <= 31; d++) {
+    etMatrix[d] = Array(24).fill(0);
+  }
+
+  Object.entries(utcDomHour || {}).forEach(([day, hourCounts]) => {
+    const dayNum = parseInt(day);
+    (hourCounts || []).forEach((count, utcHour) => {
+      let etHour = utcHour + ET_OFFSET;
+      let etDay = dayNum;
+      if (etHour < 0) {
+        etHour += 24;
+        etDay = dayNum - 1;
+        if (etDay < 1) etDay = 31; // wrap to end of month
+      }
+      if (etMatrix[etDay]) {
+        etMatrix[etDay][etHour] += count;
+      }
+    });
+  });
+  return etMatrix;
+}
+
+/**
  * Event Creation Analytics Page
- * Shows when events are created: 7x24 heatmap, top organizers, peaks
+ * Shows when events are created: DOW or DOM x Hour heatmap, top organizers, peaks
  */
 export default function EventCreationPage() {
   const { currentApp } = useAppContext();
@@ -64,6 +92,8 @@ export default function EventCreationPage() {
   const [data, setData] = useState(null);
   const [timeRange, setTimeRange] = useState('3M');
   const [timezoneMode, setTimezoneMode] = useState('boston'); // 'boston' or 'local'
+  const [viewMode, setViewMode] = useState('dow'); // 'dow' (day of week) or 'dom' (day of month)
+  const [sourceFilter, setSourceFilter] = useState('manual'); // 'all', 'manual', 'discovered'
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -72,26 +102,40 @@ export default function EventCreationPage() {
     try {
       // Boston mode uses UTC and converts; Local mode requests local time
       const timeType = timezoneMode === 'boston' ? 'zulu' : 'local';
-      // Use range param (1H, 1D, 1W, 1M, 3M, 1Yr, All) - same as visitor heatmap
-      const response = await axios.get(`/api/analytics/event-creation?appId=${appId}&range=${timeRange}&timeType=${timeType}&_t=${Date.now()}`);
+      const response = await axios.get(
+        `/api/analytics/event-creation?appId=${appId}&range=${timeRange}&timeType=${timeType}&source=${sourceFilter}&_t=${Date.now()}`
+      );
       const result = response.data;
 
       if (result.success && result.data) {
-        const { byDayOfWeek, byHour, topOrganizers, peak, totals } = result.data;
+        const { byDayOfWeek, byDomHour, byHour, topOrganizers, peak, totals } = result.data;
 
-        // Convert byDayOfWeek object to array
-        const rawMatrix = DAYS.map(day => byDayOfWeek?.[day] || Array(24).fill(0));
+        // Convert byDayOfWeek object to array for DOW view
+        const rawDowMatrix = DAYS.map(day => byDayOfWeek?.[day] || Array(24).fill(0));
+        const dowMatrix = timezoneMode === 'boston' ? convertToEasternTime(rawDowMatrix) : rawDowMatrix;
 
-        // Convert to ET if in Boston mode, otherwise use as-is
-        const matrix = timezoneMode === 'boston' ? convertToEasternTime(rawMatrix) : rawMatrix;
+        // Convert byDomHour for DOM view
+        const domMatrix = timezoneMode === 'boston'
+          ? convertDomToEasternTime(byDomHour)
+          : byDomHour || {};
 
-        // Find max for color scaling
-        let maxCount = 0;
-        matrix.forEach(row => row.forEach(c => { if (c > maxCount) maxCount = c; }));
+        // Find max for DOW color scaling
+        let dowMaxCount = 0;
+        dowMatrix.forEach(row => row.forEach(c => { if (c > dowMaxCount) dowMaxCount = c; }));
+
+        // Find max for DOM color scaling
+        let domMaxCount = 0;
+        Object.values(domMatrix).forEach(row => {
+          if (Array.isArray(row)) {
+            row.forEach(c => { if (c > domMaxCount) domMaxCount = c; });
+          }
+        });
 
         setData({
-          matrix,
-          maxCount,
+          dowMatrix,
+          domMatrix,
+          dowMaxCount,
+          domMaxCount,
           byHour,
           topOrganizers,
           peak,
@@ -106,7 +150,7 @@ export default function EventCreationPage() {
     } finally {
       setLoading(false);
     }
-  }, [appId, timeRange, timezoneMode]);
+  }, [appId, timeRange, timezoneMode, sourceFilter]);
 
   useEffect(() => {
     fetchData();
@@ -121,6 +165,16 @@ export default function EventCreationPage() {
     if (intensity < 0.6) return '#2196f3';
     if (intensity < 0.8) return '#1976d2';
     return '#0d47a1';
+  };
+
+  // Get source label for display
+  const getSourceLabel = () => {
+    switch (sourceFilter) {
+      case 'all': return 'All Events';
+      case 'manual': return 'Human Created';
+      case 'discovered': return 'AI Discovered';
+      default: return '';
+    }
   };
 
   return (
@@ -138,6 +192,7 @@ export default function EventCreationPage() {
           Event Creation Analytics
         </Typography>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+          {/* Time Range */}
           <ToggleButtonGroup
             value={timeRange}
             exclusive
@@ -152,6 +207,33 @@ export default function EventCreationPage() {
             <ToggleButton value="1Yr">1Yr</ToggleButton>
             <ToggleButton value="All">All</ToggleButton>
           </ToggleButtonGroup>
+
+          {/* Source Filter */}
+          <ToggleButtonGroup
+            value={sourceFilter}
+            exclusive
+            onChange={(e, v) => v && setSourceFilter(v)}
+            size="small"
+            color="secondary"
+          >
+            <ToggleButton value="all">All</ToggleButton>
+            <ToggleButton value="manual">Human</ToggleButton>
+            <ToggleButton value="discovered">AI</ToggleButton>
+          </ToggleButtonGroup>
+
+          {/* DOW / DOM Toggle */}
+          <ToggleButtonGroup
+            value={viewMode}
+            exclusive
+            onChange={(e, v) => v && setViewMode(v)}
+            size="small"
+            color="info"
+          >
+            <ToggleButton value="dow">DOW</ToggleButton>
+            <ToggleButton value="dom">DOM</ToggleButton>
+          </ToggleButtonGroup>
+
+          {/* Timezone */}
           <ToggleButtonGroup
             value={timezoneMode}
             exclusive
@@ -162,6 +244,7 @@ export default function EventCreationPage() {
             <ToggleButton value="boston">Boston</ToggleButton>
             <ToggleButton value="local">Local</ToggleButton>
           </ToggleButtonGroup>
+
           <Button
             variant="outlined"
             startIcon={<RefreshIcon />}
@@ -188,14 +271,21 @@ export default function EventCreationPage() {
             <Grid item xs={6} sm={3}>
               <Paper sx={{ p: 2, textAlign: 'center', borderTop: '4px solid #1976d2' }}>
                 <Typography variant="h4">{data.totals?.total?.toLocaleString() || 0}</Typography>
-                <Typography variant="body2" color="text.secondary">Events Created</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {getSourceLabel()}
+                </Typography>
               </Paper>
             </Grid>
             <Grid item xs={6} sm={3}>
               <Paper sx={{ p: 2, textAlign: 'center', borderTop: '4px solid #2e7d32' }}>
-                <Typography variant="h6">{data.peak?.dayOfWeek?.day || '-'}</Typography>
+                <Typography variant="h6">
+                  {viewMode === 'dow'
+                    ? (data.peak?.dow?.day || '-')
+                    : (data.peak?.dom?.day ? `${data.peak.dom.day}${getOrdinalSuffix(data.peak.dom.day)}` : '-')
+                  }
+                </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Peak Day ({data.peak?.dayOfWeek?.count || 0})
+                  Peak {viewMode === 'dow' ? 'Day' : 'Date'} ({viewMode === 'dow' ? data.peak?.dow?.count : data.peak?.dom?.count || 0})
                 </Typography>
               </Paper>
             </Grid>
@@ -222,16 +312,18 @@ export default function EventCreationPage() {
             <Grid item xs={12} md={8}>
               <Paper sx={{ p: 3 }}>
                 <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2 }}>
-                  Event Creation by Day &amp; Hour ({timezoneMode === 'boston' ? 'Boston/Eastern Time' : 'User Local Time'})
+                  Event Creation by {viewMode === 'dow' ? 'Day of Week' : 'Day of Month'} &amp; Hour
+                  ({timezoneMode === 'boston' ? 'Boston/Eastern Time' : 'User Local Time'})
+                  {sourceFilter !== 'all' && ` — ${getSourceLabel()}`}
                 </Typography>
 
                 {/* Hour labels */}
-                <Box sx={{ display: 'flex', mb: 0.5, ml: 5 }}>
+                <Box sx={{ display: 'flex', mb: 0.5, ml: viewMode === 'dow' ? 5 : 4 }}>
                   {HOURS.map(hour => (
                     <Box
                       key={hour}
                       sx={{
-                        width: 28,
+                        width: viewMode === 'dow' ? 28 : 22,
                         textAlign: 'center',
                         fontSize: '0.65rem',
                         color: 'text.secondary'
@@ -242,8 +334,8 @@ export default function EventCreationPage() {
                   ))}
                 </Box>
 
-                {/* Matrix rows */}
-                {DAY_LABELS.map((dayLabel, dayIndex) => (
+                {/* DOW Matrix rows */}
+                {viewMode === 'dow' && DAY_LABELS.map((dayLabel, dayIndex) => (
                   <Box key={dayLabel} sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
                     <Typography
                       sx={{
@@ -256,7 +348,7 @@ export default function EventCreationPage() {
                       {dayLabel}
                     </Typography>
                     {HOURS.map(hour => {
-                      const count = data.matrix[dayIndex]?.[hour] || 0;
+                      const count = data.dowMatrix[dayIndex]?.[hour] || 0;
                       return (
                         <Tooltip
                           key={hour}
@@ -267,12 +359,53 @@ export default function EventCreationPage() {
                             sx={{
                               width: 26,
                               height: 20,
-                              backgroundColor: getColor(count, data.maxCount),
+                              backgroundColor: getColor(count, data.dowMaxCount),
                               border: '1px solid #fff',
                               borderRadius: 0.5,
                               cursor: 'pointer',
                               transition: 'transform 0.1s',
                               '&:hover': { transform: 'scale(1.2)', zIndex: 1 }
+                            }}
+                          />
+                        </Tooltip>
+                      );
+                    })}
+                  </Box>
+                ))}
+
+                {/* DOM Matrix rows */}
+                {viewMode === 'dom' && DOM_LABELS.map(dayNum => (
+                  <Box key={dayNum} sx={{ display: 'flex', alignItems: 'center', mb: 0.25 }}>
+                    <Typography
+                      sx={{
+                        width: 28,
+                        fontSize: '0.7rem',
+                        fontWeight: 'medium',
+                        color: 'text.secondary',
+                        textAlign: 'right',
+                        pr: 1
+                      }}
+                    >
+                      {dayNum}
+                    </Typography>
+                    {HOURS.map(hour => {
+                      const count = data.domMatrix[dayNum]?.[hour] || 0;
+                      return (
+                        <Tooltip
+                          key={hour}
+                          title={`${dayNum}${getOrdinalSuffix(dayNum)} at ${hour}:00 — ${count} events`}
+                          arrow
+                        >
+                          <Box
+                            sx={{
+                              width: 20,
+                              height: 14,
+                              backgroundColor: getColor(count, data.domMaxCount),
+                              border: '1px solid #fff',
+                              borderRadius: 0.5,
+                              cursor: 'pointer',
+                              transition: 'transform 0.1s',
+                              '&:hover': { transform: 'scale(1.3)', zIndex: 1 }
                             }}
                           />
                         </Tooltip>
@@ -292,7 +425,8 @@ export default function EventCreationPage() {
                     { color: '#1976d2', threshold: 0.8 },
                     { color: '#0d47a1', threshold: 1.0 }
                   ].map(({ color, threshold }, i) => {
-                    const value = Math.round(data.maxCount * threshold);
+                    const maxCount = viewMode === 'dow' ? data.dowMaxCount : data.domMaxCount;
+                    const value = Math.round(maxCount * threshold);
                     return (
                       <Tooltip key={i} title={`${value}+ events`} arrow>
                         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -313,7 +447,7 @@ export default function EventCreationPage() {
                     );
                   })}
                   <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-                    (max: {data.maxCount})
+                    (max: {viewMode === 'dow' ? data.dowMaxCount : data.domMaxCount})
                   </Typography>
                 </Box>
               </Paper>
@@ -323,7 +457,7 @@ export default function EventCreationPage() {
             <Grid item xs={12} md={4}>
               <Paper sx={{ p: 2 }}>
                 <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2 }}>
-                  Top Event Creators
+                  Top Event Creators {sourceFilter !== 'all' && `(${getSourceLabel()})`}
                 </Typography>
                 <Table size="small">
                   <TableHead>
@@ -350,4 +484,11 @@ export default function EventCreationPage() {
       )}
     </Box>
   );
+}
+
+// Helper function for ordinal suffixes (1st, 2nd, 3rd, etc.)
+function getOrdinalSuffix(n) {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return s[(v - 20) % 10] || s[v] || s[0];
 }
