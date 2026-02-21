@@ -7,6 +7,22 @@ Generated on: 2026-02-10
 > **CALOPS is the administrative console** for managing the Master Calendar system.
 > It provides comprehensive tools for managing users, events, organizers, and geographic hierarchies.
 
+## CRITICAL: Code Boundaries
+
+**Dash (CALOPS) MUST NOT edit code in other projects.**
+
+| Project | Owner | Action |
+|---------|-------|--------|
+| calops | Dash (you) | ✅ Edit directly |
+| calendar-be-af | Fulton | ❌ Send message, do NOT edit |
+| tangotiempo.com | Sarah | ❌ Send message, do NOT edit |
+| harmonyjunction.org | Cord | ❌ Send message, do NOT edit |
+
+**When backend changes are needed:**
+1. Document the required changes
+2. Send message to Fulton via agent-messages
+3. Wait for Fulton to implement and deploy
+
 ---
 
 
