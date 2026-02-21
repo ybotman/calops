@@ -94,6 +94,7 @@ export default function EventCreationPage() {
   const [timezoneMode, setTimezoneMode] = useState('boston'); // 'boston' or 'local'
   const [viewMode, setViewMode] = useState('dow'); // 'dow' (day of week) or 'dom' (day of month)
   const [sourceFilter, setSourceFilter] = useState('manual'); // 'all', 'manual', 'discovered'
+  const [dateField, setDateField] = useState('created'); // 'created' or 'updated'
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -103,7 +104,7 @@ export default function EventCreationPage() {
       // Boston mode uses UTC and converts; Local mode requests local time
       const timeType = timezoneMode === 'boston' ? 'zulu' : 'local';
       const response = await axios.get(
-        `/api/analytics/event-creation?appId=${appId}&range=${timeRange}&timeType=${timeType}&source=${sourceFilter}&_t=${Date.now()}`
+        `/api/analytics/event-creation?appId=${appId}&range=${timeRange}&timeType=${timeType}&source=${sourceFilter}&dateField=${dateField}&_t=${Date.now()}`
       );
       const result = response.data;
 
@@ -150,7 +151,7 @@ export default function EventCreationPage() {
     } finally {
       setLoading(false);
     }
-  }, [appId, timeRange, timezoneMode, sourceFilter]);
+  }, [appId, timeRange, timezoneMode, sourceFilter, dateField]);
 
   useEffect(() => {
     fetchData();
@@ -175,6 +176,11 @@ export default function EventCreationPage() {
       case 'discovered': return 'AI Discovered';
       default: return '';
     }
+  };
+
+  // Get date field label for display
+  const getDateFieldLabel = () => {
+    return dateField === 'updated' ? 'Last Modified' : 'Created';
   };
 
   return (
@@ -219,6 +225,18 @@ export default function EventCreationPage() {
             <ToggleButton value="all">All</ToggleButton>
             <ToggleButton value="manual">Human</ToggleButton>
             <ToggleButton value="discovered">AI</ToggleButton>
+          </ToggleButtonGroup>
+
+          {/* Date Field - Created vs Updated */}
+          <ToggleButtonGroup
+            value={dateField}
+            exclusive
+            onChange={(e, v) => v && setDateField(v)}
+            size="small"
+            color="warning"
+          >
+            <ToggleButton value="created">Created</ToggleButton>
+            <ToggleButton value="updated">Updated</ToggleButton>
           </ToggleButtonGroup>
 
           {/* DOW / DOM Toggle */}
