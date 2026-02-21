@@ -95,6 +95,7 @@ export default function EventCreationPage() {
   const [viewMode, setViewMode] = useState('dow'); // 'dow' (day of week) or 'dom' (day of month)
   const [sourceFilter, setSourceFilter] = useState('manual'); // 'all', 'manual', 'discovered'
   const [dateField, setDateField] = useState('created'); // 'created' or 'updated'
+  const [selectedOrganizer, setSelectedOrganizer] = useState(null); // Filter by organizer
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -103,8 +104,9 @@ export default function EventCreationPage() {
     try {
       // Boston mode uses UTC and converts; Local mode requests local time
       const timeType = timezoneMode === 'boston' ? 'zulu' : 'local';
+      const organizerParam = selectedOrganizer ? `&organizer=${encodeURIComponent(selectedOrganizer)}` : '';
       const response = await axios.get(
-        `/api/analytics/event-creation?appId=${appId}&range=${timeRange}&timeType=${timeType}&source=${sourceFilter}&dateField=${dateField}&_t=${Date.now()}`
+        `/api/analytics/event-creation?appId=${appId}&range=${timeRange}&timeType=${timeType}&source=${sourceFilter}&dateField=${dateField}${organizerParam}&_t=${Date.now()}`
       );
       const result = response.data;
 
@@ -151,7 +153,7 @@ export default function EventCreationPage() {
     } finally {
       setLoading(false);
     }
-  }, [appId, timeRange, timezoneMode, sourceFilter, dateField]);
+  }, [appId, timeRange, timezoneMode, sourceFilter, dateField, selectedOrganizer]);
 
   useEffect(() => {
     fetchData();
@@ -474,9 +476,25 @@ export default function EventCreationPage() {
             {/* Top Organizers */}
             <Grid item xs={12} md={4}>
               <Paper sx={{ p: 2 }}>
-                <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2 }}>
-                  Top Event Creators {sourceFilter !== 'all' && `(${getSourceLabel()})`}
-                </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Typography variant="subtitle2" color="text.secondary">
+                    {selectedOrganizer
+                      ? `Filtered: ${selectedOrganizer}`
+                      : `Top Event Creators ${sourceFilter !== 'all' ? `(${getSourceLabel()})` : ''}`
+                    }
+                  </Typography>
+                  {selectedOrganizer && (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="error"
+                      onClick={() => setSelectedOrganizer(null)}
+                      sx={{ fontSize: '0.7rem', py: 0 }}
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </Box>
                 <Table size="small">
                   <TableHead>
                     <TableRow>
@@ -485,14 +503,28 @@ export default function EventCreationPage() {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {(data.topOrganizers || []).slice(0, 10).map((org, i) => (
-                      <TableRow key={i}>
-                        <TableCell sx={{ fontSize: '0.8rem' }}>
-                          {org.shortName || org.fullName || 'Unknown'}
-                        </TableCell>
-                        <TableCell align="right">{org.count}</TableCell>
-                      </TableRow>
-                    ))}
+                    {(data.topOrganizers || []).slice(0, 10).map((org, i) => {
+                      const orgName = org.shortName || org.fullName || 'Unknown';
+                      const isSelected = selectedOrganizer === orgName;
+                      return (
+                        <TableRow
+                          key={i}
+                          onClick={() => setSelectedOrganizer(isSelected ? null : orgName)}
+                          sx={{
+                            cursor: 'pointer',
+                            backgroundColor: isSelected ? 'action.selected' : 'inherit',
+                            '&:hover': { backgroundColor: 'action.hover' }
+                          }}
+                        >
+                          <TableCell sx={{ fontSize: '0.8rem', fontWeight: isSelected ? 'bold' : 'normal' }}>
+                            {orgName}
+                          </TableCell>
+                          <TableCell align="right" sx={{ fontWeight: isSelected ? 'bold' : 'normal' }}>
+                            {org.count}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </Paper>
