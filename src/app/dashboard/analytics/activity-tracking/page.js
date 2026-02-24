@@ -19,8 +19,12 @@ import {
   Tab,
   ToggleButton,
   ToggleButtonGroup,
-  TablePagination
+  TablePagination,
+  Tooltip
 } from '@mui/material';
+import GpsFixedIcon from '@mui/icons-material/GpsFixed';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import WifiIcon from '@mui/icons-material/Wifi';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import LoginIcon from '@mui/icons-material/Login';
 import VisibilityIcon from '@mui/icons-material/Visibility';
@@ -28,6 +32,33 @@ import MapIcon from '@mui/icons-material/Map';
 import axios from 'axios';
 import { useAppContext } from '@/lib/AppContext';
 import { format } from 'date-fns';
+
+// Helper to get location source display
+const getSourceChip = (location) => {
+  if (!location?.source) return null;
+
+  const sourceConfig = {
+    GoogleBrowser: { label: 'GPS', color: 'success', icon: <GpsFixedIcon sx={{ fontSize: 14 }} /> },
+    GoogleGeolocation: { label: 'Google', color: 'primary', icon: <LocationOnIcon sx={{ fontSize: 14 }} /> },
+    IPInfoIO: { label: 'IP', color: 'default', icon: <WifiIcon sx={{ fontSize: 14 }} /> }
+  };
+
+  const config = sourceConfig[location.source] || { label: location.source, color: 'default' };
+  const accuracy = location.browserGps?.accuracy;
+  const tooltipText = accuracy ? `${config.label} (±${Math.round(accuracy)}m)` : config.label;
+
+  return (
+    <Tooltip title={tooltipText} arrow>
+      <Chip
+        icon={config.icon}
+        label={accuracy ? `±${Math.round(accuracy)}m` : config.label}
+        size="small"
+        color={config.color}
+        sx={{ fontSize: '0.65rem', height: 20 }}
+      />
+    </Tooltip>
+  );
+};
 
 /**
  * Activity Tracking Dashboard
@@ -307,7 +338,7 @@ export default function ActivityTrackingPage() {
                     <TableCell>Timestamp</TableCell>
                     <TableCell>User ID</TableCell>
                     <TableCell>Device</TableCell>
-                    <TableCell>IP</TableCell>
+                    <TableCell>Source</TableCell>
                     <TableCell>Location</TableCell>
                     <TableCell>Timezone</TableCell>
                   </TableRow>
@@ -329,14 +360,19 @@ export default function ActivityTrackingPage() {
                           sx={{ fontSize: '0.7rem' }}
                         />
                       </TableCell>
-                      <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.65rem' }}>
-                        {entry.ip || '-'}
+                      <TableCell>
+                        {getSourceChip(entry.location)}
                       </TableCell>
                       <TableCell sx={{ fontSize: '0.75rem' }}>
-                        {[entry.location?.city, entry.location?.region, entry.location?.country].filter(Boolean).join(', ') || '-'}
+                        <Tooltip title={`${entry.location?.latitude?.toFixed(4) || '-'}, ${entry.location?.longitude?.toFixed(4) || '-'}`} arrow>
+                          <span>
+                            {[entry.location?.city || entry.location?.ipLookup?.city,
+                              entry.location?.region || entry.location?.ipLookup?.region].filter(Boolean).join(', ') || '-'}
+                          </span>
+                        </Tooltip>
                       </TableCell>
                       <TableCell sx={{ fontSize: '0.7rem' }}>
-                        {entry.timezone || '-'}
+                        {entry.timezone || entry.location?.ipLookup?.timezone || '-'}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -377,7 +413,7 @@ export default function ActivityTrackingPage() {
                     <TableCell>Visitor ID</TableCell>
                     <TableCell>Page</TableCell>
                     <TableCell>Device</TableCell>
-                    <TableCell>IP</TableCell>
+                    <TableCell>Source</TableCell>
                     <TableCell>Location</TableCell>
                   </TableRow>
                 </TableHead>
@@ -401,11 +437,13 @@ export default function ActivityTrackingPage() {
                           sx={{ fontSize: '0.7rem' }}
                         />
                       </TableCell>
-                      <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.65rem' }}>
-                        {entry.ip || '-'}
-                      </TableCell>
                       <TableCell sx={{ fontSize: '0.75rem' }}>
-                        {[entry.location?.city, entry.location?.region, entry.location?.country].filter(Boolean).join(', ') || '-'}
+                        <Tooltip title={`${entry.location?.latitude?.toFixed(4) || '-'}, ${entry.location?.longitude?.toFixed(4) || '-'}`} arrow>
+                          <span>
+                            {[entry.location?.city || entry.location?.ipLookup?.city,
+                              entry.location?.region || entry.location?.ipLookup?.region].filter(Boolean).join(', ') || '-'}
+                          </span>
+                        </Tooltip>
                       </TableCell>
                     </TableRow>
                   ))}
