@@ -37,6 +37,41 @@ import axios from 'axios';
 import { format } from 'date-fns';
 import usersApi from '@/lib/api-client/users';
 import organizersApi from '@/lib/api-client/organizers';
+import { useAuth } from '@/contexts/AuthContext';
+import LockIcon from '@mui/icons-material/Lock';
+
+/**
+ * PII Masking utilities for ReadUser role
+ */
+const maskIP = (ip) => {
+  if (!ip) return '-';
+  // Show first octet, mask the rest: 192.xxx.xxx.xxx
+  const parts = ip.split('.');
+  if (parts.length === 4) {
+    return `${parts[0]}.•••.•••.•••`;
+  }
+  return '•••.•••.•••.•••';
+};
+
+const maskEmail = (email) => {
+  if (!email) return '-';
+  const [local, domain] = email.split('@');
+  if (!domain) return '•••@•••';
+  const maskedLocal = local.length > 2 ? `${local[0]}•••${local[local.length - 1]}` : '•••';
+  return `${maskedLocal}@${domain}`;
+};
+
+const maskName = (name) => {
+  if (!name) return '-';
+  if (name.length <= 2) return '•••';
+  return `${name[0]}${'•'.repeat(name.length - 2)}${name[name.length - 1]}`;
+};
+
+const maskId = (id) => {
+  if (!id) return '-';
+  if (id.length <= 8) return '••••••••';
+  return `${id.slice(0, 4)}••••••••`;
+};
 
 /**
  * Unified User Activity Page
@@ -45,9 +80,26 @@ import organizersApi from '@/lib/api-client/organizers';
  * Shows Firebase info, UserLogin info, and Organizer details
  */
 export default function UserActivityPage() {
+  const { user } = useAuth();
   const [searchType, setSearchType] = useState('ip');
   const [searchValue, setSearchValue] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Role-based access: SA/SO = full access, RU/RA = masked PII
+  const userRoles = user?.roles || [];
+  const hasFullAccess = userRoles.some(role =>
+    ['SystemAdmin', 'SA', 'SystemOwner', 'SO'].includes(role)
+  );
+  const isReadOnly = !hasFullAccess; // RU, RA, or any other role = masked view
+
+  // Masking functions based on role
+  const m = {
+    ip: (val) => isReadOnly ? maskIP(val) : (val || '-'),
+    email: (val) => isReadOnly ? maskEmail(val) : (val || '-'),
+    name: (val) => isReadOnly ? maskName(val) : (val || '-'),
+    id: (val) => isReadOnly ? maskId(val) : (val || '-'),
+    username: (val) => isReadOnly ? maskName(val) : (val || '-')
+  };
   const [error, setError] = useState(null);
   const [results, setResults] = useState(null);
   const [userDetails, setUserDetails] = useState(null);
@@ -354,7 +406,14 @@ export default function UserActivityPage() {
   return (
     <Box>
       {/* Header */}
-      <Typography variant="h4" sx={{ mb: 3 }}>Unified User Activity</Typography>
+      <Typography variant="h4" sx={{ mb: 2 }}>Unified User Activity</Typography>
+
+      {/* Role-based access indicator */}
+      {isReadOnly && (
+        <Alert severity="info" icon={<LockIcon />} sx={{ mb: 2 }}>
+          <strong>Read-Only Mode</strong> — PII and IP addresses are masked. Contact a System Admin for full access.
+        </Alert>
+      )}
 
       {/* Search Panel */}
       <Paper sx={{ p: 3, mb: 3 }}>
@@ -442,12 +501,12 @@ export default function UserActivityPage() {
                     {results.lineage.expandedIPs.map(ip => (
                       <Chip
                         key={ip}
-                        label={ip}
+                        label={m.ip(ip)}
                         size="small"
                         variant="outlined"
                         color="secondary"
-                        onClick={() => { setSearchType('ip'); setSearchValue(ip); }}
-                        sx={{ fontFamily: 'monospace', fontSize: '0.65rem', cursor: 'pointer' }}
+                        onClick={hasFullAccess ? () => { setSearchType('ip'); setSearchValue(ip); } : undefined}
+                        sx={{ fontFamily: 'monospace', fontSize: '0.65rem', cursor: hasFullAccess ? 'pointer' : 'default' }}
                       />
                     ))}
                   </Box>
@@ -471,12 +530,12 @@ export default function UserActivityPage() {
                   {results.summary.userIds.map(id => (
                     <Chip
                       key={id}
-                      label={id.length > 16 ? `${id.slice(0, 8)}...${id.slice(-8)}` : id}
+                      label={isReadOnly ? m.id(id) : (id.length > 16 ? `${id.slice(0, 8)}...${id.slice(-8)}` : id)}
                       size="small"
                       color="primary"
                       variant="outlined"
-                      onClick={() => { setSearchType('userId'); setSearchValue(id); }}
-                      sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}
+                      onClick={hasFullAccess ? () => { setSearchType('userId'); setSearchValue(id); } : undefined}
+                      sx={{ fontFamily: 'monospace', fontSize: '0.7rem', cursor: hasFullAccess ? 'pointer' : 'default' }}
                     />
                   ))}
                 </Box>
@@ -490,12 +549,12 @@ export default function UserActivityPage() {
                   {results.summary.visitorIds.slice(0, 5).map(id => (
                     <Chip
                       key={id}
-                      label={id.length > 16 ? `${id.slice(0, 8)}...${id.slice(-8)}` : id}
+                      label={isReadOnly ? m.id(id) : (id.length > 16 ? `${id.slice(0, 8)}...${id.slice(-8)}` : id)}
                       size="small"
                       color="secondary"
                       variant="outlined"
-                      onClick={() => { setSearchType('visitorId'); setSearchValue(id); }}
-                      sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}
+                      onClick={hasFullAccess ? () => { setSearchType('visitorId'); setSearchValue(id); } : undefined}
+                      sx={{ fontFamily: 'monospace', fontSize: '0.7rem', cursor: hasFullAccess ? 'pointer' : 'default' }}
                     />
                   ))}
                   {results.summary.visitorIds.length > 5 && (
@@ -514,11 +573,11 @@ export default function UserActivityPage() {
                   {results.summary.ips.map(ip => (
                     <Chip
                       key={ip}
-                      label={ip}
+                      label={m.ip(ip)}
                       size="small"
                       variant="outlined"
-                      onClick={() => { setSearchType('ip'); setSearchValue(ip); }}
-                      sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}
+                      onClick={hasFullAccess ? () => { setSearchType('ip'); setSearchValue(ip); } : undefined}
+                      sx={{ fontFamily: 'monospace', fontSize: '0.7rem', cursor: hasFullAccess ? 'pointer' : 'default' }}
                     />
                   ))}
                 </Box>
@@ -578,23 +637,23 @@ export default function UserActivityPage() {
                                     <Typography variant="caption" color="text.secondary">Name</Typography>
                                     <Typography variant="body2" fontWeight="medium">
                                       {user.firstName || user.lastName
-                                        ? `${user.firstName || ''} ${user.lastName || ''}`.trim()
+                                        ? m.name(`${user.firstName || ''} ${user.lastName || ''}`.trim())
                                         : '-'}
                                     </Typography>
                                   </Box>
                                   <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                                     <Typography variant="caption" color="text.secondary">Email</Typography>
-                                    <Typography variant="body2">{user.email || '-'}</Typography>
+                                    <Typography variant="body2">{m.email(user.email)}</Typography>
                                   </Box>
                                   <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                                     <Typography variant="caption" color="text.secondary">Username</Typography>
-                                    <Typography variant="body2">{user.userName || '-'}</Typography>
+                                    <Typography variant="body2">{m.username(user.userName)}</Typography>
                                   </Box>
                                   <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                                     <Typography variant="caption" color="text.secondary">Firebase ID</Typography>
-                                    <Tooltip title={user.firebaseUserId || ''} arrow>
+                                    <Tooltip title={hasFullAccess ? (user.firebaseUserId || '') : 'Masked'} arrow>
                                       <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>
-                                        {user.firebaseUserId ? `${user.firebaseUserId.slice(0, 8)}...${user.firebaseUserId.slice(-8)}` : '-'}
+                                        {isReadOnly ? m.id(user.firebaseUserId) : (user.firebaseUserId ? `${user.firebaseUserId.slice(0, 8)}...${user.firebaseUserId.slice(-8)}` : '-')}
                                       </Typography>
                                     </Tooltip>
                                   </Box>
@@ -629,11 +688,11 @@ export default function UserActivityPage() {
                                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                                   <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                                     <Typography variant="caption" color="text.secondary">Full Name</Typography>
-                                    <Typography variant="body2" fontWeight="medium">{org.fullName || '-'}</Typography>
+                                    <Typography variant="body2" fontWeight="medium">{m.name(org.fullName)}</Typography>
                                   </Box>
                                   <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                                     <Typography variant="caption" color="text.secondary">Short Name</Typography>
-                                    <Typography variant="body2">{org.shortName || '-'}</Typography>
+                                    <Typography variant="body2">{m.name(org.shortName)}</Typography>
                                   </Box>
                                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <Typography variant="caption" color="text.secondary">Types</Typography>
@@ -653,7 +712,7 @@ export default function UserActivityPage() {
                                   {org.publicContactInfo?.email && (
                                     <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                                       <Typography variant="caption" color="text.secondary">Contact Email</Typography>
-                                      <Typography variant="body2">{org.publicContactInfo.email}</Typography>
+                                      <Typography variant="body2">{m.email(org.publicContactInfo.email)}</Typography>
                                     </Box>
                                   )}
                                 </Box>
@@ -713,10 +772,10 @@ export default function UserActivityPage() {
                         />
                       </TableCell>
                       <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>
-                        {item.ip || '-'}
+                        {m.ip(item.ip)}
                       </TableCell>
                       <TableCell sx={{ fontSize: '0.75rem' }}>
-                        <Tooltip title={`${item.location?.latitude?.toFixed(4) || '-'}, ${item.location?.longitude?.toFixed(4) || '-'}`} arrow>
+                        <Tooltip title={hasFullAccess ? `${item.location?.latitude?.toFixed(4) || '-'}, ${item.location?.longitude?.toFixed(4) || '-'}` : 'Location masked'} arrow>
                           <span>
                             {[item.location?.city || item.location?.ipLookup?.city,
                               item.location?.region || item.location?.ipLookup?.region].filter(Boolean).join(', ') || '-'}
@@ -732,15 +791,15 @@ export default function UserActivityPage() {
                       </TableCell>
                       <TableCell sx={{ fontSize: '0.75rem' }}>
                         {item.type === 'login' ? (
-                          <Tooltip title={item.firebaseUserId || ''} arrow>
-                            <span>User: {item.firebaseUserId?.slice(-8) || '-'}</span>
+                          <Tooltip title={hasFullAccess ? (item.firebaseUserId || '') : 'Masked'} arrow>
+                            <span>User: {isReadOnly ? m.id(item.firebaseUserId) : (item.firebaseUserId?.slice(-8) || '-')}</span>
                           </Tooltip>
                         ) : (
                           <>
                             {item.page && <span>Page: {item.page}</span>}
                             {!item.page && item.visitorId && (
-                              <Tooltip title={item.visitorId} arrow>
-                                <span>Visitor: {item.visitorId?.slice(-8)}</span>
+                              <Tooltip title={hasFullAccess ? item.visitorId : 'Masked'} arrow>
+                                <span>Visitor: {isReadOnly ? m.id(item.visitorId) : item.visitorId?.slice(-8)}</span>
                               </Tooltip>
                             )}
                           </>
