@@ -16,7 +16,10 @@ import {
   TableRow,
   Chip,
   Tabs,
-  Tab
+  Tab,
+  ToggleButton,
+  ToggleButtonGroup,
+  TablePagination
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import LoginIcon from '@mui/icons-material/Login';
@@ -37,20 +40,36 @@ export default function ActivityTrackingPage() {
   const [tabValue, setTabValue] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [timeRange, setTimeRange] = useState('7D');
+
+  // Data states
   const [loginHistory, setLoginHistory] = useState([]);
   const [visitorHistory, setVisitorHistory] = useState([]);
   const [mapCenterHistory, setMapCenterHistory] = useState([]);
 
+  // Pagination states
+  const [loginPagination, setLoginPagination] = useState({ page: 0, total: 0, pages: 0 });
+  const [visitorPagination, setVisitorPagination] = useState({ page: 0, total: 0, pages: 0 });
+  const [mapCenterPagination, setMapCenterPagination] = useState({ page: 0, total: 0, pages: 0 });
+  const [rowsPerPage, setRowsPerPage] = useState(50);
+
   // Fetch login history
-  const fetchLoginHistory = useCallback(async () => {
+  const fetchLoginHistory = useCallback(async (page = 0) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.get(`/api/analytics/login-history?appId=${appId}&limit=100`);
-      setLoginHistory(response.data?.history || []);
+      const response = await axios.get(
+        `/api/analytics/login-history?range=${timeRange}&page=${page}&limit=${rowsPerPage}&_t=${Date.now()}`
+      );
+      if (response.data?.success) {
+        setLoginHistory(response.data.data || []);
+        setLoginPagination(response.data.pagination || { page: 0, total: 0, pages: 0 });
+      } else {
+        throw new Error(response.data?.error || 'Failed to fetch login history');
+      }
     } catch (err) {
       if (err.response?.status === 404) {
-        setError('Login history endpoint not implemented yet (GET /api/analytics/login-history)');
+        setError('Login history endpoint not available');
       } else {
         setError(err.message);
       }
@@ -58,18 +77,25 @@ export default function ActivityTrackingPage() {
     } finally {
       setLoading(false);
     }
-  }, [appId]);
+  }, [timeRange, rowsPerPage]);
 
   // Fetch visitor history
-  const fetchVisitorHistory = useCallback(async () => {
+  const fetchVisitorHistory = useCallback(async (page = 0) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.get(`/api/analytics/visitor-history?appId=${appId}&limit=100`);
-      setVisitorHistory(response.data?.history || []);
+      const response = await axios.get(
+        `/api/analytics/visitor-history?range=${timeRange}&page=${page}&limit=${rowsPerPage}&_t=${Date.now()}`
+      );
+      if (response.data?.success) {
+        setVisitorHistory(response.data.data || []);
+        setVisitorPagination(response.data.pagination || { page: 0, total: 0, pages: 0 });
+      } else {
+        throw new Error(response.data?.error || 'Failed to fetch visitor history');
+      }
     } catch (err) {
       if (err.response?.status === 404) {
-        setError('Visitor history endpoint not implemented yet (GET /api/analytics/visitor-history)');
+        setError('Visitor history endpoint not available');
       } else {
         setError(err.message);
       }
@@ -77,18 +103,25 @@ export default function ActivityTrackingPage() {
     } finally {
       setLoading(false);
     }
-  }, [appId]);
+  }, [timeRange, rowsPerPage]);
 
   // Fetch map center history
-  const fetchMapCenterHistory = useCallback(async () => {
+  const fetchMapCenterHistory = useCallback(async (page = 0) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.get(`/api/analytics/mapcenter-history?appId=${appId}&limit=100`);
-      setMapCenterHistory(response.data?.history || []);
+      const response = await axios.get(
+        `/api/analytics/map-center-history?range=${timeRange}&page=${page}&limit=${rowsPerPage}&_t=${Date.now()}`
+      );
+      if (response.data?.success) {
+        setMapCenterHistory(response.data.data || []);
+        setMapCenterPagination(response.data.pagination || { page: 0, total: 0, pages: 0 });
+      } else {
+        throw new Error(response.data?.error || 'Failed to fetch map center history');
+      }
     } catch (err) {
       if (err.response?.status === 404) {
-        setError('Map center history endpoint not implemented yet (GET /api/analytics/mapcenter-history)');
+        setError('Map center history endpoint not available');
       } else {
         setError(err.message);
       }
@@ -96,34 +129,84 @@ export default function ActivityTrackingPage() {
     } finally {
       setLoading(false);
     }
-  }, [appId]);
+  }, [timeRange, rowsPerPage]);
 
   // Fetch data based on selected tab
   useEffect(() => {
-    if (tabValue === 0) fetchLoginHistory();
-    else if (tabValue === 1) fetchVisitorHistory();
-    else if (tabValue === 2) fetchMapCenterHistory();
-  }, [tabValue, fetchLoginHistory, fetchVisitorHistory, fetchMapCenterHistory]);
+    if (tabValue === 0) fetchLoginHistory(0);
+    else if (tabValue === 1) fetchVisitorHistory(0);
+    else if (tabValue === 2) fetchMapCenterHistory(0);
+  }, [tabValue, timeRange, fetchLoginHistory, fetchVisitorHistory, fetchMapCenterHistory]);
 
   const handleRefresh = () => {
-    if (tabValue === 0) fetchLoginHistory();
-    else if (tabValue === 1) fetchVisitorHistory();
-    else if (tabValue === 2) fetchMapCenterHistory();
+    if (tabValue === 0) fetchLoginHistory(loginPagination.page);
+    else if (tabValue === 1) fetchVisitorHistory(visitorPagination.page);
+    else if (tabValue === 2) fetchMapCenterHistory(mapCenterPagination.page);
+  };
+
+  const handleTimeRangeChange = (event, newValue) => {
+    if (newValue) setTimeRange(newValue);
+  };
+
+  const handlePageChange = (event, newPage) => {
+    if (tabValue === 0) {
+      setLoginPagination(p => ({ ...p, page: newPage }));
+      fetchLoginHistory(newPage);
+    } else if (tabValue === 1) {
+      setVisitorPagination(p => ({ ...p, page: newPage }));
+      fetchVisitorHistory(newPage);
+    } else if (tabValue === 2) {
+      setMapCenterPagination(p => ({ ...p, page: newPage }));
+      fetchMapCenterHistory(newPage);
+    }
+  };
+
+  const handleRowsPerPageChange = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+  };
+
+  const getCurrentPagination = () => {
+    if (tabValue === 0) return loginPagination;
+    if (tabValue === 1) return visitorPagination;
+    return mapCenterPagination;
   };
 
   return (
     <Box>
       {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+      <Box sx={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        mb: 3,
+        flexWrap: 'wrap',
+        gap: 2
+      }}>
         <Typography variant="h4">Activity Tracking</Typography>
-        <Button
-          variant="outlined"
-          startIcon={<RefreshIcon />}
-          onClick={handleRefresh}
-          disabled={loading}
-        >
-          Refresh
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+          <ToggleButtonGroup
+            value={timeRange}
+            exclusive
+            onChange={handleTimeRangeChange}
+            size="small"
+          >
+            <ToggleButton value="1H">1H</ToggleButton>
+            <ToggleButton value="1D">1D</ToggleButton>
+            <ToggleButton value="7D">7D</ToggleButton>
+            <ToggleButton value="1M">1M</ToggleButton>
+            <ToggleButton value="3M">3M</ToggleButton>
+            <ToggleButton value="1Yr">1Yr</ToggleButton>
+            <ToggleButton value="All">All</ToggleButton>
+          </ToggleButtonGroup>
+          <Button
+            variant="outlined"
+            startIcon={<RefreshIcon />}
+            onClick={handleRefresh}
+            disabled={loading}
+          >
+            Refresh
+          </Button>
+        </Box>
       </Box>
 
       {/* Info cards */}
@@ -207,37 +290,68 @@ export default function ActivityTrackingPage() {
       {/* Login History Tab */}
       {!loading && tabValue === 0 && (
         <Paper sx={{ p: 2 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+            <Typography variant="subtitle2" color="text.secondary">
+              {loginPagination.total.toLocaleString()} login records
+            </Typography>
+          </Box>
           {loginHistory.length === 0 ? (
             <Typography color="text.secondary" textAlign="center" py={4}>
-              No login history data available yet.
+              No login history data available for this time range.
             </Typography>
           ) : (
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Timestamp</TableCell>
-                  <TableCell>User</TableCell>
-                  <TableCell>IP</TableCell>
-                  <TableCell>Device</TableCell>
-                  <TableCell>Browser</TableCell>
-                  <TableCell>Location</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {loginHistory.map((entry, i) => (
-                  <TableRow key={i}>
-                    <TableCell sx={{ fontSize: '0.75rem' }}>
-                      {entry.timestamp ? format(new Date(entry.timestamp), 'MMM d, h:mm a') : '-'}
-                    </TableCell>
-                    <TableCell>{entry.userName || entry.email || entry.userId?.slice(-8) || '-'}</TableCell>
-                    <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>{entry.ip || '-'}</TableCell>
-                    <TableCell sx={{ fontSize: '0.75rem' }}>{entry.device || '-'}</TableCell>
-                    <TableCell sx={{ fontSize: '0.75rem' }}>{entry.browser || '-'}</TableCell>
-                    <TableCell sx={{ fontSize: '0.75rem' }}>{entry.city || entry.country || '-'}</TableCell>
+            <>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Timestamp</TableCell>
+                    <TableCell>User ID</TableCell>
+                    <TableCell>Device</TableCell>
+                    <TableCell>IP</TableCell>
+                    <TableCell>Location</TableCell>
+                    <TableCell>Timezone</TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHead>
+                <TableBody>
+                  {loginHistory.map((entry, i) => (
+                    <TableRow key={entry.id || i} hover>
+                      <TableCell sx={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
+                        {entry.timestamp ? format(new Date(entry.timestamp), 'MMM d, h:mm a') : '-'}
+                      </TableCell>
+                      <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>
+                        {entry.firebaseUserId?.slice(-8) || '-'}
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={entry.deviceType || 'unknown'}
+                          size="small"
+                          color={entry.deviceType === 'mobile' ? 'primary' : entry.deviceType === 'tablet' ? 'secondary' : 'default'}
+                          sx={{ fontSize: '0.7rem' }}
+                        />
+                      </TableCell>
+                      <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.65rem' }}>
+                        {entry.ip || '-'}
+                      </TableCell>
+                      <TableCell sx={{ fontSize: '0.75rem' }}>
+                        {[entry.location?.city, entry.location?.region, entry.location?.country].filter(Boolean).join(', ') || '-'}
+                      </TableCell>
+                      <TableCell sx={{ fontSize: '0.7rem' }}>
+                        {entry.timezone || '-'}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <TablePagination
+                component="div"
+                count={loginPagination.total}
+                page={loginPagination.page}
+                onPageChange={handlePageChange}
+                rowsPerPage={rowsPerPage}
+                onRowsPerPageChange={handleRowsPerPageChange}
+                rowsPerPageOptions={[25, 50, 100]}
+              />
+            </>
           )}
         </Paper>
       )}
@@ -245,35 +359,68 @@ export default function ActivityTrackingPage() {
       {/* Visitor Tracking Tab */}
       {!loading && tabValue === 1 && (
         <Paper sx={{ p: 2 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+            <Typography variant="subtitle2" color="text.secondary">
+              {visitorPagination.total.toLocaleString()} visitor records
+            </Typography>
+          </Box>
           {visitorHistory.length === 0 ? (
             <Typography color="text.secondary" textAlign="center" py={4}>
-              No visitor tracking data available yet.
+              No visitor tracking data available for this time range.
             </Typography>
           ) : (
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Timestamp</TableCell>
-                  <TableCell>IP</TableCell>
-                  <TableCell>Page</TableCell>
-                  <TableCell>Device</TableCell>
-                  <TableCell>Country</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {visitorHistory.map((entry, i) => (
-                  <TableRow key={i}>
-                    <TableCell sx={{ fontSize: '0.75rem' }}>
-                      {entry.timestamp ? format(new Date(entry.timestamp), 'MMM d, h:mm a') : '-'}
-                    </TableCell>
-                    <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>{entry.ip || '-'}</TableCell>
-                    <TableCell sx={{ fontSize: '0.75rem' }}>{entry.page || entry.path || '-'}</TableCell>
-                    <TableCell sx={{ fontSize: '0.75rem' }}>{entry.device || '-'}</TableCell>
-                    <TableCell sx={{ fontSize: '0.75rem' }}>{entry.country || '-'}</TableCell>
+            <>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Timestamp</TableCell>
+                    <TableCell>Visitor ID</TableCell>
+                    <TableCell>Page</TableCell>
+                    <TableCell>Device</TableCell>
+                    <TableCell>IP</TableCell>
+                    <TableCell>Location</TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHead>
+                <TableBody>
+                  {visitorHistory.map((entry, i) => (
+                    <TableRow key={entry.id || i} hover>
+                      <TableCell sx={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
+                        {entry.timestamp ? format(new Date(entry.timestamp), 'MMM d, h:mm a') : '-'}
+                      </TableCell>
+                      <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.65rem' }}>
+                        {entry.visitorId?.slice(-8) || '-'}
+                      </TableCell>
+                      <TableCell sx={{ fontSize: '0.75rem' }}>
+                        {entry.page || '-'}
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={entry.deviceType || 'unknown'}
+                          size="small"
+                          color={entry.deviceType === 'mobile' ? 'primary' : entry.deviceType === 'tablet' ? 'secondary' : 'default'}
+                          sx={{ fontSize: '0.7rem' }}
+                        />
+                      </TableCell>
+                      <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.65rem' }}>
+                        {entry.ip || '-'}
+                      </TableCell>
+                      <TableCell sx={{ fontSize: '0.75rem' }}>
+                        {[entry.location?.city, entry.location?.region, entry.location?.country].filter(Boolean).join(', ') || '-'}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <TablePagination
+                component="div"
+                count={visitorPagination.total}
+                page={visitorPagination.page}
+                onPageChange={handlePageChange}
+                rowsPerPage={rowsPerPage}
+                onRowsPerPageChange={handleRowsPerPageChange}
+                rowsPerPageOptions={[25, 50, 100]}
+              />
+            </>
           )}
         </Paper>
       )}
@@ -281,35 +428,64 @@ export default function ActivityTrackingPage() {
       {/* Map Center Tab */}
       {!loading && tabValue === 2 && (
         <Paper sx={{ p: 2 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+            <Typography variant="subtitle2" color="text.secondary">
+              {mapCenterPagination.total.toLocaleString()} map center records
+            </Typography>
+          </Box>
           {mapCenterHistory.length === 0 ? (
             <Typography color="text.secondary" textAlign="center" py={4}>
-              No map center history data available yet.
+              No map center history data available for this time range.
             </Typography>
           ) : (
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Timestamp</TableCell>
-                  <TableCell>User</TableCell>
-                  <TableCell>Latitude</TableCell>
-                  <TableCell>Longitude</TableCell>
-                  <TableCell>City</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {mapCenterHistory.map((entry, i) => (
-                  <TableRow key={i}>
-                    <TableCell sx={{ fontSize: '0.75rem' }}>
-                      {entry.timestamp ? format(new Date(entry.timestamp), 'MMM d, h:mm a') : '-'}
-                    </TableCell>
-                    <TableCell>{entry.userName || entry.userId?.slice(-8) || '-'}</TableCell>
-                    <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>{entry.latitude?.toFixed(4) || '-'}</TableCell>
-                    <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>{entry.longitude?.toFixed(4) || '-'}</TableCell>
-                    <TableCell sx={{ fontSize: '0.75rem' }}>{entry.city || '-'}</TableCell>
+            <>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Timestamp</TableCell>
+                    <TableCell>User ID</TableCell>
+                    <TableCell>Map Center</TableCell>
+                    <TableCell>Device</TableCell>
+                    <TableCell>User Location</TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHead>
+                <TableBody>
+                  {mapCenterHistory.map((entry, i) => (
+                    <TableRow key={entry.id || i} hover>
+                      <TableCell sx={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
+                        {entry.timestamp ? format(new Date(entry.timestamp), 'MMM d, h:mm a') : '-'}
+                      </TableCell>
+                      <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>
+                        {entry.firebaseUserId?.slice(-8) || '-'}
+                      </TableCell>
+                      <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>
+                        {entry.mapCenter?.latitude?.toFixed(4) || '-'}, {entry.mapCenter?.longitude?.toFixed(4) || '-'}
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={entry.deviceType || 'unknown'}
+                          size="small"
+                          color={entry.deviceType === 'mobile' ? 'primary' : entry.deviceType === 'tablet' ? 'secondary' : 'default'}
+                          sx={{ fontSize: '0.7rem' }}
+                        />
+                      </TableCell>
+                      <TableCell sx={{ fontSize: '0.75rem' }}>
+                        {[entry.userLocation?.city, entry.userLocation?.region, entry.userLocation?.country].filter(Boolean).join(', ') || '-'}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <TablePagination
+                component="div"
+                count={mapCenterPagination.total}
+                page={mapCenterPagination.page}
+                onPageChange={handlePageChange}
+                rowsPerPage={rowsPerPage}
+                onRowsPerPageChange={handleRowsPerPageChange}
+                rowsPerPageOptions={[25, 50, 100]}
+              />
+            </>
           )}
         </Paper>
       )}

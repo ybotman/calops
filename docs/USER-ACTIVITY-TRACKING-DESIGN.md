@@ -351,4 +351,4 @@ Get activity summary/stats for a user.
 
 ---
 
-*Document created by Dash - awaiting El Gotan review*
+*Document created by Dash - awaiting Ybotman review*
