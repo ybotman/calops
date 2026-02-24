@@ -99,6 +99,8 @@ export default function ActivityTrackingPage() {
   const [geoSource, setGeoSource] = useState('');
   const [city, setCity] = useState('');
   const [country, setCountry] = useState('');
+  const [ip, setIp] = useState('');
+  const [visitorId, setVisitorId] = useState('');
 
   // Build filter query string
   const buildFilterParams = useCallback(() => {
@@ -107,17 +109,21 @@ export default function ActivityTrackingPage() {
     if (geoSource) params.push(`geoSource=${geoSource}`);
     if (city) params.push(`city=${encodeURIComponent(city)}`);
     if (country) params.push(`country=${encodeURIComponent(country)}`);
+    if (ip) params.push(`ip=${encodeURIComponent(ip)}`);
+    if (visitorId) params.push(`visitorId=${encodeURIComponent(visitorId)}`);
     return params.length > 0 ? '&' + params.join('&') : '';
-  }, [deviceType, geoSource, city, country]);
+  }, [deviceType, geoSource, city, country, ip, visitorId]);
 
   const clearFilters = () => {
     setDeviceType('');
     setGeoSource('');
     setCity('');
     setCountry('');
+    setIp('');
+    setVisitorId('');
   };
 
-  const hasActiveFilters = deviceType || geoSource || city || country;
+  const hasActiveFilters = deviceType || geoSource || city || country || ip || visitorId;
 
   // Fetch login history
   const fetchLoginHistory = useCallback(async (page = 0) => {
@@ -330,6 +336,24 @@ export default function ActivityTrackingPage() {
               onChange={(e) => setCountry(e.target.value)}
               sx={{ width: 100 }}
             />
+            <TextField
+              size="small"
+              label="IP Address"
+              value={ip}
+              onChange={(e) => setIp(e.target.value)}
+              placeholder="71.232.30.16"
+              sx={{ width: 140 }}
+            />
+            {tabValue === 1 && (
+              <TextField
+                size="small"
+                label="Visitor ID"
+                value={visitorId}
+                onChange={(e) => setVisitorId(e.target.value)}
+                placeholder="UUID..."
+                sx={{ width: 160 }}
+              />
+            )}
             {hasActiveFilters && (
               <IconButton onClick={clearFilters} size="small" title="Clear filters">
                 <ClearIcon />
