@@ -20,8 +20,13 @@ import {
   TableHead,
   TableRow,
   Divider,
-  Tooltip
+  Tooltip,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Grid
 } from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import SearchIcon from '@mui/icons-material/Search';
 import PersonIcon from '@mui/icons-material/Person';
 import LoginIcon from '@mui/icons-material/Login';
@@ -30,11 +35,14 @@ import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import axios from 'axios';
 import { format } from 'date-fns';
+import usersApi from '@/lib/api-client/users';
+import organizersApi from '@/lib/api-client/organizers';
 
 /**
- * User Activity Lookup Page
+ * Unified User Activity Page
  * Search by userId, IP, or visitorId to see all related activity
  * Cross-references login history and visitor history via IP
+ * Shows Firebase info, UserLogin info, and Organizer details
  */
 export default function UserActivityPage() {
   const [searchType, setSearchType] = useState('ip');
@@ -42,6 +50,8 @@ export default function UserActivityPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [results, setResults] = useState(null);
+  const [userDetails, setUserDetails] = useState(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
 
   // Fetch login history with filters
   const fetchLoginHistory = async (filters) => {
@@ -57,6 +67,54 @@ export default function UserActivityPage() {
     return response.data?.data || [];
   };
 
+  // Fetch user and organizer details for identified users
+  const fetchUserDetails = async (userIds) => {
+    if (!userIds || userIds.length === 0) {
+      setUserDetails(null);
+      return;
+    }
+
+    setDetailsLoading(true);
+    try {
+      const details = { users: [], organizers: [] };
+
+      // Fetch user login info for each firebaseUserId
+      for (const firebaseUserId of userIds) {
+        try {
+          // Try appId 1 first, then 2
+          let user = await usersApi.getUserById(firebaseUserId, '1');
+          if (!user) {
+            user = await usersApi.getUserById(firebaseUserId, '2');
+          }
+          if (user) {
+            details.users.push(user);
+          }
+        } catch (err) {
+          console.log(`Could not fetch user ${firebaseUserId}:`, err.message);
+        }
+      }
+
+      // Fetch organizers that match these firebaseUserIds
+      try {
+        const allOrganizers1 = await organizersApi.getOrganizers('1', undefined, true);
+        const allOrganizers2 = await organizersApi.getOrganizers('2', undefined, true);
+        const allOrganizers = [...allOrganizers1, ...allOrganizers2];
+
+        details.organizers = allOrganizers.filter(org =>
+          org.firebaseUserId && userIds.includes(org.firebaseUserId)
+        );
+      } catch (err) {
+        console.log('Could not fetch organizers:', err.message);
+      }
+
+      setUserDetails(details);
+    } catch (err) {
+      console.error('Error fetching user details:', err);
+    } finally {
+      setDetailsLoading(false);
+    }
+  };
+
   // Main search handler
   const handleSearch = useCallback(async () => {
     if (!searchValue.trim()) return;
@@ -64,6 +122,7 @@ export default function UserActivityPage() {
     setLoading(true);
     setError(null);
     setResults(null);
+    setUserDetails(null);
 
     try {
       let logins = [];
@@ -253,10 +312,12 @@ export default function UserActivityPage() {
         return true;
       });
 
+      const userIdArray = Array.from(identifiedUserIds);
+
       setResults({
         timeline: dedupedTimeline,
         summary: {
-          userIds: Array.from(identifiedUserIds),
+          userIds: userIdArray,
           visitorIds: Array.from(identifiedVisitorIds),
           ips: Array.from(identifiedIPs),
           loginCount: logins.length,
@@ -271,6 +332,9 @@ export default function UserActivityPage() {
           steps: lineage.steps
         }
       });
+
+      // Fetch user details for identified users
+      fetchUserDetails(userIdArray);
 
     } catch (err) {
       console.error('Search error:', err);
@@ -290,7 +354,7 @@ export default function UserActivityPage() {
   return (
     <Box>
       {/* Header */}
-      <Typography variant="h4" sx={{ mb: 3 }}>User Activity Lookup</Typography>
+      <Typography variant="h4" sx={{ mb: 3 }}>Unified User Activity</Typography>
 
       {/* Search Panel */}
       <Paper sx={{ p: 3, mb: 3 }}>
@@ -475,6 +539,141 @@ export default function UserActivityPage() {
               </Typography>
             </Box>
           </Paper>
+
+          {/* User Details Accordion */}
+          {(userDetails || detailsLoading) && (
+            <Accordion sx={{ mb: 2 }} defaultExpanded={false}>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <PersonIcon /> User Details
+                  {detailsLoading && <CircularProgress size={16} sx={{ ml: 1 }} />}
+                  {userDetails && !detailsLoading && (
+                    <Chip
+                      label={`${userDetails.users.length} user(s), ${userDetails.organizers.length} organizer(s)`}
+                      size="small"
+                      sx={{ ml: 1 }}
+                    />
+                  )}
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                {detailsLoading ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                    <CircularProgress size={24} />
+                  </Box>
+                ) : userDetails && (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {/* Firebase / UserLogin Info */}
+                    {userDetails.users.length > 0 && (
+                      <Box>
+                        <Typography variant="subtitle2" color="primary" sx={{ mb: 1 }}>
+                          Firebase / Login Info
+                        </Typography>
+                        <Grid container spacing={2}>
+                          {userDetails.users.map((user, idx) => (
+                            <Grid item xs={12} md={6} key={user.firebaseUserId || idx}>
+                              <Paper variant="outlined" sx={{ p: 1.5 }}>
+                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <Typography variant="caption" color="text.secondary">Name</Typography>
+                                    <Typography variant="body2" fontWeight="medium">
+                                      {user.firstName || user.lastName
+                                        ? `${user.firstName || ''} ${user.lastName || ''}`.trim()
+                                        : '-'}
+                                    </Typography>
+                                  </Box>
+                                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <Typography variant="caption" color="text.secondary">Email</Typography>
+                                    <Typography variant="body2">{user.email || '-'}</Typography>
+                                  </Box>
+                                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <Typography variant="caption" color="text.secondary">Username</Typography>
+                                    <Typography variant="body2">{user.userName || '-'}</Typography>
+                                  </Box>
+                                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <Typography variant="caption" color="text.secondary">Firebase ID</Typography>
+                                    <Tooltip title={user.firebaseUserId || ''} arrow>
+                                      <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>
+                                        {user.firebaseUserId ? `${user.firebaseUserId.slice(0, 8)}...${user.firebaseUserId.slice(-8)}` : '-'}
+                                      </Typography>
+                                    </Tooltip>
+                                  </Box>
+                                  {user.roles && user.roles.length > 0 && (
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                      <Typography variant="caption" color="text.secondary">Roles</Typography>
+                                      <Box sx={{ display: 'flex', gap: 0.5 }}>
+                                        {user.roles.map((role, i) => (
+                                          <Chip key={i} label={role.shortName || role.name || role} size="small" sx={{ fontSize: '0.65rem', height: 18 }} />
+                                        ))}
+                                      </Box>
+                                    </Box>
+                                  )}
+                                </Box>
+                              </Paper>
+                            </Grid>
+                          ))}
+                        </Grid>
+                      </Box>
+                    )}
+
+                    {/* Organizer Info */}
+                    {userDetails.organizers.length > 0 && (
+                      <Box>
+                        <Typography variant="subtitle2" color="secondary" sx={{ mb: 1 }}>
+                          Organizer Info
+                        </Typography>
+                        <Grid container spacing={2}>
+                          {userDetails.organizers.map((org, idx) => (
+                            <Grid item xs={12} md={6} key={org._id || idx}>
+                              <Paper variant="outlined" sx={{ p: 1.5, borderColor: 'secondary.main' }}>
+                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <Typography variant="caption" color="text.secondary">Full Name</Typography>
+                                    <Typography variant="body2" fontWeight="medium">{org.fullName || '-'}</Typography>
+                                  </Box>
+                                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <Typography variant="caption" color="text.secondary">Short Name</Typography>
+                                    <Typography variant="body2">{org.shortName || '-'}</Typography>
+                                  </Box>
+                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <Typography variant="caption" color="text.secondary">Types</Typography>
+                                    <Box sx={{ display: 'flex', gap: 0.5 }}>
+                                      {org.organizerTypes?.map((type, i) => (
+                                        <Chip key={i} label={type} size="small" color="secondary" sx={{ fontSize: '0.65rem', height: 18 }} />
+                                      )) || '-'}
+                                    </Box>
+                                  </Box>
+                                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <Typography variant="caption" color="text.secondary">Status</Typography>
+                                    <Box sx={{ display: 'flex', gap: 0.5 }}>
+                                      <Chip label={org.isActive ? 'Active' : 'Inactive'} size="small" color={org.isActive ? 'success' : 'default'} sx={{ fontSize: '0.6rem', height: 16 }} />
+                                      <Chip label={org.isVisible ? 'Visible' : 'Hidden'} size="small" color={org.isVisible ? 'info' : 'default'} sx={{ fontSize: '0.6rem', height: 16 }} />
+                                    </Box>
+                                  </Box>
+                                  {org.publicContactInfo?.email && (
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                      <Typography variant="caption" color="text.secondary">Contact Email</Typography>
+                                      <Typography variant="body2">{org.publicContactInfo.email}</Typography>
+                                    </Box>
+                                  )}
+                                </Box>
+                              </Paper>
+                            </Grid>
+                          ))}
+                        </Grid>
+                      </Box>
+                    )}
+
+                    {userDetails.users.length === 0 && userDetails.organizers.length === 0 && (
+                      <Typography color="text.secondary" textAlign="center">
+                        No user or organizer records found for the identified Firebase users.
+                      </Typography>
+                    )}
+                  </Box>
+                )}
+              </AccordionDetails>
+            </Accordion>
+          )}
 
           {/* Activity Timeline */}
           <Paper sx={{ p: 2 }}>
