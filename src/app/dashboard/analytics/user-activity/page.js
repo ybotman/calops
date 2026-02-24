@@ -90,24 +90,55 @@ export default function UserActivityPage() {
         }
 
       } else if (searchType === 'ip') {
-        // Search by IP - get both logins and visits
-        logins = await fetchLoginHistory({ ip: searchValue.trim() });
-        visits = await fetchVisitorHistory({ ip: searchValue.trim() });
+        // Search by IP - get both logins and visits for this IP
+        const initialLogins = await fetchLoginHistory({ ip: searchValue.trim() });
+        const initialVisits = await fetchVisitorHistory({ ip: searchValue.trim() });
 
         identifiedIPs.add(searchValue.trim());
-        logins.forEach(l => {
+
+        // Collect userIds from initial IP search
+        initialLogins.forEach(l => {
+          logins.push(l);
           if (l.firebaseUserId) identifiedUserIds.add(l.firebaseUserId);
         });
-        visits.forEach(v => {
+        initialVisits.forEach(v => {
+          visits.push(v);
           if (v.visitorId) identifiedVisitorIds.add(v.visitorId);
         });
 
+        // Deep cross-reference: for each user found, get ALL their logins to find other IPs
+        for (const userId of identifiedUserIds) {
+          const userLogins = await fetchLoginHistory({ firebaseUserId: userId });
+          userLogins.forEach(l => {
+            if (l.ip && !identifiedIPs.has(l.ip)) {
+              identifiedIPs.add(l.ip);
+            }
+            // Add login if not already in list
+            if (!logins.find(existing => existing.id === l.id)) {
+              logins.push(l);
+            }
+          });
+        }
+
+        // Now get visits from all discovered IPs
+        for (const ip of identifiedIPs) {
+          if (ip === searchValue.trim()) continue; // Already fetched
+          const ipVisits = await fetchVisitorHistory({ ip });
+          ipVisits.forEach(v => {
+            if (v.visitorId) identifiedVisitorIds.add(v.visitorId);
+            if (!visits.find(existing => existing.id === v.id)) {
+              visits.push(v);
+            }
+          });
+        }
+
       } else if (searchType === 'visitorId') {
         // Search by Visitor ID
-        visits = await fetchVisitorHistory({ visitorId: searchValue.trim() });
+        const initialVisits = await fetchVisitorHistory({ visitorId: searchValue.trim() });
 
         // Extract unique IPs from visitor records
-        visits.forEach(v => {
+        initialVisits.forEach(v => {
+          visits.push(v);
           if (v.ip) identifiedIPs.add(v.ip);
           if (v.visitorId) identifiedVisitorIds.add(v.visitorId);
         });
@@ -116,8 +147,34 @@ export default function UserActivityPage() {
         for (const ip of identifiedIPs) {
           const ipLogins = await fetchLoginHistory({ ip });
           ipLogins.forEach(l => {
-            logins.push(l);
+            if (!logins.find(existing => existing.id === l.id)) {
+              logins.push(l);
+            }
             if (l.firebaseUserId) identifiedUserIds.add(l.firebaseUserId);
+          });
+        }
+
+        // Deep cross-reference: for each user found, get ALL their logins to find other IPs
+        for (const userId of identifiedUserIds) {
+          const userLogins = await fetchLoginHistory({ firebaseUserId: userId });
+          userLogins.forEach(l => {
+            if (l.ip && !identifiedIPs.has(l.ip)) {
+              identifiedIPs.add(l.ip);
+            }
+            if (!logins.find(existing => existing.id === l.id)) {
+              logins.push(l);
+            }
+          });
+        }
+
+        // Get visits from any newly discovered IPs
+        for (const ip of identifiedIPs) {
+          const ipVisits = await fetchVisitorHistory({ ip });
+          ipVisits.forEach(v => {
+            if (v.visitorId) identifiedVisitorIds.add(v.visitorId);
+            if (!visits.find(existing => existing.id === v.id)) {
+              visits.push(v);
+            }
           });
         }
       }
