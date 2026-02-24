@@ -3,87 +3,81 @@
 ## The Model
 
 ```
-LOCAL (feature branch) → DEVL → TEST → PROD
+LOCAL (feature branch) → DEVL (remote) → TEST → PROD
 ```
 
-| Stage | Branch | Deploy Target | Purpose |
-|-------|--------|---------------|---------|
-| **LOCAL** | `feature/CALOPS-XXX` | localhost:3000 | Development & testing |
-| **DEVL** | `main` | Vercel Preview | Integration testing |
-| **TEST** | `TEST` | Vercel Staging | QA & acceptance testing |
-| **PROD** | `PROD` | Vercel Production | Live users |
+| Stage | Location | Branch | Deploy Target | Purpose |
+|-------|----------|--------|---------------|---------|
+| **LOCAL** | Your machine | `feature/CALOPS-XXX` | localhost:3000 | Development |
+| **DEVL** | Remote | `main` | (preview deploys) | Integration |
+| **TEST** | Remote | `TEST` | calops-test.vercel.app | QA/Staging |
+| **PROD** | Remote | `PROD` | calops.vercel.app | Production |
 
-## Current Setup
-
-**Vercel deployments exist for TEST and PROD:**
-
-| Branch | Vercel URL | Status |
-|--------|------------|--------|
-| `TEST` | calops-test.vercel.app | Active |
-| `PROD` | calops.vercel.app, cal-ops.org | Active |
-
-**Current shortcut workflow** (single developer/user):
-```
-LOCAL (feature branch) → main → PROD branch → Vercel PROD
-```
-
-We skip TEST in the shortcut, going main → PROD directly.
-
-**What we skip**:
-- Separate DEVL deploy (main is integration only)
-- TEST branch/environment (available but skipped)
-- Formal approval gates (single user = self-approval)
-
-## When to Expand
-
-Expand to full lifecycle when:
-1. Multiple developers working on CALOPS
-2. Multiple production users (beyond Toby)
-3. Need for QA/acceptance testing phase
-4. Compliance or audit requirements
-
-## Full Lifecycle (Infrastructure Ready)
+## Workflow
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│  LOCAL                                                           │
-│  Branch: feature/CALOPS-XXX                                      │
-│  URL: http://localhost:3000                                      │
-│  Backend: http://localhost:7071                                  │
-│  Autonomy: Full (commit freely)                                  │
-└──────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│  LOCAL                                                          │
+│  You work on: feature/CALOPS-XXX                                │
+│  Run locally: localhost:3000                                    │
+│  Backend: localhost:7071                                        │
+│  Autonomy: Full (commit freely, push to feature branch)         │
+└─────────────────────────────────────────────────────────────────┘
                               │
-                              ▼ PR to main
-┌──────────────────────────────────────────────────────────────────┐
-│  DEVL                                                            │
-│  Branch: main                                                    │
-│  URL: calops-devl.vercel.app (or preview URL)                    │
-│  Backend: calendarbeaf-test.azurewebsites.net                    │
-│  Autonomy: Semi-controlled (CR for risky changes)                │
-└──────────────────────────────────────────────────────────────────┘
+                              ▼ merge feature → main
+┌─────────────────────────────────────────────────────────────────┐
+│  DEVL (remote)                                                  │
+│  Branch: main                                                   │
+│  Deploy: Vercel preview (auto on PR/push)                       │
+│  Backend: calendarbeaf-test.azurewebsites.net                   │
+│  Autonomy: Semi-controlled                                      │
+└─────────────────────────────────────────────────────────────────┘
                               │
-                              ▼ merge to TEST
-┌──────────────────────────────────────────────────────────────────┐
-│  TEST                                                            │
-│  Branch: TEST                                                    │
-│  URL: calops-test.vercel.app                                     │
-│  Backend: calendarbeaf-test.azurewebsites.net                    │
-│  Autonomy: Approval required                                     │
-└──────────────────────────────────────────────────────────────────┘
+                              ▼ merge main → TEST
+┌─────────────────────────────────────────────────────────────────┐
+│  TEST                                                           │
+│  Branch: TEST                                                   │
+│  Deploy: calops-test.vercel.app                                 │
+│  Backend: calendarbeaf-test.azurewebsites.net                   │
+│  Autonomy: Approval required                                    │
+└─────────────────────────────────────────────────────────────────┘
                               │
-                              ▼ merge to PROD (explicit approval)
-┌──────────────────────────────────────────────────────────────────┐
-│  PROD                                                            │
-│  Branch: PROD                                                    │
-│  URL: calops.vercel.app                                          │
-│  Backend: calendarbeaf-prod.azurewebsites.net                    │
-│  Autonomy: Locked (always requires approval)                     │
-└──────────────────────────────────────────────────────────────────┘
+                              ▼ merge TEST → PROD (explicit approval)
+┌─────────────────────────────────────────────────────────────────┐
+│  PROD                                                           │
+│  Branch: PROD                                                   │
+│  Deploy: calops.vercel.app, cal-ops.org                         │
+│  Backend: calendarbeaf-prod.azurewebsites.net                   │
+│  Autonomy: Locked (always requires approval)                    │
+└─────────────────────────────────────────────────────────────────┘
 ```
+
+## Current Shortcut (Temporary)
+
+**Why**: Single developer, single prod user (Toby).
+
+**Shortcut workflow**:
+```
+LOCAL (feature) → main (DEVL) → PROD
+                      ↓
+                 (skip TEST)
+```
+
+**When to use full lifecycle**:
+1. Multiple developers
+2. Multiple production users
+3. Need QA/acceptance phase
+4. Compliance requirements
+
+## Vercel Deployments
+
+| Branch | URL | Auto-Deploy |
+|--------|-----|-------------|
+| `main` | Preview URLs | Yes (on push) |
+| `TEST` | calops-test.vercel.app | Yes |
+| `PROD` | calops.vercel.app | Yes |
 
 ## Backend Alignment
-
-The backend (calendar-be-af) uses full lifecycle:
 
 | FE Stage | BE Stage | BE Branch | BE URL |
 |----------|----------|-----------|--------|
@@ -92,19 +86,19 @@ The backend (calendar-be-af) uses full lifecycle:
 | TEST | TEST | TEST | calendarbeaf-test.azurewebsites.net |
 | PROD | PROD | PROD | calendarbeaf-prod.azurewebsites.net |
 
-## Branch Autonomy Rules
+## Branch Autonomy (AI Agents)
 
-See `CLAUDE.md` → `YBOTBOT-BRANCH-AUTONOMY.md` for AI agent autonomy levels by branch.
-
-| Branch Type | Autonomy |
-|-------------|----------|
+| Branch | Autonomy Level |
+|--------|----------------|
 | `feature/*` | Full autonomous |
-| `main` | Approval required |
-| `TEST` | Maximum control |
-| `PROD` | Maximum control |
+| `main` | Semi-controlled |
+| `TEST` | Approval required |
+| `PROD` | Locked (always approval) |
+
+See `CLAUDE.md` → `YBOTBOT-BRANCH-AUTONOMY.md` for details.
 
 ---
 
 **Last Updated**: 2026-02-23
-**Status**: Shortcut active (main → PROD, skipping TEST)
-**Infrastructure**: TEST + PROD on Vercel, ready for full lifecycle when needed
+**Status**: Shortcut active (skipping TEST)
+**Infrastructure**: Full lifecycle ready when needed
