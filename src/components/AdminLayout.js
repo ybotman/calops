@@ -36,7 +36,6 @@ import PlaceIcon from '@mui/icons-material/Place';
 import SchoolIcon from '@mui/icons-material/School';
 import HeadphonesIcon from '@mui/icons-material/Headphones';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
-import DescriptionIcon from '@mui/icons-material/Description';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import HealthAndSafetyIcon from '@mui/icons-material/HealthAndSafety';
 import GridOnIcon from '@mui/icons-material/GridOn';
@@ -49,7 +48,6 @@ const dashboardNavItems = [
   { name: 'Visitor Heatmap', icon: <GridOnIcon />, href: '/dashboard/analytics/visitor-heatmap' },
   { name: 'Event Creation', icon: <GridOnIcon />, href: '/dashboard/analytics/event-creation' },
   { name: 'Activity Tracking', icon: <AccessTimeIcon />, href: '/dashboard/analytics/activity-tracking' },
-  { name: 'Logs', icon: <DescriptionIcon />, href: '/dashboard/logs' },
   { name: 'Data Health', icon: <HealthAndSafetyIcon />, href: '/dashboard/data-health' },
   { name: 'Git Pipeline', icon: <GitHubIcon />, href: '/dashboard/git-pipeline' },
 ];
