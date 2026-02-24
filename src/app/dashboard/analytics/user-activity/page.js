@@ -26,6 +26,8 @@ import SearchIcon from '@mui/icons-material/Search';
 import PersonIcon from '@mui/icons-material/Person';
 import LoginIcon from '@mui/icons-material/Login';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import AccountTreeIcon from '@mui/icons-material/AccountTree';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import axios from 'axios';
 import { format } from 'date-fns';
 
@@ -70,15 +72,35 @@ export default function UserActivityPage() {
       let identifiedUserIds = new Set();
       let identifiedVisitorIds = new Set();
 
+      // Track discovery lineage
+      const lineage = {
+        searchType,
+        searchValue: searchValue.trim(),
+        directIPs: new Set(),      // IPs found directly from search
+        usersFromIPs: new Set(),   // Users discovered from IPs
+        expandedIPs: new Set(),    // Additional IPs from user history
+        steps: []
+      };
+
       if (searchType === 'userId') {
         // Search by Firebase User ID
+        lineage.steps.push({ type: 'search', desc: `Searched User: ${searchValue.trim().slice(-8)}...` });
+        identifiedUserIds.add(searchValue.trim());
+
         logins = await fetchLoginHistory({ firebaseUserId: searchValue.trim() });
 
         // Extract unique IPs from login records
         logins.forEach(l => {
-          if (l.ip) identifiedIPs.add(l.ip);
+          if (l.ip) {
+            identifiedIPs.add(l.ip);
+            lineage.directIPs.add(l.ip);
+          }
           if (l.firebaseUserId) identifiedUserIds.add(l.firebaseUserId);
         });
+
+        if (lineage.directIPs.size > 0) {
+          lineage.steps.push({ type: 'found', desc: `User has ${lineage.directIPs.size} IP(s)`, ips: Array.from(lineage.directIPs) });
+        }
 
         // Cross-reference: find visitor activity from same IPs
         for (const ip of identifiedIPs) {
@@ -91,6 +113,9 @@ export default function UserActivityPage() {
 
       } else if (searchType === 'ip') {
         // Search by IP - get both logins and visits for this IP
+        lineage.directIPs.add(searchValue.trim());
+        lineage.steps.push({ type: 'search', desc: `Searched IP: ${searchValue.trim()}` });
+
         const initialLogins = await fetchLoginHistory({ ip: searchValue.trim() });
         const initialVisits = await fetchVisitorHistory({ ip: searchValue.trim() });
 
@@ -99,30 +124,42 @@ export default function UserActivityPage() {
         // Collect userIds from initial IP search
         initialLogins.forEach(l => {
           logins.push(l);
-          if (l.firebaseUserId) identifiedUserIds.add(l.firebaseUserId);
+          if (l.firebaseUserId) {
+            identifiedUserIds.add(l.firebaseUserId);
+            lineage.usersFromIPs.add(l.firebaseUserId);
+          }
         });
         initialVisits.forEach(v => {
           visits.push(v);
           if (v.visitorId) identifiedVisitorIds.add(v.visitorId);
         });
 
+        if (lineage.usersFromIPs.size > 0) {
+          lineage.steps.push({ type: 'found', desc: `Found ${lineage.usersFromIPs.size} user(s) on this IP` });
+        }
+
         // Deep cross-reference: for each user found, get ALL their logins to find other IPs
         for (const userId of identifiedUserIds) {
           const userLogins = await fetchLoginHistory({ firebaseUserId: userId });
+          const newIPs = [];
           userLogins.forEach(l => {
             if (l.ip && !identifiedIPs.has(l.ip)) {
               identifiedIPs.add(l.ip);
+              lineage.expandedIPs.add(l.ip);
+              newIPs.push(l.ip);
             }
-            // Add login if not already in list
             if (!logins.find(existing => existing.id === l.id)) {
               logins.push(l);
             }
           });
+          if (newIPs.length > 0) {
+            lineage.steps.push({ type: 'expand', desc: `User ${userId.slice(-8)} → ${newIPs.length} more IP(s)`, ips: newIPs });
+          }
         }
 
         // Now get visits from all discovered IPs
         for (const ip of identifiedIPs) {
-          if (ip === searchValue.trim()) continue; // Already fetched
+          if (ip === searchValue.trim()) continue;
           const ipVisits = await fetchVisitorHistory({ ip });
           ipVisits.forEach(v => {
             if (v.visitorId) identifiedVisitorIds.add(v.visitorId);
@@ -134,14 +171,23 @@ export default function UserActivityPage() {
 
       } else if (searchType === 'visitorId') {
         // Search by Visitor ID
+        lineage.steps.push({ type: 'search', desc: `Searched Visitor: ${searchValue.trim().slice(-8)}...` });
+
         const initialVisits = await fetchVisitorHistory({ visitorId: searchValue.trim() });
 
         // Extract unique IPs from visitor records
         initialVisits.forEach(v => {
           visits.push(v);
-          if (v.ip) identifiedIPs.add(v.ip);
+          if (v.ip) {
+            identifiedIPs.add(v.ip);
+            lineage.directIPs.add(v.ip);
+          }
           if (v.visitorId) identifiedVisitorIds.add(v.visitorId);
         });
+
+        if (lineage.directIPs.size > 0) {
+          lineage.steps.push({ type: 'found', desc: `Visitor has ${lineage.directIPs.size} IP(s)` });
+        }
 
         // Cross-reference: find login activity from same IPs
         for (const ip of identifiedIPs) {
@@ -150,21 +196,34 @@ export default function UserActivityPage() {
             if (!logins.find(existing => existing.id === l.id)) {
               logins.push(l);
             }
-            if (l.firebaseUserId) identifiedUserIds.add(l.firebaseUserId);
+            if (l.firebaseUserId) {
+              identifiedUserIds.add(l.firebaseUserId);
+              lineage.usersFromIPs.add(l.firebaseUserId);
+            }
           });
+        }
+
+        if (lineage.usersFromIPs.size > 0) {
+          lineage.steps.push({ type: 'found', desc: `Found ${lineage.usersFromIPs.size} logged-in user(s) on same IPs` });
         }
 
         // Deep cross-reference: for each user found, get ALL their logins to find other IPs
         for (const userId of identifiedUserIds) {
           const userLogins = await fetchLoginHistory({ firebaseUserId: userId });
+          const newIPs = [];
           userLogins.forEach(l => {
             if (l.ip && !identifiedIPs.has(l.ip)) {
               identifiedIPs.add(l.ip);
+              lineage.expandedIPs.add(l.ip);
+              newIPs.push(l.ip);
             }
             if (!logins.find(existing => existing.id === l.id)) {
               logins.push(l);
             }
           });
+          if (newIPs.length > 0) {
+            lineage.steps.push({ type: 'expand', desc: `User ${userId.slice(-8)} → ${newIPs.length} more IP(s)` });
+          }
         }
 
         // Get visits from any newly discovered IPs
@@ -202,6 +261,14 @@ export default function UserActivityPage() {
           ips: Array.from(identifiedIPs),
           loginCount: logins.length,
           visitCount: visits.length
+        },
+        lineage: {
+          searchType: lineage.searchType,
+          searchValue: lineage.searchValue,
+          directIPs: Array.from(lineage.directIPs),
+          usersFromIPs: Array.from(lineage.usersFromIPs),
+          expandedIPs: Array.from(lineage.expandedIPs),
+          steps: lineage.steps
         }
       });
 
@@ -282,6 +349,49 @@ export default function UserActivityPage() {
       {/* Results */}
       {results && !loading && (
         <>
+          {/* Discovery Lineage */}
+          {results.lineage && results.lineage.steps.length > 0 && (
+            <Paper sx={{ p: 2, mb: 2, bgcolor: 'action.hover' }}>
+              <Typography variant="subtitle1" sx={{ mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <AccountTreeIcon /> Discovery Chain
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                {results.lineage.steps.map((step, i) => (
+                  <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    {i > 0 && <ArrowForwardIcon sx={{ fontSize: 16, color: 'text.disabled' }} />}
+                    <Chip
+                      label={step.desc}
+                      size="small"
+                      color={step.type === 'search' ? 'primary' : step.type === 'found' ? 'success' : 'secondary'}
+                      variant={step.type === 'search' ? 'filled' : 'outlined'}
+                      sx={{ fontSize: '0.7rem' }}
+                    />
+                  </Box>
+                ))}
+              </Box>
+              {results.lineage.expandedIPs.length > 0 && (
+                <Box sx={{ mt: 1.5, pl: 1, borderLeft: '2px solid', borderColor: 'secondary.main' }}>
+                  <Typography variant="caption" color="text.secondary">
+                    Expanded to include {results.lineage.expandedIPs.length} additional IP(s) from user history:
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 0.5 }}>
+                    {results.lineage.expandedIPs.map(ip => (
+                      <Chip
+                        key={ip}
+                        label={ip}
+                        size="small"
+                        variant="outlined"
+                        color="secondary"
+                        onClick={() => { setSearchType('ip'); setSearchValue(ip); }}
+                        sx={{ fontFamily: 'monospace', fontSize: '0.65rem', cursor: 'pointer' }}
+                      />
+                    ))}
+                  </Box>
+                </Box>
+              )}
+            </Paper>
+          )}
+
           {/* Identity Summary */}
           <Paper sx={{ p: 2, mb: 2 }}>
             <Typography variant="subtitle1" sx={{ mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
