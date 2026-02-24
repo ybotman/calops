@@ -40,6 +40,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import HealthAndSafetyIcon from '@mui/icons-material/HealthAndSafety';
 import GridOnIcon from '@mui/icons-material/GridOn';
 import GitHubIcon from '@mui/icons-material/GitHub';
+import PersonSearchIcon from '@mui/icons-material/PersonSearch';
 
 // Navigation items - Dashboard/Admin section (first)
 const dashboardNavItems = [
@@ -48,6 +49,7 @@ const dashboardNavItems = [
   { name: 'Visitor Heatmap', icon: <GridOnIcon />, href: '/dashboard/analytics/visitor-heatmap' },
   { name: 'Event Creation', icon: <GridOnIcon />, href: '/dashboard/analytics/event-creation' },
   { name: 'Activity Tracking', icon: <AccessTimeIcon />, href: '/dashboard/analytics/activity-tracking' },
+  { name: 'User Activity', icon: <PersonSearchIcon />, href: '/dashboard/analytics/user-activity' },
   { name: 'Data Health', icon: <HealthAndSafetyIcon />, href: '/dashboard/data-health' },
   { name: 'Git Pipeline', icon: <GitHubIcon />, href: '/dashboard/git-pipeline' },
 ];
