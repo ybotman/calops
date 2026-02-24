@@ -103,16 +103,20 @@ export default function ActivityTrackingPage() {
   const [visitorId, setVisitorId] = useState('');
 
   // Build filter query string
-  const buildFilterParams = useCallback(() => {
+  const buildFilterParams = useCallback((forTab = tabValue) => {
     const params = [];
     if (deviceType) params.push(`deviceType=${deviceType}`);
     if (geoSource) params.push(`geoSource=${geoSource}`);
     if (city) params.push(`city=${encodeURIComponent(city)}`);
     if (country) params.push(`country=${encodeURIComponent(country)}`);
     if (ip) params.push(`ip=${encodeURIComponent(ip)}`);
-    if (visitorId) params.push(`visitorId=${encodeURIComponent(visitorId)}`);
+    if (visitorId) {
+      // Login History (0) and Map Center (2) use firebaseUserId, Visitor (1) uses visitorId
+      const paramName = forTab === 1 ? 'visitorId' : 'firebaseUserId';
+      params.push(`${paramName}=${encodeURIComponent(visitorId)}`);
+    }
     return params.length > 0 ? '&' + params.join('&') : '';
-  }, [deviceType, geoSource, city, country, ip, visitorId]);
+  }, [deviceType, geoSource, city, country, ip, visitorId, tabValue]);
 
   const clearFilters = () => {
     setDeviceType('');
@@ -344,6 +348,16 @@ export default function ActivityTrackingPage() {
               placeholder="71.232.30.16"
               sx={{ width: 140 }}
             />
+            {tabValue === 0 && (
+              <TextField
+                size="small"
+                label="User ID"
+                value={visitorId}
+                onChange={(e) => setVisitorId(e.target.value)}
+                placeholder="Firebase UID..."
+                sx={{ width: 160 }}
+              />
+            )}
             {tabValue === 1 && (
               <TextField
                 size="small"
@@ -460,6 +474,7 @@ export default function ActivityTrackingPage() {
                   <TableRow>
                     <TableCell>Timestamp</TableCell>
                     <TableCell>User ID</TableCell>
+                    <TableCell>IP</TableCell>
                     <TableCell>Device</TableCell>
                     <TableCell>Source</TableCell>
                     <TableCell>Location</TableCell>
@@ -474,6 +489,9 @@ export default function ActivityTrackingPage() {
                       </TableCell>
                       <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>
                         {entry.firebaseUserId?.slice(-8) || '-'}
+                      </TableCell>
+                      <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>
+                        {entry.ip || '-'}
                       </TableCell>
                       <TableCell>
                         <Chip
@@ -534,6 +552,7 @@ export default function ActivityTrackingPage() {
                   <TableRow>
                     <TableCell>Timestamp</TableCell>
                     <TableCell>Visitor ID</TableCell>
+                    <TableCell>IP</TableCell>
                     <TableCell>Page</TableCell>
                     <TableCell>Device</TableCell>
                     <TableCell>Source</TableCell>
@@ -549,6 +568,9 @@ export default function ActivityTrackingPage() {
                       <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.65rem' }}>
                         {entry.visitorId?.slice(-8) || '-'}
                       </TableCell>
+                      <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>
+                        {entry.ip || '-'}
+                      </TableCell>
                       <TableCell sx={{ fontSize: '0.75rem' }}>
                         {entry.page || '-'}
                       </TableCell>
@@ -559,6 +581,9 @@ export default function ActivityTrackingPage() {
                           color={entry.deviceType === 'mobile' ? 'primary' : entry.deviceType === 'tablet' ? 'secondary' : 'default'}
                           sx={{ fontSize: '0.7rem' }}
                         />
+                      </TableCell>
+                      <TableCell>
+                        {getSourceChip(entry.location)}
                       </TableCell>
                       <TableCell sx={{ fontSize: '0.75rem' }}>
                         <Tooltip title={`${entry.location?.latitude?.toFixed(4) || '-'}, ${entry.location?.longitude?.toFixed(4) || '-'}`} arrow>
@@ -605,6 +630,7 @@ export default function ActivityTrackingPage() {
                   <TableRow>
                     <TableCell>Timestamp</TableCell>
                     <TableCell>User ID</TableCell>
+                    <TableCell>IP</TableCell>
                     <TableCell>Map Center</TableCell>
                     <TableCell>Device</TableCell>
                     <TableCell>User Location</TableCell>
@@ -620,6 +646,9 @@ export default function ActivityTrackingPage() {
                         {entry.firebaseUserId?.slice(-8) || '-'}
                       </TableCell>
                       <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>
+                        {entry.ip || '-'}
+                      </TableCell>
+                      <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>
                         {entry.mapCenter?.latitude?.toFixed(4) || '-'}, {entry.mapCenter?.longitude?.toFixed(4) || '-'}
                       </TableCell>
                       <TableCell>
@@ -631,7 +660,7 @@ export default function ActivityTrackingPage() {
                         />
                       </TableCell>
                       <TableCell sx={{ fontSize: '0.75rem' }}>
-                        {[entry.userLocation?.city, entry.userLocation?.region, entry.userLocation?.country].filter(Boolean).join(', ') || '-'}
+                        {[entry.userLocation?.ipLookup?.city, entry.userLocation?.ipLookup?.region, entry.userLocation?.ipLookup?.country].filter(Boolean).join(', ') || '-'}
                       </TableCell>
                     </TableRow>
                   ))}
