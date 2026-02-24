@@ -13,24 +13,26 @@ LOCAL (feature branch) → DEVL → TEST → PROD
 | **TEST** | `TEST` | Vercel Staging | QA & acceptance testing |
 | **PROD** | `PROD` | Vercel Production | Live users |
 
-## Current Shortcut (Temporary)
+## Current Setup
 
-**Why**: Single developer, single prod user (Toby). No need for full lifecycle overhead.
+**Vercel deployments exist for TEST and PROD:**
 
-**Current workflow**:
+| Branch | Vercel URL | Status |
+|--------|------------|--------|
+| `TEST` | calops-test.vercel.app | Active |
+| `PROD` | calops.vercel.app, cal-ops.org | Active |
+
+**Current shortcut workflow** (single developer/user):
 ```
-LOCAL (feature branch) → main → PROD (auto-deploy)
+LOCAL (feature branch) → main → PROD branch → Vercel PROD
 ```
 
-| Stage | Branch | Deploy Target |
-|-------|--------|---------------|
-| **LOCAL** | `feature/CALOPS-XXX` | localhost:3000 |
-| **PROD** | `main` | calops.vercel.app |
+We skip TEST in the shortcut, going main → PROD directly.
 
 **What we skip**:
-- DEVL environment (merged into main)
-- TEST environment (manual testing on Preview deploys)
-- Separate PROD branch (main = PROD)
+- Separate DEVL deploy (main is integration only)
+- TEST branch/environment (available but skipped)
+- Formal approval gates (single user = self-approval)
 
 ## When to Expand
 
@@ -40,7 +42,7 @@ Expand to full lifecycle when:
 3. Need for QA/acceptance testing phase
 4. Compliance or audit requirements
 
-## Full Lifecycle (Future)
+## Full Lifecycle (Infrastructure Ready)
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
@@ -104,4 +106,5 @@ See `CLAUDE.md` → `YBOTBOT-BRANCH-AUTONOMY.md` for AI agent autonomy levels by
 ---
 
 **Last Updated**: 2026-02-23
-**Status**: Temporary shortcut active (main = PROD)
+**Status**: Shortcut active (main → PROD, skipping TEST)
+**Infrastructure**: TEST + PROD on Vercel, ready for full lifecycle when needed
