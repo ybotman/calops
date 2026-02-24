@@ -488,7 +488,9 @@ export default function ActivityTrackingPage() {
                         {entry.timestamp ? format(new Date(entry.timestamp), 'MMM d, h:mm a') : '-'}
                       </TableCell>
                       <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>
-                        {entry.firebaseUserId?.slice(-8) || '-'}
+                        <Tooltip title={entry.firebaseUserId || 'No user ID'} arrow>
+                          <span style={{ cursor: 'pointer' }}>{entry.firebaseUserId?.slice(-8) || '-'}</span>
+                        </Tooltip>
                       </TableCell>
                       <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>
                         {entry.ip || '-'}
@@ -566,7 +568,9 @@ export default function ActivityTrackingPage() {
                         {entry.timestamp ? format(new Date(entry.timestamp), 'MMM d, h:mm a') : '-'}
                       </TableCell>
                       <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.65rem' }}>
-                        {entry.visitorId?.slice(-8) || '-'}
+                        <Tooltip title={entry.visitorId || 'No visitor ID'} arrow>
+                          <span style={{ cursor: 'pointer' }}>{entry.visitorId?.slice(-8) || '-'}</span>
+                        </Tooltip>
                       </TableCell>
                       <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>
                         {entry.ip || '-'}
@@ -643,7 +647,9 @@ export default function ActivityTrackingPage() {
                         {entry.timestamp ? format(new Date(entry.timestamp), 'MMM d, h:mm a') : '-'}
                       </TableCell>
                       <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>
-                        {entry.firebaseUserId?.slice(-8) || '-'}
+                        <Tooltip title={entry.firebaseUserId || 'No user ID'} arrow>
+                          <span style={{ cursor: 'pointer' }}>{entry.firebaseUserId?.slice(-8) || '-'}</span>
+                        </Tooltip>
                       </TableCell>
                       <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>
                         {entry.ip || '-'}
