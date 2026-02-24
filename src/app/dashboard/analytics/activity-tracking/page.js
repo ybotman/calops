@@ -20,11 +20,20 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   TablePagination,
-  Tooltip
+  Tooltip,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  IconButton,
+  Collapse
 } from '@mui/material';
 import GpsFixedIcon from '@mui/icons-material/GpsFixed';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import WifiIcon from '@mui/icons-material/Wifi';
+import FilterListIcon from '@mui/icons-material/FilterList';
+import ClearIcon from '@mui/icons-material/Clear';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import LoginIcon from '@mui/icons-material/Login';
 import VisibilityIcon from '@mui/icons-material/Visibility';
@@ -84,13 +93,40 @@ export default function ActivityTrackingPage() {
   const [mapCenterPagination, setMapCenterPagination] = useState({ page: 0, total: 0, pages: 0 });
   const [rowsPerPage, setRowsPerPage] = useState(50);
 
+  // Filter states
+  const [showFilters, setShowFilters] = useState(false);
+  const [deviceType, setDeviceType] = useState('');
+  const [geoSource, setGeoSource] = useState('');
+  const [city, setCity] = useState('');
+  const [country, setCountry] = useState('');
+
+  // Build filter query string
+  const buildFilterParams = useCallback(() => {
+    const params = [];
+    if (deviceType) params.push(`deviceType=${deviceType}`);
+    if (geoSource) params.push(`geoSource=${geoSource}`);
+    if (city) params.push(`city=${encodeURIComponent(city)}`);
+    if (country) params.push(`country=${encodeURIComponent(country)}`);
+    return params.length > 0 ? '&' + params.join('&') : '';
+  }, [deviceType, geoSource, city, country]);
+
+  const clearFilters = () => {
+    setDeviceType('');
+    setGeoSource('');
+    setCity('');
+    setCountry('');
+  };
+
+  const hasActiveFilters = deviceType || geoSource || city || country;
+
   // Fetch login history
   const fetchLoginHistory = useCallback(async (page = 0) => {
     setLoading(true);
     setError(null);
     try {
+      const filterParams = buildFilterParams();
       const response = await axios.get(
-        `/api/analytics/login-history?range=${timeRange}&page=${page}&limit=${rowsPerPage}&_t=${Date.now()}`
+        `/api/analytics/login-history?range=${timeRange}&page=${page}&limit=${rowsPerPage}${filterParams}&_t=${Date.now()}`
       );
       if (response.data?.success) {
         setLoginHistory(response.data.data || []);
@@ -108,15 +144,16 @@ export default function ActivityTrackingPage() {
     } finally {
       setLoading(false);
     }
-  }, [timeRange, rowsPerPage]);
+  }, [timeRange, rowsPerPage, buildFilterParams]);
 
   // Fetch visitor history
   const fetchVisitorHistory = useCallback(async (page = 0) => {
     setLoading(true);
     setError(null);
     try {
+      const filterParams = buildFilterParams();
       const response = await axios.get(
-        `/api/analytics/visitor-history?range=${timeRange}&page=${page}&limit=${rowsPerPage}&_t=${Date.now()}`
+        `/api/analytics/visitor-history?range=${timeRange}&page=${page}&limit=${rowsPerPage}${filterParams}&_t=${Date.now()}`
       );
       if (response.data?.success) {
         setVisitorHistory(response.data.data || []);
@@ -134,15 +171,16 @@ export default function ActivityTrackingPage() {
     } finally {
       setLoading(false);
     }
-  }, [timeRange, rowsPerPage]);
+  }, [timeRange, rowsPerPage, buildFilterParams]);
 
   // Fetch map center history
   const fetchMapCenterHistory = useCallback(async (page = 0) => {
     setLoading(true);
     setError(null);
     try {
+      const filterParams = buildFilterParams();
       const response = await axios.get(
-        `/api/analytics/map-center-history?range=${timeRange}&page=${page}&limit=${rowsPerPage}&_t=${Date.now()}`
+        `/api/analytics/map-center-history?range=${timeRange}&page=${page}&limit=${rowsPerPage}${filterParams}&_t=${Date.now()}`
       );
       if (response.data?.success) {
         setMapCenterHistory(response.data.data || []);
@@ -160,7 +198,7 @@ export default function ActivityTrackingPage() {
     } finally {
       setLoading(false);
     }
-  }, [timeRange, rowsPerPage]);
+  }, [timeRange, rowsPerPage, buildFilterParams]);
 
   // Fetch data based on selected tab
   useEffect(() => {
@@ -230,6 +268,14 @@ export default function ActivityTrackingPage() {
             <ToggleButton value="All">All</ToggleButton>
           </ToggleButtonGroup>
           <Button
+            variant={hasActiveFilters ? 'contained' : 'outlined'}
+            startIcon={<FilterListIcon />}
+            onClick={() => setShowFilters(!showFilters)}
+            color={hasActiveFilters ? 'secondary' : 'primary'}
+          >
+            Filters{hasActiveFilters ? ' (active)' : ''}
+          </Button>
+          <Button
             variant="outlined"
             startIcon={<RefreshIcon />}
             onClick={handleRefresh}
@@ -239,6 +285,59 @@ export default function ActivityTrackingPage() {
           </Button>
         </Box>
       </Box>
+
+      {/* Filter Panel */}
+      <Collapse in={showFilters}>
+        <Paper sx={{ p: 2, mb: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+            <FormControl size="small" sx={{ minWidth: 120 }}>
+              <InputLabel>Device</InputLabel>
+              <Select
+                value={deviceType}
+                label="Device"
+                onChange={(e) => setDeviceType(e.target.value)}
+              >
+                <MenuItem value="">All</MenuItem>
+                <MenuItem value="mobile">Mobile</MenuItem>
+                <MenuItem value="tablet">Tablet</MenuItem>
+                <MenuItem value="desktop">Desktop</MenuItem>
+              </Select>
+            </FormControl>
+            <FormControl size="small" sx={{ minWidth: 140 }}>
+              <InputLabel>Geo Source</InputLabel>
+              <Select
+                value={geoSource}
+                label="Geo Source"
+                onChange={(e) => setGeoSource(e.target.value)}
+              >
+                <MenuItem value="">All</MenuItem>
+                <MenuItem value="GoogleBrowser">GPS (Browser)</MenuItem>
+                <MenuItem value="GoogleGeolocation">Google API</MenuItem>
+                <MenuItem value="IPInfoIO">IP Lookup</MenuItem>
+              </Select>
+            </FormControl>
+            <TextField
+              size="small"
+              label="City"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              sx={{ width: 140 }}
+            />
+            <TextField
+              size="small"
+              label="Country"
+              value={country}
+              onChange={(e) => setCountry(e.target.value)}
+              sx={{ width: 100 }}
+            />
+            {hasActiveFilters && (
+              <IconButton onClick={clearFilters} size="small" title="Clear filters">
+                <ClearIcon />
+              </IconButton>
+            )}
+          </Box>
+        </Paper>
+      </Collapse>
 
       {/* Info cards */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
