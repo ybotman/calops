@@ -37,6 +37,8 @@ import BusinessIcon from '@mui/icons-material/Business';
 import EventIcon from '@mui/icons-material/Event';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import SecurityIcon from '@mui/icons-material/Security';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import { formatDistanceToNow, format } from 'date-fns';
 import { adminApi } from '@/lib/api-client/index';
 import { organizersApi, eventsApi } from '@/lib/api-client.js';
@@ -60,6 +62,8 @@ export default function UserLoginsPage() {
   // UI state
   const [tabValue, setTabValue] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('lastLogin'); // lastLogin, name, email, loginCount
+  const [sortDir, setSortDir] = useState('desc');
   const [expandedUser, setExpandedUser] = useState(null);
   const [userDetails, setUserDetails] = useState({});
 
@@ -93,7 +97,7 @@ export default function UserLoginsPage() {
 
     let users = [];
     switch (tabValue) {
-      case 0: // All users (sorted by last login)
+      case 0: // All users
         users = activityData.users || [];
         break;
       case 1: // Stale users
@@ -106,12 +110,28 @@ export default function UserLoginsPage() {
         users = activityData.users || [];
     }
 
-    // Sort by lastLoginAt descending (newest first)
+    // Sort based on sortBy and sortDir
     users = [...users].sort((a, b) => {
-      if (!a.lastLoginAt && !b.lastLoginAt) return 0;
-      if (!a.lastLoginAt) return 1;
-      if (!b.lastLoginAt) return -1;
-      return new Date(b.lastLoginAt) - new Date(a.lastLoginAt);
+      let comparison = 0;
+      switch (sortBy) {
+        case 'name':
+          comparison = (a.displayName || '').localeCompare(b.displayName || '');
+          break;
+        case 'email':
+          comparison = (a.email || '').localeCompare(b.email || '');
+          break;
+        case 'loginCount':
+          comparison = (a.loginCount || 0) - (b.loginCount || 0);
+          break;
+        case 'lastLogin':
+        default:
+          if (!a.lastLoginAt && !b.lastLoginAt) return 0;
+          if (!a.lastLoginAt) return sortDir === 'desc' ? 1 : -1;
+          if (!b.lastLoginAt) return sortDir === 'desc' ? -1 : 1;
+          comparison = new Date(a.lastLoginAt) - new Date(b.lastLoginAt);
+          break;
+      }
+      return sortDir === 'desc' ? -comparison : comparison;
     });
 
     if (searchTerm) {
@@ -124,6 +144,16 @@ export default function UserLoginsPage() {
     }
 
     return users;
+  };
+
+  // Toggle sort direction or change sort field
+  const handleSort = (field) => {
+    if (sortBy === field) {
+      setSortDir(sortDir === 'desc' ? 'asc' : 'desc');
+    } else {
+      setSortBy(field);
+      setSortDir('desc');
+    }
   };
 
   // Handle user card expansion and load details
@@ -638,13 +668,37 @@ export default function UserLoginsPage() {
               </Paper>
             ) : (
               <>
-                {/* Header row */}
+                {/* Header row - clickable for sorting */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1, py: 0.5, borderBottom: 1, borderColor: 'divider', mb: 0.5 }}>
-                  <Typography variant="caption" sx={{ minWidth: 90, fontWeight: 'bold' }}>Last Login</Typography>
-                  <Typography variant="caption" sx={{ flex: 1, minWidth: 150, fontWeight: 'bold' }}>Name</Typography>
-                  <Typography variant="caption" sx={{ flex: 1, minWidth: 180, fontWeight: 'bold' }}>Email</Typography>
+                  <Box
+                    onClick={() => handleSort('lastLogin')}
+                    sx={{ minWidth: 90, display: 'flex', alignItems: 'center', cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
+                  >
+                    <Typography variant="caption" sx={{ fontWeight: 'bold' }}>Last Login</Typography>
+                    {sortBy === 'lastLogin' && (sortDir === 'desc' ? <ArrowDownwardIcon sx={{ fontSize: 12, ml: 0.5 }} /> : <ArrowUpwardIcon sx={{ fontSize: 12, ml: 0.5 }} />)}
+                  </Box>
+                  <Box
+                    onClick={() => handleSort('name')}
+                    sx={{ flex: 1, minWidth: 150, display: 'flex', alignItems: 'center', cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
+                  >
+                    <Typography variant="caption" sx={{ fontWeight: 'bold' }}>Name</Typography>
+                    {sortBy === 'name' && (sortDir === 'desc' ? <ArrowDownwardIcon sx={{ fontSize: 12, ml: 0.5 }} /> : <ArrowUpwardIcon sx={{ fontSize: 12, ml: 0.5 }} />)}
+                  </Box>
+                  <Box
+                    onClick={() => handleSort('email')}
+                    sx={{ flex: 1, minWidth: 180, display: 'flex', alignItems: 'center', cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
+                  >
+                    <Typography variant="caption" sx={{ fontWeight: 'bold' }}>Email</Typography>
+                    {sortBy === 'email' && (sortDir === 'desc' ? <ArrowDownwardIcon sx={{ fontSize: 12, ml: 0.5 }} /> : <ArrowUpwardIcon sx={{ fontSize: 12, ml: 0.5 }} />)}
+                  </Box>
                   <Typography variant="caption" sx={{ width: 35, fontWeight: 'bold' }}>Org</Typography>
-                  <Typography variant="caption" sx={{ width: 30, fontWeight: 'bold' }}>#</Typography>
+                  <Box
+                    onClick={() => handleSort('loginCount')}
+                    sx={{ width: 30, display: 'flex', alignItems: 'center', cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
+                  >
+                    <Typography variant="caption" sx={{ fontWeight: 'bold' }}>#</Typography>
+                    {sortBy === 'loginCount' && (sortDir === 'desc' ? <ArrowDownwardIcon sx={{ fontSize: 12, ml: 0.5 }} /> : <ArrowUpwardIcon sx={{ fontSize: 12, ml: 0.5 }} />)}
+                  </Box>
                   <Typography variant="caption" sx={{ width: 26, fontWeight: 'bold' }}></Typography>
                 </Box>
                 {filteredUsers.map(user => renderUserCard(user))}
