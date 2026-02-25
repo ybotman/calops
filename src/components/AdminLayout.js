@@ -78,6 +78,25 @@ const organizerTypeItems = [
 
 const drawerWidth = 240;
 
+// App-specific theming
+const appThemes = {
+  '1': { // TangoTiempo
+    name: 'TangoTiempo',
+    headerBg: 'linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%)', // Tango red
+    headerColor: '#ffffff',
+  },
+  '2': { // HarmonyJunction
+    name: 'HarmonyJunction',
+    headerBg: 'linear-gradient(135deg, #1565c0 0%, #0d47a1 100%)', // Barbershop blue
+    headerColor: '#ffffff',
+  },
+  default: {
+    name: 'CalOps',
+    headerBg: 'linear-gradient(135deg, #424242 0%, #212121 100%)', // Neutral gray
+    headerColor: '#ffffff',
+  }
+};
+
 export default function AdminLayout({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { currentApp, updateCurrentApp } = useAppContext();
@@ -220,6 +239,9 @@ export default function AdminLayout({ children }) {
     </Box>
   );
 
+  // Get theme for current app
+  const appTheme = appThemes[currentApp?.id] || appThemes.default;
+
   return (
     <Box sx={{ display: 'flex' }}>
       <AppBar
@@ -227,6 +249,8 @@ export default function AdminLayout({ children }) {
         sx={{
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           ml: { sm: `${drawerWidth}px` },
+          background: appTheme.headerBg,
+          color: appTheme.headerColor,
         }}
       >
         <Toolbar>
