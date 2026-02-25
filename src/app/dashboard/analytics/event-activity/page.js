@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -391,9 +391,8 @@ export default function EventActivityPage() {
                 </TableHead>
                 <TableBody>
                   {(data.activities || []).map((activity) => (
-                    <>
+                    <React.Fragment key={activity._id}>
                       <TableRow
-                        key={activity._id}
                         hover
                         sx={{ cursor: 'pointer' }}
                         onClick={() => toggleRowExpanded(activity._id)}
@@ -443,7 +442,7 @@ export default function EventActivityPage() {
                           </Collapse>
                         </TableCell>
                       </TableRow>
-                    </>
+                    </React.Fragment>
                   ))}
                   {(!data.activities || data.activities.length === 0) && (
                     <TableRow>
