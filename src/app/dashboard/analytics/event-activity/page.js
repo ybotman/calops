@@ -53,7 +53,6 @@ export default function EventActivityPage() {
   const [timeRange, setTimeRange] = useState('7D');
   const [actionFilter, setActionFilter] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
-  const [userFilter, setUserFilter] = useState('');
   const [eventIdFilter, setEventIdFilter] = useState('');
 
   // Pagination
@@ -77,7 +76,6 @@ export default function EventActivityPage() {
 
       if (actionFilter) params.append('action', actionFilter);
       if (roleFilter) params.append('roleName', roleFilter);
-      if (userFilter) params.append('firebaseUserId', userFilter);
       if (eventIdFilter) params.append('eventId', eventIdFilter);
 
       params.append('_t', Date.now().toString());
@@ -96,7 +94,7 @@ export default function EventActivityPage() {
     } finally {
       setLoading(false);
     }
-  }, [appId, timeRange, actionFilter, roleFilter, userFilter, eventIdFilter, page, rowsPerPage]);
+  }, [appId, timeRange, actionFilter, roleFilter, eventIdFilter, page, rowsPerPage]);
 
   useEffect(() => {
     fetchData();
@@ -287,17 +285,7 @@ export default function EventActivityPage() {
               </Select>
             </FormControl>
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <TextField
-              fullWidth
-              size="small"
-              label="User ID"
-              value={userFilter}
-              onChange={(e) => { setUserFilter(e.target.value); setPage(0); }}
-              placeholder="Firebase User ID"
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={12} sm={6} md={4}>
             <TextField
               fullWidth
               size="small"
@@ -307,14 +295,13 @@ export default function EventActivityPage() {
               placeholder="MongoDB Event ID"
             />
           </Grid>
-          <Grid item xs={12} md={2}>
+          <Grid item xs={12} md={4}>
             <Button
               fullWidth
               variant="text"
               onClick={() => {
                 setActionFilter('');
                 setRoleFilter('');
-                setUserFilter('');
                 setEventIdFilter('');
                 setPage(0);
               }}
