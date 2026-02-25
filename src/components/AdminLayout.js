@@ -41,6 +41,7 @@ import HealthAndSafetyIcon from '@mui/icons-material/HealthAndSafety';
 import GridOnIcon from '@mui/icons-material/GridOn';
 import GitHubIcon from '@mui/icons-material/GitHub';
 import PersonSearchIcon from '@mui/icons-material/PersonSearch';
+import CloudIcon from '@mui/icons-material/Cloud';
 
 // Navigation items - Heatmaps section
 const heatmapNavItems = [
@@ -273,8 +274,14 @@ export default function AdminLayout({ children }) {
       </List>
       <Box sx={{ flexGrow: 1 }} />
       <Divider />
-      {/* Bottom section - Maintenance and Git Pipeline */}
+      {/* Bottom section - Ops tools */}
       <List dense>
+        <ListItem disablePadding>
+          <ListItemButton component="a" href="/dashboard/infrastructure">
+            <ListItemIcon><CloudIcon /></ListItemIcon>
+            <ListItemText primary="Infrastructure" />
+          </ListItemButton>
+        </ListItem>
         <ListItem disablePadding>
           <ListItemButton component="a" href="/dashboard/maintenance">
             <ListItemIcon><BuildIcon /></ListItemIcon>
