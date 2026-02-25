@@ -1,12 +1,12 @@
 /**
  * Admin API client module
  * Provides access to admin-only endpoints for CALOPS dashboard
+ *
+ * Uses relative URLs to go through Next.js proxy routes which add
+ * Azure Function key authentication (see /api/ops/[...path]/route.js)
  */
 
 import axios from 'axios';
-import { getApiBaseUrl } from '@/utils/apiConfig';
-
-const API_BASE_URL = getApiBaseUrl();
 
 /**
  * Admin API client for admin-specific endpoints
@@ -38,7 +38,7 @@ const adminApi = {
       });
 
       const response = await axios.get(
-        `${API_BASE_URL}/api/ops/user-activity?${params.toString()}`
+        `/api/ops/user-activity?${params.toString()}`
       );
 
       return response.data;
@@ -65,7 +65,7 @@ const adminApi = {
       }
 
       const response = await axios.get(
-        `${API_BASE_URL}/api/ops/data-health?${params.toString()}`
+        `/api/ops/data-health?${params.toString()}`
       );
 
       return response.data;
