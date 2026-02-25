@@ -29,10 +29,12 @@ async function proxyRequest(request, path) {
     };
 
     // Add function key if configured
+    const hasKey = !!FUNCTIONS_KEY;
+    const keyPreview = FUNCTIONS_KEY ? `${FUNCTIONS_KEY.substring(0, 4)}...` : 'NOT SET';
+    console.log(`Analytics proxy: Function key ${hasKey ? 'configured' : 'MISSING'} (${keyPreview})`);
+
     if (FUNCTIONS_KEY) {
       headers['x-functions-key'] = FUNCTIONS_KEY;
-    } else {
-      console.warn('Analytics proxy: AZURE_FUNCTIONS_KEY not configured');
     }
 
     // Forward authorization header if present
@@ -60,6 +62,8 @@ async function proxyRequest(request, path) {
           success: false,
           error: `Backend error: ${response.status}`,
           backendUrl: backendUrl.replace(FUNCTIONS_KEY || '', '***'),
+          functionKeySet: hasKey,
+          functionKeyPreview: keyPreview,
           details: text.substring(0, 200)
         },
         { status: response.status }
