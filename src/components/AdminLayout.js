@@ -49,6 +49,7 @@ const dashboardNavItems = [
   { name: 'Visitor Heatmap', icon: <GridOnIcon />, href: '/dashboard/analytics/visitor-heatmap' },
   { name: 'Event Creation', icon: <GridOnIcon />, href: '/dashboard/analytics/event-creation' },
   { name: 'Activity Tracking', icon: <AccessTimeIcon />, href: '/dashboard/analytics/activity-tracking' },
+  { name: 'Event Activity', icon: <EventIcon />, href: '/dashboard/analytics/event-activity' },
   { name: 'User Activity', icon: <PersonSearchIcon />, href: '/dashboard/analytics/user-activity' },
   { name: 'Data Health', icon: <HealthAndSafetyIcon />, href: '/dashboard/data-health' },
   { name: 'Git Pipeline', icon: <GitHubIcon />, href: '/dashboard/git-pipeline' },
