@@ -31,6 +31,8 @@ async function proxyRequest(request, path) {
     // Add function key if configured
     if (FUNCTIONS_KEY) {
       headers['x-functions-key'] = FUNCTIONS_KEY;
+    } else {
+      console.warn('Analytics proxy: AZURE_FUNCTIONS_KEY not configured');
     }
 
     // Forward authorization header if present
@@ -49,6 +51,21 @@ async function proxyRequest(request, path) {
         : {}),
     });
 
+    // Handle non-OK responses
+    if (!response.ok) {
+      const text = await response.text();
+      console.error(`Analytics proxy: Backend returned ${response.status}`, text.substring(0, 200));
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Backend error: ${response.status}`,
+          backendUrl: backendUrl.replace(FUNCTIONS_KEY || '', '***'),
+          details: text.substring(0, 200)
+        },
+        { status: response.status }
+      );
+    }
+
     // Get response data
     const data = await response.json();
 
@@ -61,7 +78,8 @@ async function proxyRequest(request, path) {
       {
         success: false,
         error: 'Failed to fetch analytics data',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        message: error.message,
+        backendUrl: BACKEND_URL
       },
       { status: 500 }
     );

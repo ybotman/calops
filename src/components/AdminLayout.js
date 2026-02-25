@@ -42,17 +42,22 @@ import GridOnIcon from '@mui/icons-material/GridOn';
 import GitHubIcon from '@mui/icons-material/GitHub';
 import PersonSearchIcon from '@mui/icons-material/PersonSearch';
 
-// Navigation items - Dashboard/Admin section (first)
-const dashboardNavItems = [
-  { name: 'Dashboard', icon: <DashboardIcon />, href: '/dashboard' },
-  { name: 'User Logins', icon: <AccessTimeIcon />, href: '/dashboard/user-logins' },
-  { name: 'Visitor Heatmap', icon: <GridOnIcon />, href: '/dashboard/analytics/visitor-heatmap' },
+// Navigation items - Heatmaps section
+const heatmapNavItems = [
+  { name: 'Site Access', icon: <GridOnIcon />, href: '/dashboard/analytics/visitor-heatmap' },
   { name: 'Event Creation', icon: <GridOnIcon />, href: '/dashboard/analytics/event-creation' },
-  { name: 'Activity Tracking', icon: <AccessTimeIcon />, href: '/dashboard/analytics/activity-tracking' },
+];
+
+// Navigation items - Tracking section (single item tracking)
+const trackingSingleItems = [
+  { name: 'Login Activity', icon: <AccessTimeIcon />, href: '/dashboard/user-logins' },
   { name: 'Event Activity', icon: <EventIcon />, href: '/dashboard/analytics/event-activity' },
+];
+
+// Navigation items - Tracking section (expanded search)
+const trackingExpandedItems = [
   { name: 'User Activity', icon: <PersonSearchIcon />, href: '/dashboard/analytics/user-activity' },
-  { name: 'Data Health', icon: <HealthAndSafetyIcon />, href: '/dashboard/data-health' },
-  { name: 'Git Pipeline', icon: <GitHubIcon />, href: '/dashboard/git-pipeline' },
+  { name: 'Activity Tracking', icon: <AccessTimeIcon />, href: '/dashboard/analytics/activity-tracking' },
 ];
 
 // Navigation items - Data section
@@ -62,6 +67,7 @@ const dataNavItems = [
   { name: 'Venues', icon: <BusinessIcon />, href: '/dashboard/venues' },
   { name: 'Events', icon: <EventIcon />, href: '/dashboard/events' },
   { name: 'Geo Hierarchy', icon: <LocationOnIcon />, href: '/dashboard/geo-hierarchy' },
+  { name: 'Data Health', icon: <HealthAndSafetyIcon />, href: '/dashboard/data-health' },
 ];
 
 // Navigation items - Other
@@ -159,12 +165,50 @@ export default function AdminLayout({ children }) {
       </Toolbar>
       <Divider />
 
-      {/* Dashboard/Admin Section (first) */}
-      <Typography variant="overline" sx={{ px: 2, pt: 2, color: 'text.secondary', fontWeight: 'bold' }}>
-        Dashboard
+      {/* Dashboard Home */}
+      <List dense>
+        <ListItem disablePadding>
+          <ListItemButton component="a" href="/dashboard">
+            <ListItemIcon><DashboardIcon /></ListItemIcon>
+            <ListItemText primary="Dashboard" />
+          </ListItemButton>
+        </ListItem>
+      </List>
+
+      <Divider sx={{ my: 1 }} />
+
+      {/* Heatmaps Section */}
+      <Typography variant="overline" sx={{ px: 2, pt: 1, color: 'text.secondary', fontWeight: 'bold' }}>
+        Heatmaps
       </Typography>
       <List dense>
-        {dashboardNavItems.map((item) => (
+        {heatmapNavItems.map((item) => (
+          <ListItem key={item.name} disablePadding>
+            <ListItemButton component="a" href={item.href}>
+              <ListItemIcon>{item.icon}</ListItemIcon>
+              <ListItemText primary={item.name} />
+            </ListItemButton>
+          </ListItem>
+        ))}
+      </List>
+
+      <Divider sx={{ my: 1 }} />
+
+      {/* Tracking Section */}
+      <Typography variant="overline" sx={{ px: 2, pt: 1, color: 'text.secondary', fontWeight: 'bold' }}>
+        Tracking
+      </Typography>
+      <List dense>
+        {trackingSingleItems.map((item) => (
+          <ListItem key={item.name} disablePadding>
+            <ListItemButton component="a" href={item.href}>
+              <ListItemIcon>{item.icon}</ListItemIcon>
+              <ListItemText primary={item.name} />
+            </ListItemButton>
+          </ListItem>
+        ))}
+        <Divider sx={{ my: 0.5, mx: 2 }} />
+        {trackingExpandedItems.map((item) => (
           <ListItem key={item.name} disablePadding>
             <ListItemButton component="a" href={item.href}>
               <ListItemIcon>{item.icon}</ListItemIcon>
@@ -229,11 +273,18 @@ export default function AdminLayout({ children }) {
       </List>
       <Box sx={{ flexGrow: 1 }} />
       <Divider />
-      <List>
+      {/* Bottom section - Maintenance and Git Pipeline */}
+      <List dense>
         <ListItem disablePadding>
           <ListItemButton component="a" href="/dashboard/maintenance">
             <ListItemIcon><BuildIcon /></ListItemIcon>
             <ListItemText primary="Maintenance" />
+          </ListItemButton>
+        </ListItem>
+        <ListItem disablePadding>
+          <ListItemButton component="a" href="/dashboard/git-pipeline">
+            <ListItemIcon><GitHubIcon /></ListItemIcon>
+            <ListItemText primary="Git Pipeline" />
           </ListItemButton>
         </ListItem>
       </List>
