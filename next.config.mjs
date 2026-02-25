@@ -24,8 +24,9 @@ const nextConfig = {
 
     return [
       {
-        source: '/api/:path*',
-        destination: `${backendUrl}/api/:path*`,
+        // Exclude /api/analytics/* - handled by Next.js API route with function key
+        source: '/api/((?!analytics).*)',
+        destination: `${backendUrl}/api/$1`,
       },
     ];
   },
