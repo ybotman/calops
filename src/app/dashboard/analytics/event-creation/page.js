@@ -31,6 +31,31 @@ const DOM_LABELS = Array.from({ length: 31 }, (_, i) => i + 1); // 1-31
 const ET_OFFSET = -5;
 
 /**
+ * Get current Boston time info for "now" cell highlighting
+ */
+function getCurrentBostonTime() {
+  const now = new Date();
+  // Get UTC values
+  const utcHour = now.getUTCHours();
+  const utcDay = now.getUTCDay(); // 0-6 (Sunday-Saturday)
+  const utcDom = now.getUTCDate(); // 1-31
+
+  // Convert to Boston/ET
+  let etHour = utcHour + ET_OFFSET;
+  let etDay = utcDay;
+  let etDom = utcDom;
+
+  if (etHour < 0) {
+    etHour += 24;
+    etDay = (utcDay - 1 + 7) % 7;
+    etDom = utcDom - 1;
+    if (etDom < 1) etDom = 31; // Approximate - may not be exact at month boundaries
+  }
+
+  return { hour: etHour, dayOfWeek: etDay, dayOfMonth: etDom };
+}
+
+/**
  * Convert UTC heatmap to Eastern Time (for DOW view)
  */
 function convertToEasternTime(utcMatrix) {
@@ -87,13 +112,16 @@ export default function EventCreationPage() {
   const { currentApp } = useAppContext();
   const appId = currentApp?.id || '1';
 
+  // Get current Boston time for "now" cell highlighting
+  const nowET = getCurrentBostonTime();
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [data, setData] = useState(null);
   const [timeRange, setTimeRange] = useState('3M');
   const [timezoneMode, setTimezoneMode] = useState('boston'); // 'boston' or 'local'
-  const [viewMode, setViewMode] = useState('dow'); // 'dow' (day of week) or 'dom' (day of month)
-  const [sourceFilter, setSourceFilter] = useState('manual'); // 'all', 'manual', 'discovered'
+  const [viewMode, setViewMode] = useState('dom'); // Default to DOM view
+  const [sourceFilter, setSourceFilter] = useState('all'); // Default to All events
   const [dateField, setDateField] = useState('created'); // 'created' or 'updated'
   const [selectedOrganizer, setSelectedOrganizer] = useState(null); // Filter by organizer
 
@@ -369,10 +397,11 @@ export default function EventCreationPage() {
                     </Typography>
                     {HOURS.map(hour => {
                       const count = data.dowMatrix[dayIndex]?.[hour] || 0;
+                      const isNow = timezoneMode === 'boston' && dayIndex === nowET.dayOfWeek && hour === nowET.hour;
                       return (
                         <Tooltip
                           key={hour}
-                          title={`${DAYS[dayIndex]} ${hour}:00 — ${count} events`}
+                          title={`${DAYS[dayIndex]} ${hour}:00 — ${count} events${isNow ? ' (NOW)' : ''}`}
                           arrow
                         >
                           <Box
@@ -380,10 +409,11 @@ export default function EventCreationPage() {
                               width: 26,
                               height: 20,
                               backgroundColor: getColor(count, data.dowMaxCount),
-                              border: '1px solid #fff',
+                              border: isNow ? '2px solid #d32f2f' : '1px solid #fff',
                               borderRadius: 0.5,
                               cursor: 'pointer',
                               transition: 'transform 0.1s',
+                              boxShadow: isNow ? '0 0 4px #d32f2f' : 'none',
                               '&:hover': { transform: 'scale(1.2)', zIndex: 1 }
                             }}
                           />
@@ -410,10 +440,11 @@ export default function EventCreationPage() {
                     </Typography>
                     {HOURS.map(hour => {
                       const count = data.domMatrix[dayNum]?.[hour] || 0;
+                      const isNow = timezoneMode === 'boston' && dayNum === nowET.dayOfMonth && hour === nowET.hour;
                       return (
                         <Tooltip
                           key={hour}
-                          title={`${dayNum}${getOrdinalSuffix(dayNum)} at ${hour}:00 — ${count} events`}
+                          title={`${dayNum}${getOrdinalSuffix(dayNum)} at ${hour}:00 — ${count} events${isNow ? ' (NOW)' : ''}`}
                           arrow
                         >
                           <Box
@@ -421,10 +452,11 @@ export default function EventCreationPage() {
                               width: 20,
                               height: 14,
                               backgroundColor: getColor(count, data.domMaxCount),
-                              border: '1px solid #fff',
+                              border: isNow ? '2px solid #d32f2f' : '1px solid #fff',
                               borderRadius: 0.5,
                               cursor: 'pointer',
                               transition: 'transform 0.1s',
+                              boxShadow: isNow ? '0 0 4px #d32f2f' : 'none',
                               '&:hover': { transform: 'scale(1.3)', zIndex: 1 }
                             }}
                           />
