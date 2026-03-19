@@ -27,7 +27,9 @@ import {
   Select,
   MenuItem,
   IconButton,
-  Collapse
+  Collapse,
+  useTheme,
+  useMediaQuery
 } from '@mui/material';
 import GpsFixedIcon from '@mui/icons-material/GpsFixed';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
@@ -41,6 +43,7 @@ import MapIcon from '@mui/icons-material/Map';
 import axios from 'axios';
 import { useAppContext } from '@/lib/AppContext';
 import { format } from 'date-fns';
+import { useMobileGestures } from '@/hooks/useMobileGestures';
 
 // Helper to get location source display
 const getSourceChip = (location) => {
@@ -74,10 +77,21 @@ const getSourceChip = (location) => {
  * Shows login history, visitor tracking, and map center history
  */
 export default function ActivityTrackingPage() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { currentApp } = useAppContext();
   const appId = currentApp?.id || '1';
 
   const [tabValue, setTabValue] = useState(0);
+
+  // Mobile swipe gesture for tab navigation
+  const tabCount = 3;
+  const { ref: swipeRef, handlers: swipeHandlers } = useMobileGestures({
+    onSwipeLeft: () => setTabValue(prev => Math.min(prev + 1, tabCount - 1)),
+    onSwipeRight: () => setTabValue(prev => Math.max(prev - 1, 0)),
+    threshold: 50,
+    enabled: isMobile
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [timeRange, setTimeRange] = useState('7D');
@@ -455,6 +469,8 @@ export default function ActivityTrackingPage() {
         </Box>
       )}
 
+      {/* Tab Content with swipe support */}
+      <Box ref={swipeRef} {...swipeHandlers} sx={{ touchAction: 'pan-y' }}>
       {/* Login History Tab */}
       {!loading && tabValue === 0 && (
         <Paper sx={{ p: 2 }}>
@@ -685,6 +701,7 @@ export default function ActivityTrackingPage() {
           )}
         </Paper>
       )}
+      </Box>
     </Box>
   );
 }

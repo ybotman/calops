@@ -1,21 +1,24 @@
 'use client';
 
 import React, { useState } from 'react';
-import { 
-  Box, 
-  Typography, 
-  Tabs, 
-  Tab, 
-  Paper, 
+import {
+  Box,
+  Typography,
+  Tabs,
+  Tab,
+  Paper,
   Button,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
   TextField,
-  InputAdornment
+  InputAdornment,
+  useTheme,
+  useMediaQuery
 } from '@mui/material';
 import TabPanel from '@/components/common/TabPanel';
+import SwipeableTabs from '@/components/common/SwipeableTabs';
 import { VenueSearchBar, VenueTable, VenueEditDialog } from './components';
 import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
@@ -76,6 +79,9 @@ const VenuesPage = ({
   fetchNearestCities,
   fetchGeoHierarchy
 }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
   // Local state for dialogs
   const [dialogOpen, setDialogOpen] = useState(false);
   const [validateGeoDialogOpen, setValidateGeoDialogOpen] = useState(false);
@@ -105,8 +111,10 @@ const VenuesPage = ({
   };
   
   
-  const handleTabChange = (event, newValue) => {
-    setTabValue(newValue);
+  // Handle tab change - supports both MUI Tabs (event, value) and SwipeableTabs (value only)
+  const handleTabChange = (eventOrValue, newValue) => {
+    const value = typeof eventOrValue === 'number' ? eventOrValue : newValue;
+    setTabValue(value);
   };
   
   const handlePaginationChange = (page, pageSize) => {
@@ -276,85 +284,87 @@ const VenuesPage = ({
         </Box>
       </Paper>
       
-      <TabPanel value={tabValue} index={0}>
-        <Typography variant="body1">
-          {loading ? 'Loading active venues...' : 
-            error ? `Error loading venues: ${error.message}` :
-            `${filteredVenues.length} active venues found`}
-        </Typography>
-        <VenueTable 
-          venues={filteredVenues}
-          loading={loading}
-          pagination={pagination}
-          onPaginationChange={handlePaginationChange}
-          onEdit={handleEditVenue}
-          onDelete={handleDeleteVenue}
-          onValidateGeo={handleValidateGeo}
-          onFindMastered={handleFindMastered}
-          onGeocodeAddress={handleGeocodeAddress}
-          density="compact"
-        />
-      </TabPanel>
-      
-      <TabPanel value={tabValue} index={1}>
-        <Typography variant="body1">
-          {loading ? 'Loading approved venues...' : 
-            error ? `Error loading venues: ${error.message}` :
-            `${filteredVenues.length} approved venues found`}
-        </Typography>
-        <VenueTable 
-          venues={filteredVenues}
-          loading={loading}
-          pagination={pagination}
-          onPaginationChange={handlePaginationChange}
-          onEdit={handleEditVenue}
-          onDelete={handleDeleteVenue}
-          onValidateGeo={handleValidateGeo}
-          onFindMastered={handleFindMastered}
-          onGeocodeAddress={handleGeocodeAddress}
-          density="compact"
-        />
-      </TabPanel>
-      
-      <TabPanel value={tabValue} index={2}>
-        <Typography variant="body1">
-          {loading ? 'Loading not approved venues...' : 
-            error ? `Error loading venues: ${error.message}` :
-            `${filteredVenues.length} not approved venues found`}
-        </Typography>
-        <VenueTable 
-          venues={filteredVenues}
-          loading={loading}
-          pagination={pagination}
-          onPaginationChange={handlePaginationChange}
-          onEdit={handleEditVenue}
-          onDelete={handleDeleteVenue}
-          onValidateGeo={handleValidateGeo}
-          onFindMastered={handleFindMastered}
-          onGeocodeAddress={handleGeocodeAddress}
-          density="compact"
-        />
-      </TabPanel>
-      
-      <TabPanel value={tabValue} index={3}>
-        <Typography variant="body1">
-          {loading ? 'Loading all venues...' : 
-            error ? `Error loading venues: ${error.message}` :
-            `${filteredVenues.length} total venues found`}
-        </Typography>
-        <VenueTable 
-          venues={filteredVenues}
-          loading={loading}
-          pagination={pagination}
-          onPaginationChange={handlePaginationChange}
-          onEdit={handleEditVenue}
-          onDelete={handleDeleteVenue}
-          onValidateGeo={handleValidateGeo}
-          onFindMastered={handleFindMastered}
-          onGeocodeAddress={handleGeocodeAddress}
-          density="compact"
-        />
-      </TabPanel>
+      <SwipeableTabs value={tabValue} onChange={handleTabChange}>
+        <TabPanel value={tabValue} index={0}>
+          <Typography variant="body1">
+            {loading ? 'Loading active venues...' :
+              error ? `Error loading venues: ${error.message}` :
+              `${filteredVenues.length} active venues found`}
+          </Typography>
+          <VenueTable
+            venues={filteredVenues}
+            loading={loading}
+            pagination={pagination}
+            onPaginationChange={handlePaginationChange}
+            onEdit={handleEditVenue}
+            onDelete={handleDeleteVenue}
+            onValidateGeo={handleValidateGeo}
+            onFindMastered={handleFindMastered}
+            onGeocodeAddress={handleGeocodeAddress}
+            density="compact"
+          />
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={1}>
+          <Typography variant="body1">
+            {loading ? 'Loading approved venues...' :
+              error ? `Error loading venues: ${error.message}` :
+              `${filteredVenues.length} approved venues found`}
+          </Typography>
+          <VenueTable
+            venues={filteredVenues}
+            loading={loading}
+            pagination={pagination}
+            onPaginationChange={handlePaginationChange}
+            onEdit={handleEditVenue}
+            onDelete={handleDeleteVenue}
+            onValidateGeo={handleValidateGeo}
+            onFindMastered={handleFindMastered}
+            onGeocodeAddress={handleGeocodeAddress}
+            density="compact"
+          />
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={2}>
+          <Typography variant="body1">
+            {loading ? 'Loading not approved venues...' :
+              error ? `Error loading venues: ${error.message}` :
+              `${filteredVenues.length} not approved venues found`}
+          </Typography>
+          <VenueTable
+            venues={filteredVenues}
+            loading={loading}
+            pagination={pagination}
+            onPaginationChange={handlePaginationChange}
+            onEdit={handleEditVenue}
+            onDelete={handleDeleteVenue}
+            onValidateGeo={handleValidateGeo}
+            onFindMastered={handleFindMastered}
+            onGeocodeAddress={handleGeocodeAddress}
+            density="compact"
+          />
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={3}>
+          <Typography variant="body1">
+            {loading ? 'Loading all venues...' :
+              error ? `Error loading venues: ${error.message}` :
+              `${filteredVenues.length} total venues found`}
+          </Typography>
+          <VenueTable
+            venues={filteredVenues}
+            loading={loading}
+            pagination={pagination}
+            onPaginationChange={handlePaginationChange}
+            onEdit={handleEditVenue}
+            onDelete={handleDeleteVenue}
+            onValidateGeo={handleValidateGeo}
+            onFindMastered={handleFindMastered}
+            onGeocodeAddress={handleGeocodeAddress}
+            density="compact"
+          />
+        </TabPanel>
+      </SwipeableTabs>
       
       {/* Venue Edit Dialog */}
       <VenueEditDialog

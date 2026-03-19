@@ -256,7 +256,14 @@ export default function AdminLayout({ children }) {
 
         {/* Organizer Types with submenu */}
         <ListItem disablePadding>
-          <ListItemButton onClick={() => setOrganizerTypesOpen(!organizerTypesOpen)}>
+          <ListItemButton
+            onClick={() => setOrganizerTypesOpen(!organizerTypesOpen)}
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              setOrganizerTypesOpen(!organizerTypesOpen);
+            }}
+            sx={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
+          >
             <ListItemIcon>
               <SupervisorAccountIcon />
             </ListItemIcon>
@@ -268,7 +275,7 @@ export default function AdminLayout({ children }) {
           <List component="div" disablePadding dense>
             {organizerTypeItems.map((item) => (
               <ListItem key={item.name} disablePadding>
-                <ListItemButton component="a" href={item.href} sx={{ pl: 4 }}>
+                <ListItemButton component="a" href={item.href} sx={{ pl: 4, touchAction: 'manipulation' }}>
                   <ListItemIcon>{item.icon}</ListItemIcon>
                   <ListItemText primary={item.name} />
                 </ListItemButton>
@@ -283,7 +290,14 @@ export default function AdminLayout({ children }) {
       <List dense>
         {/* Errors submenu */}
         <ListItem disablePadding>
-          <ListItemButton onClick={() => setErrorsOpen(!errorsOpen)}>
+          <ListItemButton
+            onClick={() => setErrorsOpen(!errorsOpen)}
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              setErrorsOpen(!errorsOpen);
+            }}
+            sx={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
+          >
             <ListItemIcon><BugReportIcon /></ListItemIcon>
             <ListItemText primary="Errors" />
             {errorsOpen ? <ExpandLess /> : <ExpandMore />}
@@ -292,13 +306,13 @@ export default function AdminLayout({ children }) {
         <Collapse in={errorsOpen} timeout="auto" unmountOnExit>
           <List component="div" disablePadding dense>
             <ListItem disablePadding>
-              <ListItemButton component="a" href="/dashboard/errors/api" sx={{ pl: 4 }}>
+              <ListItemButton component="a" href="/dashboard/errors/api" sx={{ pl: 4, touchAction: 'manipulation' }}>
                 <ListItemIcon><BugReportIcon /></ListItemIcon>
                 <ListItemText primary="API" />
               </ListItemButton>
             </ListItem>
             <ListItem disablePadding>
-              <ListItemButton component="a" href="/dashboard/errors/trends" sx={{ pl: 4 }}>
+              <ListItemButton component="a" href="/dashboard/errors/trends" sx={{ pl: 4, touchAction: 'manipulation' }}>
                 <ListItemIcon><TimelineIcon /></ListItemIcon>
                 <ListItemText primary="Trends" />
               </ListItemButton>
@@ -308,7 +322,14 @@ export default function AdminLayout({ children }) {
 
         {/* GIT submenu */}
         <ListItem disablePadding>
-          <ListItemButton onClick={() => setGitOpen(!gitOpen)}>
+          <ListItemButton
+            onClick={() => setGitOpen(!gitOpen)}
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              setGitOpen(!gitOpen);
+            }}
+            sx={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
+          >
             <ListItemIcon><GitHubIcon /></ListItemIcon>
             <ListItemText primary="GIT" />
             {gitOpen ? <ExpandLess /> : <ExpandMore />}
@@ -317,13 +338,13 @@ export default function AdminLayout({ children }) {
         <Collapse in={gitOpen} timeout="auto" unmountOnExit>
           <List component="div" disablePadding dense>
             <ListItem disablePadding>
-              <ListItemButton component="a" href="/dashboard/git/pipeline" sx={{ pl: 4 }}>
+              <ListItemButton component="a" href="/dashboard/git/pipeline" sx={{ pl: 4, touchAction: 'manipulation' }}>
                 <ListItemIcon><GitHubIcon /></ListItemIcon>
                 <ListItemText primary="Pipeline" />
               </ListItemButton>
             </ListItem>
             <ListItem disablePadding>
-              <ListItemButton component="a" href="/dashboard/git/repos" sx={{ pl: 4 }}>
+              <ListItemButton component="a" href="/dashboard/git/repos" sx={{ pl: 4, touchAction: 'manipulation' }}>
                 <ListItemIcon><StorageIcon /></ListItemIcon>
                 <ListItemText primary="Repos" />
               </ListItemButton>
@@ -447,7 +468,15 @@ export default function AdminLayout({ children }) {
           }}
           sx={{
             display: { xs: 'block', sm: 'none' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+            '& .MuiDrawer-paper': {
+              boxSizing: 'border-box',
+              width: drawerWidth,
+              touchAction: 'pan-y',
+              WebkitOverflowScrolling: 'touch',
+            },
+          }}
+          SlideProps={{
+            appear: true,
           }}
         >
           {drawer}
