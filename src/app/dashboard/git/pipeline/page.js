@@ -295,7 +295,7 @@ export default function GitPipelinePage() {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box>
       <Paper sx={{ p: 0, mb: 3, overflow: 'hidden' }}>
         <Box
           sx={{
