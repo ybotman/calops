@@ -203,7 +203,12 @@ export async function GET(request) {
       {
         success: false,
         error: 'Failed to query App Insights',
-        message: error.message
+        message: error.message,
+        debug: {
+          hasAppId: !!APP_ID,
+          hasApiKey: !!API_KEY,
+          appIdPrefix: APP_ID ? APP_ID.substring(0, 8) + '...' : null
+        }
       },
       { status: 500 }
     );
