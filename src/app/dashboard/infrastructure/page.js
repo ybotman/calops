@@ -36,6 +36,7 @@ import ErrorIcon from '@mui/icons-material/Error';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import WarningIcon from '@mui/icons-material/Warning';
 import BugReportIcon from '@mui/icons-material/BugReport';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 
 // GitHub repos to monitor
 const GITHUB_REPOS = [
@@ -300,6 +301,54 @@ export default function InfrastructurePage() {
     return name.replace(/^(GET|POST|PUT|DELETE|PATCH)\s+/, '');
   };
 
+  // Copy all error data to clipboard
+  const copyErrorsToClipboard = () => {
+    const lines = [];
+    lines.push(`API Errors Report - ${errorTimeRange} time range`);
+    lines.push(`Generated: ${new Date().toLocaleString()}`);
+    lines.push('');
+
+    // Summary
+    lines.push('=== ERROR SUMMARY ===');
+    if (errorSummary.rows.length === 0) {
+      lines.push('No errors');
+    } else {
+      errorSummary.rows.forEach(row => {
+        lines.push(`${row.resultCode}: ${row.count_}`);
+      });
+    }
+    lines.push('');
+
+    // Top endpoints
+    lines.push('=== TOP FAILING ENDPOINTS ===');
+    if (errorsByEndpoint.rows.length === 0) {
+      lines.push('No errors');
+    } else {
+      errorsByEndpoint.rows.slice(0, 20).forEach(row => {
+        lines.push(`${getEndpointName(row.name)} [${row.resultCode}]: ${row.count_}`);
+      });
+    }
+    lines.push('');
+
+    // Recent errors
+    lines.push('=== RECENT ERRORS ===');
+    if (recentErrors.rows.length === 0) {
+      lines.push('No recent errors');
+    } else {
+      recentErrors.rows.forEach(row => {
+        const ts = formatTimestamp(row.timestamp);
+        const endpoint = getEndpointName(row.name);
+        const location = row.client_City && row.client_CountryOrRegion
+          ? `${row.client_City}, ${row.client_CountryOrRegion}`
+          : row.client_CountryOrRegion || '-';
+        const duration = row.duration ? `${Math.round(row.duration)}ms` : '-';
+        lines.push(`${ts} | ${endpoint} | ${row.resultCode} | ${duration} | ${location} | ${row.operation_Id || '-'}`);
+      });
+    }
+
+    navigator.clipboard.writeText(lines.join('\n'));
+  };
+
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -545,6 +594,15 @@ export default function InfrastructurePage() {
                     ))}
                   </Select>
                 </FormControl>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<ContentCopyIcon />}
+                  onClick={copyErrorsToClipboard}
+                  disabled={errorSummary.loading || recentErrors.loading}
+                >
+                  Copy All
+                </Button>
                 <Button
                   variant="outlined"
                   size="small"
