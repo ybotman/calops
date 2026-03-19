@@ -48,14 +48,30 @@ const QUERIES = {
     | take 50
   `,
 
-  // Error timeline (hourly buckets)
-  errorTimeline: (timeRange) => `
+  // Error timeline (hourly buckets) - by status code
+  errorTimeline: (timeRange) => {
+    // Dynamic bin size based on time range
+    const binSize = ['1h', '6h', '12h', '24h'].includes(timeRange) ? '1h' : '4h';
+    return `
     requests
     | where timestamp > ago(${timeRange})
     | where resultCode startswith "4" or resultCode startswith "5"
-    | summarize count() by bin(timestamp, 1h), resultCode
+    | summarize count() by bin(timestamp, ${binSize}), resultCode
     | order by timestamp asc
-  `,
+  `;
+  },
+
+  // Error timeline by endpoint
+  errorTimelineByEndpoint: (timeRange) => {
+    const binSize = ['1h', '6h', '12h', '24h'].includes(timeRange) ? '1h' : '4h';
+    return `
+    requests
+    | where timestamp > ago(${timeRange})
+    | where resultCode startswith "4" or resultCode startswith "5"
+    | summarize count() by bin(timestamp, ${binSize}), name
+    | order by timestamp asc
+  `;
+  },
 
   // Recent individual errors with details
   recentErrors: (timeRange) => `
