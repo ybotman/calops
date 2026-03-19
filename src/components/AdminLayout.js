@@ -42,6 +42,9 @@ import GridOnIcon from '@mui/icons-material/GridOn';
 import GitHubIcon from '@mui/icons-material/GitHub';
 import PersonSearchIcon from '@mui/icons-material/PersonSearch';
 import CloudIcon from '@mui/icons-material/Cloud';
+import BugReportIcon from '@mui/icons-material/BugReport';
+import TimelineIcon from '@mui/icons-material/Timeline';
+import StorageIcon from '@mui/icons-material/Storage';
 
 // Navigation items - Heatmaps section
 const heatmapNavItems = [
@@ -112,6 +115,8 @@ export default function AdminLayout({ children }) {
   const [anchorEl, setAnchorEl] = useState(null);
   const [appMenuAnchor, setAppMenuAnchor] = useState(null);
   const [organizerTypesOpen, setOrganizerTypesOpen] = useState(false);
+  const [errorsOpen, setErrorsOpen] = useState(false);
+  const [gitOpen, setGitOpen] = useState(false);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -276,22 +281,61 @@ export default function AdminLayout({ children }) {
       <Divider />
       {/* Bottom section - Ops tools */}
       <List dense>
+        {/* Errors submenu */}
+        <ListItem disablePadding>
+          <ListItemButton onClick={() => setErrorsOpen(!errorsOpen)}>
+            <ListItemIcon><BugReportIcon /></ListItemIcon>
+            <ListItemText primary="Errors" />
+            {errorsOpen ? <ExpandLess /> : <ExpandMore />}
+          </ListItemButton>
+        </ListItem>
+        <Collapse in={errorsOpen} timeout="auto" unmountOnExit>
+          <List component="div" disablePadding dense>
+            <ListItem disablePadding>
+              <ListItemButton component="a" href="/dashboard/errors/api" sx={{ pl: 4 }}>
+                <ListItemIcon><BugReportIcon /></ListItemIcon>
+                <ListItemText primary="API" />
+              </ListItemButton>
+            </ListItem>
+            <ListItem disablePadding>
+              <ListItemButton component="a" href="/dashboard/errors/trends" sx={{ pl: 4 }}>
+                <ListItemIcon><TimelineIcon /></ListItemIcon>
+                <ListItemText primary="Trends" />
+              </ListItemButton>
+            </ListItem>
+          </List>
+        </Collapse>
+
+        {/* GIT submenu */}
+        <ListItem disablePadding>
+          <ListItemButton onClick={() => setGitOpen(!gitOpen)}>
+            <ListItemIcon><GitHubIcon /></ListItemIcon>
+            <ListItemText primary="GIT" />
+            {gitOpen ? <ExpandLess /> : <ExpandMore />}
+          </ListItemButton>
+        </ListItem>
+        <Collapse in={gitOpen} timeout="auto" unmountOnExit>
+          <List component="div" disablePadding dense>
+            <ListItem disablePadding>
+              <ListItemButton component="a" href="/dashboard/git/pipeline" sx={{ pl: 4 }}>
+                <ListItemIcon><GitHubIcon /></ListItemIcon>
+                <ListItemText primary="Pipeline" />
+              </ListItemButton>
+            </ListItem>
+            <ListItem disablePadding>
+              <ListItemButton component="a" href="/dashboard/git/repos" sx={{ pl: 4 }}>
+                <ListItemIcon><StorageIcon /></ListItemIcon>
+                <ListItemText primary="Repos" />
+              </ListItemButton>
+            </ListItem>
+          </List>
+        </Collapse>
+
+        {/* Infrastructure - now just Vercel */}
         <ListItem disablePadding>
           <ListItemButton component="a" href="/dashboard/infrastructure">
             <ListItemIcon><CloudIcon /></ListItemIcon>
-            <ListItemText primary="Infrastructure" />
-          </ListItemButton>
-        </ListItem>
-        <ListItem disablePadding>
-          <ListItemButton component="a" href="/dashboard/maintenance">
-            <ListItemIcon><BuildIcon /></ListItemIcon>
-            <ListItemText primary="Maintenance" />
-          </ListItemButton>
-        </ListItem>
-        <ListItem disablePadding>
-          <ListItemButton component="a" href="/dashboard/git-pipeline">
-            <ListItemIcon><GitHubIcon /></ListItemIcon>
-            <ListItemText primary="Git Pipeline" />
+            <ListItemText primary="Deployments" />
           </ListItemButton>
         </ListItem>
       </List>
