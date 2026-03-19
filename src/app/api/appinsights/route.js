@@ -16,15 +16,15 @@ const APP_ID = process.env.APPINSIGHTS_APP_ID;
 const API_KEY = process.env.APPINSIGHTS_API_KEY;
 const APP_INSIGHTS_URL = 'https://api.applicationinsights.io/v1/apps';
 
-// Time range mappings
+// Time range mappings - KQL ago() format
 const TIME_RANGES = {
-  '1h': 'PT1H',
-  '6h': 'PT6H',
-  '12h': 'PT12H',
-  '24h': 'P1D',
-  '3d': 'P3D',
-  '7d': 'P7D',
-  '30d': 'P30D'
+  '1h': '1h',
+  '6h': '6h',
+  '12h': '12h',
+  '24h': '24h',
+  '3d': '3d',
+  '7d': '7d',
+  '30d': '30d'
 };
 
 // KQL queries for different error views
@@ -203,7 +203,12 @@ export async function GET(request) {
       {
         success: false,
         error: 'Failed to query App Insights',
-        message: error.message
+        message: error.message,
+        debug: {
+          hasAppId: !!APP_ID,
+          hasApiKey: !!API_KEY,
+          appIdPrefix: APP_ID ? APP_ID.substring(0, 8) + '...' : null
+        }
       },
       { status: 500 }
     );
