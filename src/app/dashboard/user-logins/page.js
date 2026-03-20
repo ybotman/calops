@@ -43,6 +43,7 @@ import { formatDistanceToNow, format } from 'date-fns';
 import { adminApi } from '@/lib/api-client/index';
 import { organizersApi, eventsApi } from '@/lib/api-client.js';
 import { useAppContext } from '@/lib/AppContext';
+import { useMobileGestures } from '@/hooks/useMobileGestures';
 
 /**
  * User Logins Page
@@ -66,6 +67,15 @@ export default function UserLoginsPage() {
   const [sortDir, setSortDir] = useState('desc');
   const [expandedUser, setExpandedUser] = useState(null);
   const [userDetails, setUserDetails] = useState({});
+
+  // Mobile swipe gesture for tab navigation
+  const tabCount = 3;
+  const { ref: swipeRef, handlers: swipeHandlers } = useMobileGestures({
+    onSwipeLeft: () => setTabValue(prev => Math.min(prev + 1, tabCount - 1)),
+    onSwipeRight: () => setTabValue(prev => Math.max(prev - 1, 0)),
+    threshold: 50,
+    enabled: isMobile
+  });
 
   // Fetch user activity data
   const fetchActivityData = useCallback(async () => {
@@ -659,7 +669,11 @@ export default function UserLoginsPage() {
           </Paper>
 
           {/* User list */}
-          <Box sx={{ maxHeight: 'calc(100vh - 450px)', overflow: 'auto' }}>
+          <Box
+            ref={swipeRef}
+            {...swipeHandlers}
+            sx={{ maxHeight: 'calc(100vh - 450px)', overflow: 'auto', touchAction: 'pan-y' }}
+          >
             {filteredUsers.length === 0 ? (
               <Paper sx={{ p: 3, textAlign: 'center' }}>
                 <Typography color="text.secondary">

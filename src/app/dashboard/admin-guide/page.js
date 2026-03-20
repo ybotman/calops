@@ -1,13 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { Box, Typography, Tabs, Tab, Paper } from '@mui/material';
+import { Box, Typography, Tabs, Tab, Paper, useTheme, useMediaQuery } from '@mui/material';
 import UserGuide from '@/components/admin-guide/UserGuide';
 import OrganizerGuide from '@/components/admin-guide/OrganizerGuide';
 import VenueGuide from '@/components/admin-guide/VenueGuide';
 import EventGuide from '@/components/admin-guide/EventGuide';
 import GeoHierarchyGuide from '@/components/admin-guide/GeoHierarchyGuide';
 import StatusGuide from '@/components/admin-guide/StatusGuide';
+import SwipeableTabs from '@/components/common/SwipeableTabs';
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -26,10 +27,14 @@ function TabPanel(props) {
 }
 
 export default function AdminGuidePage() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [tabValue, setTabValue] = useState(0);
 
-  const handleTabChange = (event, newValue) => {
-    setTabValue(newValue);
+  // Handle tab change - supports both MUI Tabs (event, value) and SwipeableTabs (value only)
+  const handleTabChange = (eventOrValue, newValue) => {
+    const value = typeof eventOrValue === 'number' ? eventOrValue : newValue;
+    setTabValue(value);
   };
 
   return (
@@ -37,18 +42,19 @@ export default function AdminGuidePage() {
       <Typography variant="h4" sx={{ mb: 3 }}>
         Admin Guide
       </Typography>
-      
+
       <Typography variant="body1" sx={{ mb: 3, color: 'text.secondary' }}>
         This guide explains the data models, relationships, and important concepts for managing the calendar system.
       </Typography>
 
       <Paper sx={{ width: '100%' }}>
-        <Tabs 
-          value={tabValue} 
-          onChange={handleTabChange} 
+        <Tabs
+          value={tabValue}
+          onChange={handleTabChange}
           aria-label="admin guide tabs"
           variant="scrollable"
           scrollButtons="auto"
+          allowScrollButtonsMobile
         >
           <Tab label="Users" />
           <Tab label="Organizers" />
@@ -58,29 +64,31 @@ export default function AdminGuidePage() {
           <Tab label="Status" />
         </Tabs>
 
-        <TabPanel value={tabValue} index={0}>
-          <UserGuide />
-        </TabPanel>
-        
-        <TabPanel value={tabValue} index={1}>
-          <OrganizerGuide />
-        </TabPanel>
-        
-        <TabPanel value={tabValue} index={2}>
-          <VenueGuide />
-        </TabPanel>
-        
-        <TabPanel value={tabValue} index={3}>
-          <GeoHierarchyGuide />
-        </TabPanel>
-        
-        <TabPanel value={tabValue} index={4}>
-          <EventGuide />
-        </TabPanel>
-        
-        <TabPanel value={tabValue} index={5}>
-          <StatusGuide />
-        </TabPanel>
+        <SwipeableTabs value={tabValue} onChange={handleTabChange}>
+          <TabPanel value={tabValue} index={0}>
+            <UserGuide />
+          </TabPanel>
+
+          <TabPanel value={tabValue} index={1}>
+            <OrganizerGuide />
+          </TabPanel>
+
+          <TabPanel value={tabValue} index={2}>
+            <VenueGuide />
+          </TabPanel>
+
+          <TabPanel value={tabValue} index={3}>
+            <GeoHierarchyGuide />
+          </TabPanel>
+
+          <TabPanel value={tabValue} index={4}>
+            <EventGuide />
+          </TabPanel>
+
+          <TabPanel value={tabValue} index={5}>
+            <StatusGuide />
+          </TabPanel>
+        </SwipeableTabs>
       </Paper>
     </Box>
   );

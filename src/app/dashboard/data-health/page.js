@@ -47,6 +47,7 @@ import { format } from 'date-fns';
 import { adminApi } from '@/lib/api-client/index';
 import { masteredLocationsApi, venuesApi } from '@/lib/api-client.js';
 import { useAppContext } from '@/lib/AppContext';
+import { useMobileGestures } from '@/hooks/useMobileGestures';
 
 /**
  * Data Health Dashboard
@@ -66,6 +67,21 @@ export default function DataHealthPage() {
   // UI state
   const [tabValue, setTabValue] = useState(0);
   const [expandedSection, setExpandedSection] = useState(null);
+
+  // Mobile swipe gesture for tab navigation
+  const tabCount = 5;
+  const { ref: swipeRef, handlers: swipeHandlers } = useMobileGestures({
+    onSwipeLeft: () => {
+      setTabValue(prev => Math.min(prev + 1, tabCount - 1));
+      setExpandedSection(null);
+    },
+    onSwipeRight: () => {
+      setTabValue(prev => Math.max(prev - 1, 0));
+      setExpandedSection(null);
+    },
+    threshold: 50,
+    enabled: isMobile
+  });
 
   // Mastered city assignment state
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
@@ -832,7 +848,11 @@ export default function DataHealthPage() {
           </Paper>
 
           {/* Issue sections for current tab */}
-          <Box>
+          <Box
+            ref={swipeRef}
+            {...swipeHandlers}
+            sx={{ touchAction: 'pan-y' }}
+          >
             {getCategoriesForTab(tabValue).map(category => renderIssueSection(category))}
           </Box>
 

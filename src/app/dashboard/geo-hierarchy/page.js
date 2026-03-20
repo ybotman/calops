@@ -16,6 +16,8 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import SearchIcon from '@mui/icons-material/Search';
@@ -23,6 +25,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useAppContext } from '@/lib/AppContext';
+import SwipeableTabs from '@/components/common/SwipeableTabs';
 
 // Tab panel component
 function TabPanel(props) {
@@ -42,6 +45,8 @@ function TabPanel(props) {
 }
 
 export default function GeoHierarchyPage() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [loading, setLoading] = useState(true);
   const [cities, setCities] = useState([]);
   const [divisions, setDivisions] = useState([]);
@@ -170,10 +175,11 @@ export default function GeoHierarchyPage() {
     }
   };
 
-  // Handle tab change
-  const handleTabChange = (event, newValue) => {
-    setTabValue(newValue);
-    updateFilteredItems(newValue);
+  // Handle tab change - supports both MUI Tabs (event, value) and SwipeableTabs (value only)
+  const handleTabChange = (eventOrValue, newValue) => {
+    const value = typeof eventOrValue === 'number' ? eventOrValue : newValue;
+    setTabValue(value);
+    updateFilteredItems(value);
   };
 
   // Handle search input change
@@ -438,62 +444,64 @@ export default function GeoHierarchyPage() {
         />
       </Box>
       
-      <TabPanel value={tabValue} index={0}>
-        <Paper sx={{ height: 'calc(100vh - 380px)', minHeight: 350, width: '100%' }}>
-          {loading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-              <CircularProgress />
-            </Box>
-          ) : (
-            <DataGrid
-              rows={filteredItems}
-              columns={cityColumns}
-              pageSize={10}
-              rowsPerPageOptions={[10, 25, 50]}
-              disableSelectionOnClick
-              density="standard"
-            />
-          )}
-        </Paper>
-      </TabPanel>
-      
-      <TabPanel value={tabValue} index={1}>
-        <Paper sx={{ height: 'calc(100vh - 380px)', minHeight: 350, width: '100%' }}>
-          {loading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-              <CircularProgress />
-            </Box>
-          ) : (
-            <DataGrid
-              rows={filteredItems}
-              columns={divisionColumns}
-              pageSize={10}
-              rowsPerPageOptions={[10, 25, 50]}
-              disableSelectionOnClick
-              density="standard"
-            />
-          )}
-        </Paper>
-      </TabPanel>
-      
-      <TabPanel value={tabValue} index={2}>
-        <Paper sx={{ height: 'calc(100vh - 380px)', minHeight: 350, width: '100%' }}>
-          {loading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-              <CircularProgress />
-            </Box>
-          ) : (
-            <DataGrid
-              rows={filteredItems}
-              columns={regionColumns}
-              pageSize={10}
-              rowsPerPageOptions={[10, 25, 50]}
-              disableSelectionOnClick
-              density="standard"
-            />
-          )}
-        </Paper>
-      </TabPanel>
+      <SwipeableTabs value={tabValue} onChange={handleTabChange}>
+        <TabPanel value={tabValue} index={0}>
+          <Paper sx={{ height: 'calc(100vh - 380px)', minHeight: 350, width: '100%' }}>
+            {loading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <DataGrid
+                rows={filteredItems}
+                columns={cityColumns}
+                pageSize={10}
+                rowsPerPageOptions={[10, 25, 50]}
+                disableSelectionOnClick
+                density="standard"
+              />
+            )}
+          </Paper>
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={1}>
+          <Paper sx={{ height: 'calc(100vh - 380px)', minHeight: 350, width: '100%' }}>
+            {loading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <DataGrid
+                rows={filteredItems}
+                columns={divisionColumns}
+                pageSize={10}
+                rowsPerPageOptions={[10, 25, 50]}
+                disableSelectionOnClick
+                density="standard"
+              />
+            )}
+          </Paper>
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={2}>
+          <Paper sx={{ height: 'calc(100vh - 380px)', minHeight: 350, width: '100%' }}>
+            {loading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <DataGrid
+                rows={filteredItems}
+                columns={regionColumns}
+                pageSize={10}
+                rowsPerPageOptions={[10, 25, 50]}
+                disableSelectionOnClick
+                density="standard"
+              />
+            )}
+          </Paper>
+        </TabPanel>
+      </SwipeableTabs>
       
       {/* Edit Dialog - Will be implemented in future */}
       <Dialog 
