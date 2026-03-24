@@ -47,7 +47,7 @@ const REPOS = [
     name: 'CALOPS',
     owner: 'ybotman',
     repo: 'calops',
-    branches: { dev: 'main', test: 'TEST', prod: 'PROD' },
+    branches: { dev: 'DEVL', test: 'TEST', prod: 'PROD' },
     color: '#2196f3'
   }
 ];
