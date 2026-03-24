@@ -56,6 +56,16 @@ const GITHUB_API = 'https://api.github.com';
 const DEFAULT_COMMITS = 10;
 const MORE_COMMITS = 25;
 
+// GitHub API headers - use token if available for higher rate limits (5000/hr vs 60/hr)
+const getGitHubHeaders = () => {
+  const headers = { 'Accept': 'application/vnd.github.v3+json' };
+  const token = process.env.NEXT_PUBLIC_GITHUB_TOKEN;
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+};
+
 export default function GitPipelinePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -63,17 +73,27 @@ export default function GitPipelinePage() {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [commitCounts, setCommitCounts] = useState({});
   const [loadingMore, setLoadingMore] = useState({});
+  const [rateLimit, setRateLimit] = useState(null);
 
   const fetchBranchData = useCallback(async (repoConfig, perPage = DEFAULT_COMMITS) => {
     const { owner, repo, branches } = repoConfig;
     const branchData = {};
+    const headers = getGitHubHeaders();
 
     for (const [env, branchName] of Object.entries(branches)) {
       try {
         // Get branch info
         const branchRes = await fetch(
-          `${GITHUB_API}/repos/${owner}/${repo}/branches/${branchName}`
+          `${GITHUB_API}/repos/${owner}/${repo}/branches/${branchName}`,
+          { headers }
         );
+
+        // Capture rate limit info from response headers
+        const remaining = branchRes.headers.get('x-ratelimit-remaining');
+        const limit = branchRes.headers.get('x-ratelimit-limit');
+        if (remaining !== null) {
+          setRateLimit({ remaining: parseInt(remaining), limit: parseInt(limit) });
+        }
 
         if (!branchRes.ok) {
           branchData[env] = { error: `Branch ${branchName} not found` };
@@ -84,7 +104,8 @@ export default function GitPipelinePage() {
 
         // Get recent commits for this branch
         const commitsRes = await fetch(
-          `${GITHUB_API}/repos/${owner}/${repo}/commits?sha=${branchName}&per_page=${perPage}`
+          `${GITHUB_API}/repos/${owner}/${repo}/commits?sha=${branchName}&per_page=${perPage}`,
+          { headers }
         );
         const commits = commitsRes.ok ? await commitsRes.json() : [];
 
@@ -129,11 +150,14 @@ export default function GitPipelinePage() {
     const { owner, repo } = repoConfig;
     const comparisons = {};
 
+    const headers = getGitHubHeaders();
+
     // Compare dev -> test
     if (branchData.dev?.fullSha && branchData.test?.fullSha) {
       try {
         const res = await fetch(
-          `${GITHUB_API}/repos/${owner}/${repo}/compare/${branchData.test.fullSha}...${branchData.dev.fullSha}`
+          `${GITHUB_API}/repos/${owner}/${repo}/compare/${branchData.test.fullSha}...${branchData.dev.fullSha}`,
+          { headers }
         );
         if (res.ok) {
           const data = await res.json();
@@ -152,7 +176,8 @@ export default function GitPipelinePage() {
     if (branchData.test?.fullSha && branchData.prod?.fullSha) {
       try {
         const res = await fetch(
-          `${GITHUB_API}/repos/${owner}/${repo}/compare/${branchData.prod.fullSha}...${branchData.test.fullSha}`
+          `${GITHUB_API}/repos/${owner}/${repo}/compare/${branchData.prod.fullSha}...${branchData.test.fullSha}`,
+          { headers }
         );
         if (res.ok) {
           const data = await res.json();
@@ -217,7 +242,8 @@ export default function GitPipelinePage() {
       const newCount = (commitCounts[repoName]?.[env] || DEFAULT_COMMITS) + MORE_COMMITS;
 
       const commitsRes = await fetch(
-        `${GITHUB_API}/repos/${owner}/${repo}/commits?sha=${branchName}&per_page=${newCount}`
+        `${GITHUB_API}/repos/${owner}/${repo}/commits?sha=${branchName}&per_page=${newCount}`,
+        { headers: getGitHubHeaders() }
       );
 
       if (commitsRes.ok) {
@@ -503,7 +529,14 @@ export default function GitPipelinePage() {
       ))}
 
       <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
-        Data fetched from GitHub API. Rate limit: 60 requests/hour for unauthenticated requests.
+        GitHub API: {rateLimit ? (
+          <>
+            <strong>{rateLimit.remaining}</strong>/{rateLimit.limit} requests remaining
+            {rateLimit.limit === 5000 ? ' (authenticated)' : ' (unauthenticated - add NEXT_PUBLIC_GITHUB_TOKEN for 5000/hr)'}
+          </>
+        ) : (
+          'Rate limit info loading...'
+        )}
       </Typography>
     </Box>
   );
