@@ -40,14 +40,14 @@ const REPOS = [
     name: 'CALENDAR-BE-AF',
     owner: 'ybotman',
     repo: 'calendar-be-af',
-    branches: { dev: 'main', test: 'TEST', prod: 'PROD' },
+    branches: { dev: 'DEVL', test: 'TEST', prod: 'PROD' },
     color: '#4caf50'
   },
   {
     name: 'CALOPS',
     owner: 'ybotman',
     repo: 'calops',
-    branches: { dev: 'main', test: 'TEST', prod: 'PROD' },
+    branches: { dev: 'DEVL', test: 'TEST', prod: 'PROD' },
     color: '#2196f3'
   }
 ];
