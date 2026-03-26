@@ -34,21 +34,27 @@ const REPOS = [
     owner: 'ybotman',
     repo: 'TangoTiempo.com',
     branches: { dev: 'DEVL', test: 'TEST', prod: 'PROD' },
-    color: '#ff9800'
+    color: '#ff9800',
+    platform: 'Vercel',
+    deployedUrl: 'https://tangotiempo.com/api/version'
   },
   {
     name: 'CALENDAR-BE-AF',
     owner: 'ybotman',
     repo: 'calendar-be-af',
     branches: { dev: 'DEVL', test: 'TEST', prod: 'PROD' },
-    color: '#4caf50'
+    color: '#4caf50',
+    platform: 'Azure',
+    deployedUrl: 'https://calendarbeaf-prod.azurewebsites.net/api/version'
   },
   {
     name: 'CALOPS',
     owner: 'ybotman',
     repo: 'calops',
     branches: { dev: 'DEVL', test: 'TEST', prod: 'PROD' },
-    color: '#2196f3'
+    color: '#2196f3',
+    platform: 'Vercel',
+    deployedUrl: 'https://cal-ops.org/api/version'
   }
 ];
 
@@ -74,6 +80,7 @@ export default function GitPipelinePage() {
   const [commitCounts, setCommitCounts] = useState({});
   const [loadingMore, setLoadingMore] = useState({});
   const [rateLimit, setRateLimit] = useState(null);
+  const [deployedVersions, setDeployedVersions] = useState({});
 
   const fetchBranchData = useCallback(async (repoConfig, perPage = DEFAULT_COMMITS) => {
     const { owner, repo, branches } = repoConfig;
@@ -195,6 +202,49 @@ export default function GitPipelinePage() {
     return comparisons;
   }, []);
 
+  const fetchDeployedVersions = useCallback(async () => {
+    const versions = {};
+
+    await Promise.all(
+      REPOS.map(async (repoConfig) => {
+        const { name, deployedUrl, platform } = repoConfig;
+        try {
+          const res = await fetch(deployedUrl, {
+            cache: 'no-store',
+            signal: AbortSignal.timeout(5000) // 5 second timeout
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            versions[name] = {
+              version: data.version,
+              platform,
+              timestamp: data.timestamp,
+              status: 'ok'
+            };
+          } else {
+            versions[name] = {
+              version: null,
+              platform,
+              status: 'error',
+              error: `HTTP ${res.status}`
+            };
+          }
+        } catch (err) {
+          versions[name] = {
+            version: null,
+            platform,
+            status: 'error',
+            error: err.name === 'TimeoutError' ? 'Timeout' : 'No endpoint'
+          };
+        }
+      })
+    );
+
+    setDeployedVersions(versions);
+    return versions;
+  }, []);
+
   const fetchAllData = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -216,6 +266,9 @@ export default function GitPipelinePage() {
       setRepoData(results);
       setLastUpdated(new Date());
 
+      // Fetch deployed versions in parallel
+      await fetchDeployedVersions();
+
       // Initialize commit counts
       const counts = {};
       results.forEach(repo => {
@@ -227,7 +280,7 @@ export default function GitPipelinePage() {
     } finally {
       setLoading(false);
     }
-  }, [fetchBranchData, compareBranches]);
+  }, [fetchBranchData, compareBranches, fetchDeployedVersions]);
 
   const fetchMoreCommits = useCallback(async (repoName, env) => {
     const loadingKey = `${repoName}-${env}`;
@@ -373,6 +426,7 @@ export default function GitPipelinePage() {
                   <TableCell sx={{ fontWeight: 'bold' }}>DEVL</TableCell>
                   <TableCell sx={{ fontWeight: 'bold' }}>TEST</TableCell>
                   <TableCell sx={{ fontWeight: 'bold' }}>PROD</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>Deployed</TableCell>
                   <TableCell sx={{ fontWeight: 'bold' }}>Pipeline</TableCell>
                 </TableRow>
               </TableHead>
@@ -428,6 +482,49 @@ export default function GitPipelinePage() {
                           </TableCell>
                         );
                       })}
+
+                      {/* Deployed Version Column */}
+                      <TableCell>
+                        {(() => {
+                          const deployed = deployedVersions[repo.name];
+                          const prodVersion = repo.branches.prod?.version;
+
+                          if (!deployed) {
+                            return <CircularProgress size={16} />;
+                          }
+
+                          if (deployed.status === 'error') {
+                            return (
+                              <Tooltip title={deployed.error}>
+                                <Chip
+                                  label={`${deployed.platform}: N/A`}
+                                  size="small"
+                                  color="default"
+                                  sx={{ opacity: 0.6 }}
+                                />
+                              </Tooltip>
+                            );
+                          }
+
+                          const isInSync = deployed.version === prodVersion;
+                          return (
+                            <Tooltip title={isInSync ? 'Deployed matches PROD' : `PROD: v${prodVersion}`}>
+                              <Box>
+                                <Chip
+                                  icon={isInSync ? <CheckCircleIcon /> : <WarningIcon />}
+                                  label={`v${deployed.version}`}
+                                  size="small"
+                                  color={isInSync ? 'success' : 'warning'}
+                                  sx={{ mb: 0.5 }}
+                                />
+                                <Typography variant="caption" display="block" color="text.secondary">
+                                  {deployed.platform}
+                                </Typography>
+                              </Box>
+                            </Tooltip>
+                          );
+                        })()}
+                      </TableCell>
 
                       <TableCell>
                         <Chip
