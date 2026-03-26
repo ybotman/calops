@@ -1,6 +1,6 @@
 {
   "name": "master-calendar-operations",
-  "version": "1.5.10",
+  "version": "1.5.11",
   "description": "Administration application for Calendar Backend",
   "main": "server.js",
   "type": "module",

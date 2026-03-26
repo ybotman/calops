@@ -45,7 +45,7 @@ const REPOS = [
     branches: { dev: 'DEVL', test: 'TEST', prod: 'PROD' },
     color: '#4caf50',
     platform: 'Azure',
-    deployedUrl: 'https://calendarbeaf-prod.azurewebsites.net/api/version'
+    deployedUrl: 'https://calendarbeaf-prod.azurewebsites.net/api/health/version'
   },
   {
     name: 'CALOPS',
