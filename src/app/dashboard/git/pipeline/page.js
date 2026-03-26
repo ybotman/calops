@@ -54,7 +54,7 @@ const REPOS = [
     branches: { dev: 'DEVL', test: 'TEST', prod: 'PROD' },
     color: '#2196f3',
     platform: 'Vercel',
-    deployedUrl: 'https://cal-ops.org/api/version'
+    deployedUrl: 'https://www.cal-ops.org/api/version'
   }
 ];
 
