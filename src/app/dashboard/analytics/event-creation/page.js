@@ -210,7 +210,11 @@ export default function EventCreationPage() {
 
   // Get date field label for display
   const getDateFieldLabel = () => {
-    return dateField === 'updated' ? 'Last Modified' : 'Created';
+    switch (dateField) {
+      case 'updated': return 'Last Modified';
+      case 'deleted': return 'Deleted';
+      default: return 'Created';
+    }
   };
 
   return (
@@ -257,7 +261,7 @@ export default function EventCreationPage() {
             <ToggleButton value="discovered">AI</ToggleButton>
           </ToggleButtonGroup>
 
-          {/* Date Field - Created vs Updated */}
+          {/* Date Field - Created vs Updated vs Deleted */}
           <ToggleButtonGroup
             value={dateField}
             exclusive
@@ -267,6 +271,7 @@ export default function EventCreationPage() {
           >
             <ToggleButton value="created">Created</ToggleButton>
             <ToggleButton value="updated">Updated</ToggleButton>
+            <ToggleButton value="deleted">Deleted</ToggleButton>
           </ToggleButtonGroup>
 
           {/* DOW / DOM Toggle */}
