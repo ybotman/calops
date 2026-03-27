@@ -45,7 +45,18 @@ const REPOS = [
     branches: { dev: 'DEVL', test: 'TEST', prod: 'PROD' },
     color: '#4caf50',
     platform: 'Azure',
-    deployedUrl: 'https://calendarbeaf-prod.azurewebsites.net/api/health/version'
+    deployedUrl: 'https://calendarbeaf-prod.azurewebsites.net/api/health/version',
+    note: 'Primary'
+  },
+  {
+    name: 'CALENDAR-BE-AF-2',
+    owner: 'ybotman',
+    repo: 'calendar-be-af',
+    branches: { dev: 'DEVL', test: 'TEST', prod: 'PROD' },
+    color: '#81c784',
+    platform: 'Azure',
+    deployedUrl: 'https://calendarbeaf-prod-2.azurewebsites.net/api/health/version',
+    note: 'Failover'
   },
   {
     name: 'CALOPS',
@@ -448,6 +459,14 @@ export default function GitPipelinePage() {
                           <Typography variant="body1" fontWeight="bold">
                             {repo.name}
                           </Typography>
+                          {repo.note && (
+                            <Chip
+                              label={repo.note}
+                              size="small"
+                              variant="outlined"
+                              sx={{ fontSize: '0.65rem', height: 18 }}
+                            />
+                          )}
                         </Box>
                       </TableCell>
 
