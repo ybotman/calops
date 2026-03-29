@@ -28,6 +28,8 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import ErrorIcon from '@mui/icons-material/Error';
 import WarningIcon from '@mui/icons-material/Warning';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import Link from 'next/link';
 
 // Time range options for error queries
 const TIME_RANGES = [
@@ -219,6 +221,15 @@ export default function ApiErrorsPage() {
             disabled={errorSummary.loading}
           >
             Refresh
+          </Button>
+          <Button
+            component={Link}
+            href="/dashboard/errors/trends"
+            variant="contained"
+            size="small"
+            startIcon={<TrendingUpIcon />}
+          >
+            Trends
           </Button>
         </Box>
       </Box>

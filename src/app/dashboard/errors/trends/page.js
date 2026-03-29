@@ -29,6 +29,8 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import ErrorIcon from '@mui/icons-material/Error';
+import Link from 'next/link';
 
 // Time range options for error queries
 const TIME_RANGES = [
@@ -175,6 +177,15 @@ export default function ErrorTrendsPage() {
             disabled={errorTimeline.loading}
           >
             Refresh
+          </Button>
+          <Button
+            component={Link}
+            href="/dashboard/errors/api"
+            variant="contained"
+            size="small"
+            startIcon={<ErrorIcon />}
+          >
+            API Errors
           </Button>
         </Box>
       </Box>
