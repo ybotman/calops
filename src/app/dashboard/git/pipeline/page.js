@@ -34,21 +34,47 @@ const REPOS = [
     owner: 'ybotman',
     repo: 'TangoTiempo.com',
     branches: { dev: 'DEVL', test: 'TEST', prod: 'PROD' },
-    color: '#ff9800'
+    color: '#ff9800',
+    deployUrls: {
+      test: 'https://test.tangotiempo.com/api/health/version',
+      prod: 'https://www.tangotiempo.com/api/health/version'
+    }
   },
   {
     name: 'CALENDAR-BE-AF',
+    label: 'Primary',
     owner: 'ybotman',
     repo: 'calendar-be-af',
     branches: { dev: 'DEVL', test: 'TEST', prod: 'PROD' },
-    color: '#4caf50'
+    color: '#4caf50',
+    deployUrls: {
+      test: 'https://calendarbeaf-test.azurewebsites.net/api/health/version',
+      prod: 'https://calendarbeaf-prod.azurewebsites.net/api/health/version'
+    }
+  },
+  {
+    name: 'CALENDAR-BE-AF-2',
+    label: 'Failover',
+    owner: 'ybotman',
+    repo: 'calendar-be-af',
+    branches: { dev: 'DEVL', test: 'TEST', prod: 'PROD' },
+    color: '#81c784',
+    deployUrls: {
+      test: 'https://calendarbeaf-test-2.azurewebsites.net/api/health/version',
+      prod: 'https://calendarbeaf-prod-2.azurewebsites.net/api/health/version'
+    },
+    isFailover: true
   },
   {
     name: 'CALOPS',
     owner: 'ybotman',
     repo: 'calops',
     branches: { dev: 'DEVL', test: 'TEST', prod: 'PROD' },
-    color: '#2196f3'
+    color: '#2196f3',
+    deployUrls: {
+      test: 'https://calops-test.vercel.app/api/health/version',
+      prod: 'https://www.cal-ops.org/api/health/version'
+    }
   }
 ];
 
@@ -60,9 +86,49 @@ export default function GitPipelinePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [repoData, setRepoData] = useState([]);
+  const [deployedVersions, setDeployedVersions] = useState({});
   const [lastUpdated, setLastUpdated] = useState(null);
   const [commitCounts, setCommitCounts] = useState({});
   const [loadingMore, setLoadingMore] = useState({});
+
+  // Fetch deployed version from health endpoint
+  const fetchDeployedVersion = useCallback(async (url) => {
+    try {
+      const res = await fetch(url, { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        return data.version || null;
+      }
+    } catch {
+      // Health endpoint not available
+    }
+    return null;
+  }, []);
+
+  // Fetch all deployed versions
+  const fetchAllDeployedVersions = useCallback(async () => {
+    const versions = {};
+
+    await Promise.all(
+      REPOS.map(async (repo) => {
+        if (!repo.deployUrls) return;
+
+        versions[repo.name] = {};
+
+        // Fetch TEST deployed version
+        if (repo.deployUrls.test) {
+          versions[repo.name].test = await fetchDeployedVersion(repo.deployUrls.test);
+        }
+
+        // Fetch PROD deployed version
+        if (repo.deployUrls.prod) {
+          versions[repo.name].prod = await fetchDeployedVersion(repo.deployUrls.prod);
+        }
+      })
+    );
+
+    setDeployedVersions(versions);
+  }, [fetchDeployedVersion]);
 
   const fetchBranchData = useCallback(async (repoConfig, perPage = DEFAULT_COMMITS) => {
     const { owner, repo, branches } = repoConfig;
@@ -175,18 +241,22 @@ export default function GitPipelinePage() {
     setError(null);
 
     try {
-      const results = await Promise.all(
-        REPOS.map(async (repoConfig) => {
-          const branchData = await fetchBranchData(repoConfig);
-          const comparisons = await compareBranches(repoConfig, branchData);
+      // Fetch git data and deployed versions in parallel
+      const [results] = await Promise.all([
+        Promise.all(
+          REPOS.map(async (repoConfig) => {
+            const branchData = await fetchBranchData(repoConfig);
+            const comparisons = await compareBranches(repoConfig, branchData);
 
-          return {
-            ...repoConfig,
-            branches: branchData,
-            comparisons
-          };
-        })
-      );
+            return {
+              ...repoConfig,
+              branches: branchData,
+              comparisons
+            };
+          })
+        ),
+        fetchAllDeployedVersions()
+      ]);
 
       setRepoData(results);
       setLastUpdated(new Date());
@@ -202,7 +272,7 @@ export default function GitPipelinePage() {
     } finally {
       setLoading(false);
     }
-  }, [fetchBranchData, compareBranches]);
+  }, [fetchBranchData, compareBranches, fetchAllDeployedVersions]);
 
   const fetchMoreCommits = useCallback(async (repoName, env) => {
     const loadingKey = `${repoName}-${env}`;
@@ -340,22 +410,33 @@ export default function GitPipelinePage() {
           </Box>
         ) : (
           <TableContainer>
-            <Table>
+            <Table size="small">
               <TableHead>
+                {/* Header row 1 - grouped headers */}
+                <TableRow sx={{ bgcolor: 'grey.200' }}>
+                  <TableCell rowSpan={2} sx={{ fontWeight: 'bold', borderRight: '2px solid #ccc' }}>Project</TableCell>
+                  <TableCell rowSpan={2} sx={{ fontWeight: 'bold', borderRight: '1px solid #ddd' }}>DEVL</TableCell>
+                  <TableCell colSpan={2} align="center" sx={{ fontWeight: 'bold', borderRight: '2px solid #ccc', bgcolor: '#e3f2fd' }}>TEST</TableCell>
+                  <TableCell colSpan={2} align="center" sx={{ fontWeight: 'bold', borderRight: '2px solid #ccc', bgcolor: '#fff3e0' }}>PROD</TableCell>
+                  <TableCell rowSpan={2} sx={{ fontWeight: 'bold' }}>Pipeline</TableCell>
+                </TableRow>
+                {/* Header row 2 - sub-headers */}
                 <TableRow sx={{ bgcolor: 'grey.100' }}>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Project</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>DEVL</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>TEST</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>PROD</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Pipeline</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', bgcolor: '#e3f2fd' }}>Git</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', borderRight: '2px solid #ccc', bgcolor: '#e3f2fd' }}>Deployed</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', bgcolor: '#fff3e0' }}>Git</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', borderRight: '2px solid #ccc', bgcolor: '#fff3e0' }}>Deployed</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {repoData.map((repo) => {
                   const pipelineStatus = getPipelineStatus(repo.comparisons);
+                  const deployed = deployedVersions[repo.name] || {};
+
                   return (
                     <TableRow key={repo.name} hover>
-                      <TableCell>
+                      {/* Project name */}
+                      <TableCell sx={{ borderRight: '2px solid #ccc' }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <Box
                             sx={{
@@ -365,44 +446,125 @@ export default function GitPipelinePage() {
                               bgcolor: repo.color
                             }}
                           />
-                          <Typography variant="body1" fontWeight="bold">
-                            {repo.name}
-                          </Typography>
+                          <Box>
+                            <Typography variant="body2" fontWeight="bold">
+                              {repo.name}
+                            </Typography>
+                            {repo.label && (
+                              <Typography variant="caption" color="text.secondary">
+                                {repo.label}
+                              </Typography>
+                            )}
+                          </Box>
                         </Box>
                       </TableCell>
 
-                      {['dev', 'test', 'prod'].map((env) => {
-                        const branch = repo.branches[env];
-                        if (branch?.error) {
-                          return (
-                            <TableCell key={env}>
-                              <Chip label="Error" color="error" size="small" />
-                            </TableCell>
-                          );
-                        }
-                        return (
-                          <TableCell key={env}>
-                            <Tooltip title={`${branch?.message || ''}\n${branch?.author || ''}`}>
-                              <Box>
-                                {branch?.version && (
-                                  <Chip
-                                    label={`v${branch.version}`}
-                                    size="small"
-                                    sx={{ mb: 0.5, fontWeight: 'bold' }}
-                                  />
-                                )}
-                                <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
-                                  {branch?.sha || 'N/A'}
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                  {formatDate(branch?.date)}
-                                </Typography>
-                              </Box>
-                            </Tooltip>
-                          </TableCell>
-                        );
-                      })}
+                      {/* DEVL - Git only (no deployed for localhost) */}
+                      <TableCell sx={{ borderRight: '1px solid #ddd' }}>
+                        {repo.branches.dev?.error ? (
+                          <Chip label="Error" color="error" size="small" />
+                        ) : (
+                          <Tooltip title={`${repo.branches.dev?.message || ''}`}>
+                            <Box>
+                              {repo.branches.dev?.version && (
+                                <Chip
+                                  label={`v${repo.branches.dev.version}`}
+                                  size="small"
+                                  sx={{ mb: 0.5, fontWeight: 'bold' }}
+                                />
+                              )}
+                              <Typography variant="caption" sx={{ fontFamily: 'monospace', display: 'block' }}>
+                                {repo.branches.dev?.sha || 'N/A'}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {formatDate(repo.branches.dev?.date)}
+                              </Typography>
+                            </Box>
+                          </Tooltip>
+                        )}
+                      </TableCell>
 
+                      {/* TEST Git */}
+                      <TableCell sx={{ bgcolor: '#fafafa' }}>
+                        {repo.branches.test?.error ? (
+                          <Chip label="Error" color="error" size="small" />
+                        ) : (
+                          <Tooltip title={`${repo.branches.test?.message || ''}`}>
+                            <Box>
+                              {repo.branches.test?.version && (
+                                <Chip
+                                  label={`v${repo.branches.test.version}`}
+                                  size="small"
+                                  sx={{ mb: 0.5, fontWeight: 'bold' }}
+                                />
+                              )}
+                              <Typography variant="caption" sx={{ fontFamily: 'monospace', display: 'block' }}>
+                                {repo.branches.test?.sha || 'N/A'}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {formatDate(repo.branches.test?.date)}
+                              </Typography>
+                            </Box>
+                          </Tooltip>
+                        )}
+                      </TableCell>
+
+                      {/* TEST Deployed */}
+                      <TableCell sx={{ borderRight: '2px solid #ccc', bgcolor: '#fafafa' }}>
+                        {deployed.test ? (
+                          <Chip
+                            label={`v${deployed.test}`}
+                            size="small"
+                            color={deployed.test === repo.branches.test?.version ? 'success' : 'warning'}
+                            sx={{ fontWeight: 'bold' }}
+                          />
+                        ) : (
+                          <Typography variant="caption" color="text.secondary">N/A</Typography>
+                        )}
+                      </TableCell>
+
+                      {/* PROD Git */}
+                      <TableCell sx={{ bgcolor: '#fffbf5' }}>
+                        {repo.branches.prod?.error ? (
+                          <Chip label="Error" color="error" size="small" />
+                        ) : (
+                          <Tooltip title={`${repo.branches.prod?.message || ''}`}>
+                            <Box>
+                              {repo.branches.prod?.version && (
+                                <Chip
+                                  label={`v${repo.branches.prod.version}`}
+                                  size="small"
+                                  sx={{ mb: 0.5, fontWeight: 'bold' }}
+                                />
+                              )}
+                              <Typography variant="caption" sx={{ fontFamily: 'monospace', display: 'block' }}>
+                                {repo.branches.prod?.sha || 'N/A'}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {formatDate(repo.branches.prod?.date)}
+                              </Typography>
+                            </Box>
+                          </Tooltip>
+                        )}
+                      </TableCell>
+
+                      {/* PROD Deployed */}
+                      <TableCell sx={{ borderRight: '2px solid #ccc', bgcolor: '#fffbf5' }}>
+                        {deployed.prod ? (
+                          <Chip
+                            label={`v${deployed.prod}`}
+                            size="small"
+                            color={deployed.prod === repo.branches.prod?.version ? 'success' : 'warning'}
+                            sx={{ fontWeight: 'bold' }}
+                          />
+                        ) : (
+                          <Typography variant="caption" color="text.secondary">
+                            {repo.isFailover ? 'N/A' : 'N/A'}
+                          </Typography>
+                        )}
+                      </TableCell>
+
+                      {/* Pipeline status */}
                       <TableCell>
                         <Chip
                           icon={pipelineStatus.status === 'synced' ?
