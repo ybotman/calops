@@ -64,6 +64,12 @@ const trackingExpandedItems = [
   { name: 'Activity Tracking', icon: <AccessTimeIcon />, href: '/dashboard/analytics/activity-tracking' },
 ];
 
+// Navigation items - Tracking section (errors submenu)
+const trackingErrorItems = [
+  { name: 'API', icon: <BugReportIcon />, href: '/dashboard/errors/api' },
+  { name: 'Trends', icon: <TimelineIcon />, href: '/dashboard/errors/trends' },
+];
+
 // Navigation items - Data section
 const dataNavItems = [
   { name: 'Users', icon: <PeopleIcon />, href: '/dashboard/users' },
@@ -222,6 +228,34 @@ export default function AdminLayout({ children }) {
             </ListItemButton>
           </ListItem>
         ))}
+        <Divider sx={{ my: 0.5, mx: 2 }} />
+        {/* Errors submenu within Tracking */}
+        <ListItem disablePadding>
+          <ListItemButton
+            onClick={() => setErrorsOpen(!errorsOpen)}
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              setErrorsOpen(!errorsOpen);
+            }}
+            sx={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
+          >
+            <ListItemIcon><BugReportIcon /></ListItemIcon>
+            <ListItemText primary="Errors" />
+            {errorsOpen ? <ExpandLess /> : <ExpandMore />}
+          </ListItemButton>
+        </ListItem>
+        <Collapse in={errorsOpen} timeout="auto" unmountOnExit>
+          <List component="div" disablePadding dense>
+            {trackingErrorItems.map((item) => (
+              <ListItem key={item.name} disablePadding>
+                <ListItemButton component="a" href={item.href} sx={{ pl: 4, touchAction: 'manipulation' }}>
+                  <ListItemIcon>{item.icon}</ListItemIcon>
+                  <ListItemText primary={item.name} />
+                </ListItemButton>
+              </ListItem>
+            ))}
+          </List>
+        </Collapse>
       </List>
 
       <Divider sx={{ my: 1 }} />
@@ -288,38 +322,6 @@ export default function AdminLayout({ children }) {
       <Divider />
       {/* Bottom section - Ops tools */}
       <List dense>
-        {/* Errors submenu */}
-        <ListItem disablePadding>
-          <ListItemButton
-            onClick={() => setErrorsOpen(!errorsOpen)}
-            onTouchEnd={(e) => {
-              e.preventDefault();
-              setErrorsOpen(!errorsOpen);
-            }}
-            sx={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
-          >
-            <ListItemIcon><BugReportIcon /></ListItemIcon>
-            <ListItemText primary="Errors" />
-            {errorsOpen ? <ExpandLess /> : <ExpandMore />}
-          </ListItemButton>
-        </ListItem>
-        <Collapse in={errorsOpen} timeout="auto" unmountOnExit>
-          <List component="div" disablePadding dense>
-            <ListItem disablePadding>
-              <ListItemButton component="a" href="/dashboard/errors/api" sx={{ pl: 4, touchAction: 'manipulation' }}>
-                <ListItemIcon><BugReportIcon /></ListItemIcon>
-                <ListItemText primary="API" />
-              </ListItemButton>
-            </ListItem>
-            <ListItem disablePadding>
-              <ListItemButton component="a" href="/dashboard/errors/trends" sx={{ pl: 4, touchAction: 'manipulation' }}>
-                <ListItemIcon><TimelineIcon /></ListItemIcon>
-                <ListItemText primary="Trends" />
-              </ListItemButton>
-            </ListItem>
-          </List>
-        </Collapse>
-
         {/* GIT submenu */}
         <ListItem disablePadding>
           <ListItemButton

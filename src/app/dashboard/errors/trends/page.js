@@ -16,7 +16,9 @@ import {
   Checkbox,
   ListItemText,
   OutlinedInput,
-  Chip
+  Chip,
+  ToggleButton,
+  ToggleButtonGroup
 } from '@mui/material';
 import {
   LineChart,
@@ -29,6 +31,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import BugReportIcon from '@mui/icons-material/BugReport';
 
 // Time range options for error queries
 const TIME_RANGES = [
@@ -42,17 +45,18 @@ const TIME_RANGES = [
 
 export default function ErrorTrendsPage() {
   const [errorTimeRange, setErrorTimeRange] = useState('24h');
+  const [environment, setEnvironment] = useState('prod');
   const [errorsByEndpoint, setErrorsByEndpoint] = useState({ rows: [], loading: true, error: null });
   const [errorTimeline, setErrorTimeline] = useState({ rows: [], loading: true, error: null });
   const [selectedEndpoints, setSelectedEndpoints] = useState([]);
   const [availableEndpoints, setAvailableEndpoints] = useState([]);
 
   // Fetch App Insights error data
-  const fetchErrorData = useCallback(async (timeRange) => {
+  const fetchErrorData = useCallback(async (timeRange, env) => {
     // Fetch errors by endpoint (for filter options)
     setErrorsByEndpoint(prev => ({ ...prev, loading: true, error: null }));
     try {
-      const res = await fetch(`/api/appinsights?query=errorsByEndpoint&timeRange=${timeRange}`);
+      const res = await fetch(`/api/appinsights?query=errorsByEndpoint&timeRange=${timeRange}&env=${env}`);
       const data = await res.json();
       if (data.success) {
         setErrorsByEndpoint({ rows: data.rows || [], loading: false, error: null });
@@ -66,7 +70,7 @@ export default function ErrorTrendsPage() {
     // Fetch error timeline by endpoint
     setErrorTimeline(prev => ({ ...prev, loading: true, error: null }));
     try {
-      const res = await fetch(`/api/appinsights?query=errorTimelineByEndpoint&timeRange=${timeRange}`);
+      const res = await fetch(`/api/appinsights?query=errorTimelineByEndpoint&timeRange=${timeRange}&env=${env}`);
       const data = await res.json();
       if (data.success) {
         setErrorTimeline({ rows: data.rows || [], loading: false, error: null });
@@ -79,8 +83,8 @@ export default function ErrorTrendsPage() {
   }, []);
 
   useEffect(() => {
-    fetchErrorData(errorTimeRange);
-  }, [errorTimeRange, fetchErrorData]);
+    fetchErrorData(errorTimeRange, environment);
+  }, [errorTimeRange, environment, fetchErrorData]);
 
   // Update available endpoints when data changes
   useEffect(() => {
@@ -131,9 +135,23 @@ export default function ErrorTrendsPage() {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h4">Error Trends</Typography>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <ToggleButtonGroup
+            value={environment}
+            exclusive
+            onChange={(e, newEnv) => newEnv && setEnvironment(newEnv)}
+            size="small"
+          >
+            <ToggleButton value="prod" sx={{ px: 2 }}>
+              PROD
+            </ToggleButton>
+            <ToggleButton value="test" sx={{ px: 2 }}>
+              TEST
+            </ToggleButton>
+          </ToggleButtonGroup>
+
           {/* Endpoint Multi-Select */}
           <FormControl size="small" sx={{ minWidth: 300 }}>
             <InputLabel>Filter Endpoints</InputLabel>
@@ -171,16 +189,25 @@ export default function ErrorTrendsPage() {
             variant="outlined"
             size="small"
             startIcon={<RefreshIcon />}
-            onClick={() => fetchErrorData(errorTimeRange)}
+            onClick={() => fetchErrorData(errorTimeRange, environment)}
             disabled={errorTimeline.loading}
           >
             Refresh
+          </Button>
+          <Button
+            variant="contained"
+            size="small"
+            startIcon={<BugReportIcon />}
+            href="/dashboard/errors/api"
+            color="primary"
+          >
+            API
           </Button>
         </Box>
       </Box>
 
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Error trends over time from Azure Functions App Insights
+        Error trends over time from Azure Functions App Insights ({environment.toUpperCase()})
       </Typography>
 
       {/* Chart */}
