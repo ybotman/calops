@@ -7,14 +7,28 @@ import { NextResponse } from 'next/server';
  * Keeps the API key server-side only (secure).
  *
  * Endpoints:
- * - GET /api/appinsights?query=errors&timeRange=24h
- * - GET /api/appinsights?query=errorsByEndpoint&timeRange=7d
+ * - GET /api/appinsights?query=errors&timeRange=24h&env=prod
+ * - GET /api/appinsights?query=errorsByEndpoint&timeRange=7d&env=test
  * - GET /api/appinsights?query=errorTimeline&timeRange=24h
  */
 
-const APP_ID = process.env.APPINSIGHTS_APP_ID;
-const API_KEY = process.env.APPINSIGHTS_API_KEY;
+// PROD App Insights credentials (default)
+const PROD_APP_ID = process.env.APPINSIGHTS_APP_ID;
+const PROD_API_KEY = process.env.APPINSIGHTS_API_KEY;
+
+// TEST App Insights credentials
+const TEST_APP_ID = process.env.APPINSIGHTS_TEST_APP_ID;
+const TEST_API_KEY = process.env.APPINSIGHTS_TEST_API_KEY;
+
 const APP_INSIGHTS_URL = 'https://api.applicationinsights.io/v1/apps';
+
+// Get credentials based on environment
+function getCredentials(env) {
+  if (env === 'test') {
+    return { appId: TEST_APP_ID, apiKey: TEST_API_KEY };
+  }
+  return { appId: PROD_APP_ID, apiKey: PROD_API_KEY };
+}
 
 // Time range mappings - KQL ago() format
 const TIME_RANGES = {
@@ -125,14 +139,14 @@ const QUERIES = {
   `
 };
 
-async function queryAppInsights(kqlQuery) {
-  const url = `${APP_INSIGHTS_URL}/${APP_ID}/query`;
+async function queryAppInsights(kqlQuery, appId, apiKey) {
+  const url = `${APP_INSIGHTS_URL}/${appId}/query`;
 
   const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': API_KEY
+      'x-api-key': apiKey
     },
     body: JSON.stringify({ query: kqlQuery })
   });
@@ -166,24 +180,32 @@ function transformResponse(data) {
 
 export async function GET(request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const queryType = searchParams.get('query') || 'errorSummary';
+    const timeRangeParam = searchParams.get('timeRange') || '24h';
+    const env = searchParams.get('env') || 'prod';
+
+    // Get credentials for the specified environment
+    const { appId, apiKey } = getCredentials(env);
+
     // Check configuration
-    if (!APP_ID || !API_KEY) {
+    if (!appId || !apiKey) {
       return NextResponse.json(
         {
           success: false,
-          error: 'App Insights not configured',
+          error: `App Insights not configured for ${env.toUpperCase()}`,
           details: {
-            hasAppId: !!APP_ID,
-            hasApiKey: !!API_KEY
+            env,
+            hasAppId: !!appId,
+            hasApiKey: !!apiKey,
+            hint: env === 'test'
+              ? 'Set APPINSIGHTS_TEST_APP_ID and APPINSIGHTS_TEST_API_KEY in Vercel'
+              : 'Set APPINSIGHTS_APP_ID and APPINSIGHTS_API_KEY in Vercel'
           }
         },
         { status: 500 }
       );
     }
-
-    const { searchParams } = new URL(request.url);
-    const queryType = searchParams.get('query') || 'errorSummary';
-    const timeRangeParam = searchParams.get('timeRange') || '24h';
 
     // Convert time range to KQL format
     const timeRange = TIME_RANGES[timeRangeParam] || 'P1D';
@@ -203,27 +225,31 @@ export async function GET(request) {
 
     // Execute query
     const kqlQuery = queryFn(timeRange);
-    const rawData = await queryAppInsights(kqlQuery);
+    const rawData = await queryAppInsights(kqlQuery, appId, apiKey);
     const data = transformResponse(rawData);
 
     return NextResponse.json({
       success: true,
       queryType,
       timeRange: timeRangeParam,
+      env,
       ...data
     });
 
   } catch (error) {
     console.error('App Insights proxy error:', error);
+    const env = new URL(request.url).searchParams.get('env') || 'prod';
+    const { appId, apiKey } = getCredentials(env);
     return NextResponse.json(
       {
         success: false,
         error: 'Failed to query App Insights',
         message: error.message,
         debug: {
-          hasAppId: !!APP_ID,
-          hasApiKey: !!API_KEY,
-          appIdPrefix: APP_ID ? APP_ID.substring(0, 8) + '...' : null
+          env,
+          hasAppId: !!appId,
+          hasApiKey: !!apiKey,
+          appIdPrefix: appId ? appId.substring(0, 8) + '...' : null
         }
       },
       { status: 500 }

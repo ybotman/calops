@@ -22,14 +22,15 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Tooltip
+  Tooltip,
+  ToggleButton,
+  ToggleButtonGroup
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import ErrorIcon from '@mui/icons-material/Error';
 import WarningIcon from '@mui/icons-material/Warning';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import Link from 'next/link';
 
 // Time range options for error queries
 const TIME_RANGES = [
@@ -68,16 +69,17 @@ function StatusCodeChip({ code }) {
 
 export default function ApiErrorsPage() {
   const [errorTimeRange, setErrorTimeRange] = useState('24h');
+  const [environment, setEnvironment] = useState('prod');
   const [errorSummary, setErrorSummary] = useState({ rows: [], loading: true, error: null });
   const [errorsByEndpoint, setErrorsByEndpoint] = useState({ rows: [], loading: true, error: null });
   const [recentErrors, setRecentErrors] = useState({ rows: [], loading: true, error: null });
 
   // Fetch App Insights error data
-  const fetchErrorData = useCallback(async (timeRange) => {
+  const fetchErrorData = useCallback(async (timeRange, env) => {
     // Fetch error summary
     setErrorSummary(prev => ({ ...prev, loading: true, error: null }));
     try {
-      const res = await fetch(`/api/appinsights?query=errorSummary&timeRange=${timeRange}`);
+      const res = await fetch(`/api/appinsights?query=errorSummary&timeRange=${timeRange}&env=${env}`);
       const data = await res.json();
       if (data.success) {
         setErrorSummary({ rows: data.rows || [], loading: false, error: null });
@@ -91,7 +93,7 @@ export default function ApiErrorsPage() {
     // Fetch errors by endpoint
     setErrorsByEndpoint(prev => ({ ...prev, loading: true, error: null }));
     try {
-      const res = await fetch(`/api/appinsights?query=errorsByEndpoint&timeRange=${timeRange}`);
+      const res = await fetch(`/api/appinsights?query=errorsByEndpoint&timeRange=${timeRange}&env=${env}`);
       const data = await res.json();
       if (data.success) {
         setErrorsByEndpoint({ rows: data.rows || [], loading: false, error: null });
@@ -105,7 +107,7 @@ export default function ApiErrorsPage() {
     // Fetch recent errors
     setRecentErrors(prev => ({ ...prev, loading: true, error: null }));
     try {
-      const res = await fetch(`/api/appinsights?query=recentErrors&timeRange=${timeRange}`);
+      const res = await fetch(`/api/appinsights?query=recentErrors&timeRange=${timeRange}&env=${env}`);
       const data = await res.json();
       if (data.success) {
         setRecentErrors({ rows: data.rows || [], loading: false, error: null });
@@ -118,8 +120,8 @@ export default function ApiErrorsPage() {
   }, []);
 
   useEffect(() => {
-    fetchErrorData(errorTimeRange);
-  }, [errorTimeRange, fetchErrorData]);
+    fetchErrorData(errorTimeRange, environment);
+  }, [errorTimeRange, environment, fetchErrorData]);
 
   const formatTimestamp = (timestamp) => {
     if (!timestamp) return '-';
@@ -189,9 +191,22 @@ export default function ApiErrorsPage() {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h4">API Errors</Typography>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <ToggleButtonGroup
+            value={environment}
+            exclusive
+            onChange={(e, newEnv) => newEnv && setEnvironment(newEnv)}
+            size="small"
+          >
+            <ToggleButton value="prod" sx={{ px: 2 }}>
+              PROD
+            </ToggleButton>
+            <ToggleButton value="test" sx={{ px: 2 }}>
+              TEST
+            </ToggleButton>
+          </ToggleButtonGroup>
           <FormControl size="small" sx={{ minWidth: 150 }}>
             <InputLabel>Time Range</InputLabel>
             <Select
@@ -217,17 +232,17 @@ export default function ApiErrorsPage() {
             variant="outlined"
             size="small"
             startIcon={<RefreshIcon />}
-            onClick={() => fetchErrorData(errorTimeRange)}
+            onClick={() => fetchErrorData(errorTimeRange, environment)}
             disabled={errorSummary.loading}
           >
             Refresh
           </Button>
           <Button
-            component={Link}
-            href="/dashboard/errors/trends"
             variant="contained"
             size="small"
             startIcon={<TrendingUpIcon />}
+            href="/dashboard/errors/trends"
+            color="primary"
           >
             Trends
           </Button>
@@ -235,7 +250,7 @@ export default function ApiErrorsPage() {
       </Box>
 
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Azure Functions API errors from App Insights
+        Azure Functions API errors from App Insights ({environment.toUpperCase()})
       </Typography>
 
       <Grid container spacing={3}>
