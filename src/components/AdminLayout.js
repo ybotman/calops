@@ -45,6 +45,7 @@ import CloudIcon from '@mui/icons-material/Cloud';
 import BugReportIcon from '@mui/icons-material/BugReport';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import StorageIcon from '@mui/icons-material/Storage';
+import MonetizationOnIcon from '@mui/icons-material/MonetizationOn';
 
 // Navigation items - Heatmaps section
 const heatmapNavItems = [
@@ -76,7 +77,6 @@ const dataNavItems = [
   { name: 'Organizers', icon: <SchoolIcon />, href: '/dashboard/organizers' },
   { name: 'Venues', icon: <BusinessIcon />, href: '/dashboard/venues' },
   { name: 'Events', icon: <EventIcon />, href: '/dashboard/events' },
-  { name: 'Geo Hierarchy', icon: <LocationOnIcon />, href: '/dashboard/geo-hierarchy' },
   { name: 'Data Health', icon: <HealthAndSafetyIcon />, href: '/dashboard/data-health' },
 ];
 
@@ -359,6 +359,14 @@ export default function AdminLayout({ children }) {
           <ListItemButton component="a" href="/dashboard/infrastructure">
             <ListItemIcon><CloudIcon /></ListItemIcon>
             <ListItemText primary="Deployments" />
+          </ListItemButton>
+        </ListItem>
+
+        {/* Cost Forecast */}
+        <ListItem disablePadding>
+          <ListItemButton component="a" href="/dashboard/costs">
+            <ListItemIcon><MonetizationOnIcon /></ListItemIcon>
+            <ListItemText primary="Cost Forecast" />
           </ListItemButton>
         </ListItem>
       </List>
