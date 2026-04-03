@@ -63,6 +63,8 @@ Generated on: 2026-02-10
 - Do not batch PROD operations without individual confirmation
 - Do not proceed if response is ambiguous
 - "Yes", "sure", "go ahead" are NOT valid - must be exact phrase `DEPLOY-PROD`
+- NEVER use `gh pr merge --admin` - it bypasses all protection
+- `--admin` requires separate `ADMIN-OVERRIDE` phrase (emergency only)
 
 ### Technical Enforcement
 
