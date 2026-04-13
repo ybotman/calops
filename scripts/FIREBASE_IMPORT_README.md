@@ -147,7 +147,7 @@ If both API and MongoDB fallback approaches fail:
 
 1. Ensure that MongoDB is running (typically on port 27017)
 2. Check that you have the necessary MongoDB connection permissions
-3. Verify that the database name is correct (default: "TangoTiempoDevl")
+3. Verify that the database name is correct (default: "TangoTiempoTest")
 
 ### Input File Problems
 

@@ -42,7 +42,7 @@ const API_IMPORT_ENDPOINT = '/api/userlogins/import-firebase';
 
 // MongoDB configuration (fallback only)
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017';
-const DB_NAME = process.env.DB_NAME || 'TangoTiempoDevl';
+const DB_NAME = process.env.DB_NAME || 'TangoTiempoTest';
 const USER_COLLECTION = 'userLogins';
 const ROLE_COLLECTION = 'roles';
 const APP_ID = process.env.APP_ID || options.appId || '1'; // Default to TangoTiempo
