@@ -72,7 +72,7 @@ Current configuration points to `http://localhost:3010`. You need:
 
 ### Database Access
 - MongoDB cluster appears to be shared between development and production databases
-- `TangoTiempo` database for development
+- `TangoTiempoDevl` database for development
 - `TangoTiempoProd` database for production
 - Ensure production database is properly set up
 
