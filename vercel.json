@@ -3,7 +3,8 @@
     "deploymentEnabled": {
       "DEVL": true,
       "TEST": true,
-      "PROD": false
+      "PROD": false,
+      "_PROD_comment": "PROD auto-deploy disabled for safety. Use 'vercel --prod' to deploy manually after PR merge."
     }
   }
 }
