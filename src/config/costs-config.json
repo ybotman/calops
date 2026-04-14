@@ -296,8 +296,8 @@
   "watchList": [
     { "priority": 1, "serviceId": "mongodb", "trigger": "512MB storage", "action": "Upgrade to M2 ($9) or self-host" },
     { "priority": 2, "serviceId": "mapbox", "trigger": "50k map loads/mo", "action": "Monitor via dashboard" },
-    { "priority": 3, "serviceId": "firebase-auth", "trigger": "50k MAU", "action": "Long way off" },
-    { "priority": 4, "serviceId": "azure-functions", "trigger": "1M executions", "action": "Very long way off" }
+    { "priority": 3, "serviceId": "firebase-auth", "trigger": "50k MAU", "action": "Stay on Firebase, pay-as-you-go ($0.0055/MAU). Migration to Azure B2C/Auth0 is 6-10 weeks (HIGH lock-in); only migrate if blocked by feature gap (SSO/SAML), not by cost." },
+    { "priority": 4, "serviceId": "azure-functions", "trigger": "1M executions", "action": "Stay on Consumption plan. $0.0000002/invocation after free tier is trivial at calendar scale. Revisit only if sustained >10M execs/mo." }
   ],
   "potentialFuture": [
     { "name": "Twilio", "purpose": "Voice/SMS", "estimatedCost": "Usage-based" },
