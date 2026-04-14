@@ -306,7 +306,7 @@
   "mongoM0Health": {
     "enabled": true,
     "useMockData": true,
-    "endpoint": "/api/admin/mongo-health",
+    "endpoint": "/api/ops/mongo-health",
     "refreshIntervalMs": 60000,
     "cluster": {
       "name": "TangoTiempoPrimary",

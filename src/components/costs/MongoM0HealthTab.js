@@ -10,42 +10,56 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import ErrorIcon from '@mui/icons-material/Error';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 
 import { useMongoHealth } from '@/lib/mongo-health/useMongoHealth';
 import {
+  parseNotes,
   calcStorageGauge, calcConnectionsGauge, calcOpsGauge, calcReplicationGauge,
   calcThrottlingBadge, calcUpgradeRecommendation, LEVELS
 } from '@/lib/mongo-health/calc';
 
 const LEVEL_META = {
-  [LEVELS.CLEAN]: { color: 'success', icon: CheckCircleIcon, label: 'Clean' },
-  [LEVELS.WATCH]: { color: 'warning', icon: WarningAmberIcon, label: 'Watch' },
-  [LEVELS.CRIT]: { color: 'error', icon: ErrorIcon, label: 'Critical' },
-  [LEVELS.UNKNOWN]: { color: 'default', icon: CheckCircleIcon, label: 'Unknown' }
+  [LEVELS.CLEAN]:       { color: 'success', icon: CheckCircleIcon, label: 'Clean' },
+  [LEVELS.WATCH]:       { color: 'warning', icon: WarningAmberIcon, label: 'Watch' },
+  [LEVELS.CRIT]:        { color: 'error',   icon: ErrorIcon, label: 'Critical' },
+  [LEVELS.UNAVAILABLE]: { color: 'inherit', icon: RemoveCircleOutlineIcon, label: 'Unavailable' },
+  [LEVELS.UNKNOWN]:     { color: 'inherit', icon: CheckCircleIcon, label: 'Unknown' }
 };
 
 function GaugeCard({ gauge }) {
   const meta = LEVEL_META[gauge.level];
   const Icon = meta.icon;
+  const unavailable = gauge.level === LEVELS.UNAVAILABLE;
   const pct = Math.min(gauge.pct ?? 0, 100);
 
   return (
-    <Card variant="outlined" sx={{ height: '100%' }}>
+    <Card variant="outlined" sx={{ height: '100%', opacity: unavailable ? 0.6 : 1 }}>
       <CardContent>
         <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-          <Icon color={meta.color} fontSize="small" />
+          <Icon color={meta.color === 'inherit' ? 'disabled' : meta.color} fontSize="small" />
           <Typography variant="subtitle2">{gauge.label}</Typography>
         </Stack>
         <Typography variant="h6" sx={{ mb: 1 }}>{gauge.display}</Typography>
-        <LinearProgress
-          variant="determinate"
-          value={pct}
-          color={meta.color === 'default' ? 'inherit' : meta.color}
-          sx={{ height: 8, borderRadius: 1 }}
-        />
-        <Typography variant="caption" color="text.secondary">
-          {pct.toFixed(0)}% of cap
-        </Typography>
+        {!unavailable && (
+          <>
+            <LinearProgress
+              variant="determinate"
+              value={pct}
+              color={meta.color === 'inherit' ? 'inherit' : meta.color}
+              sx={{ height: 8, borderRadius: 1 }}
+            />
+            <Typography variant="caption" color="text.secondary">
+              {pct.toFixed(0)}% of cap
+            </Typography>
+          </>
+        )}
+        {unavailable && (
+          <Typography variant="caption" color="text.secondary">
+            See notes below
+          </Typography>
+        )}
       </CardContent>
     </Card>
   );
@@ -54,16 +68,23 @@ function GaugeCard({ gauge }) {
 function ThrottlingBadge({ badge }) {
   const meta = LEVEL_META[badge.level];
   const Icon = meta.icon;
+  const unavailable = badge.level === LEVELS.UNAVAILABLE;
+  const borderColor = meta.color === 'inherit' ? 'grey.300' : `${meta.color}.main`;
+
   return (
-    <Card variant="outlined" sx={{ height: '100%', borderColor: `${meta.color}.main`, borderWidth: 2 }}>
+    <Card variant="outlined" sx={{ height: '100%', borderColor, borderWidth: 2, opacity: unavailable ? 0.7 : 1 }}>
       <CardContent>
         <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-          <Icon color={meta.color} />
+          <Icon color={meta.color === 'inherit' ? 'disabled' : meta.color} />
           <Typography variant="subtitle2">Throttling (app-layer proxy)</Typography>
         </Stack>
-        <Chip label={meta.label} color={meta.color === 'default' ? 'default' : meta.color} size="small" sx={{ mb: 1 }} />
-        <Typography variant="body2" color="text.secondary">p95 latency: {badge.p95}ms</Typography>
-        <Typography variant="body2" color="text.secondary">Slow ops/5min (&gt;200ms): {badge.slow5}</Typography>
+        <Chip label={meta.label} color={meta.color === 'inherit' ? 'default' : meta.color} size="small" sx={{ mb: 1 }} />
+        {!unavailable && (
+          <>
+            <Typography variant="body2" color="text.secondary">p95 latency: {badge.p95}ms</Typography>
+            <Typography variant="body2" color="text.secondary">Slow ops/5min (&gt;200ms): {badge.slow5}</Typography>
+          </>
+        )}
         <Typography variant="caption" display="block" sx={{ mt: 1 }}>{badge.reason}</Typography>
       </CardContent>
     </Card>
@@ -129,6 +150,26 @@ function TopCollectionsTable({ rows }) {
   );
 }
 
+function NotesFooter({ notes }) {
+  if (!Array.isArray(notes) || notes.length === 0) return null;
+  return (
+    <Box sx={{ mt: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1, border: 1, borderColor: 'grey.200' }}>
+      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+        <InfoOutlinedIcon fontSize="small" color="info" />
+        <Typography variant="subtitle2">Endpoint notes</Typography>
+      </Stack>
+      {notes.map((n, i) => {
+        const text = typeof n === 'string' ? n : `${n.block}: ${n.status}${n.reason ? ` (${n.reason})` : ''}`;
+        return (
+          <Typography key={i} variant="caption" display="block" color="text.secondary">
+            • {text}
+          </Typography>
+        );
+      })}
+    </Box>
+  );
+}
+
 export default function MongoM0HealthTab({ config }) {
   const { data, loading, error } = useMongoHealth(config);
 
@@ -143,11 +184,12 @@ export default function MongoM0HealthTab({ config }) {
   }
   if (!data) return null;
 
+  const blockStatus = parseNotes(data.notes);
   const storage = calcStorageGauge(data, config.limits);
-  const conns = calcConnectionsGauge(data, config.limits);
-  const ops = calcOpsGauge(data, config.limits);
-  const repl = calcReplicationGauge(data, config.limits);
-  const badge = calcThrottlingBadge(data, config.throttlingProxy);
+  const conns = calcConnectionsGauge(data, config.limits, blockStatus);
+  const ops = calcOpsGauge(data, config.limits, blockStatus);
+  const repl = calcReplicationGauge(data, config.limits, blockStatus);
+  const badge = calcThrottlingBadge(data, config.throttlingProxy, blockStatus);
   const rec = calcUpgradeRecommendation(
     [storage, conns, ops, repl], badge, config.tierLadder, config.upgradeTriggers, config.cluster.tier
   );
@@ -156,7 +198,7 @@ export default function MongoM0HealthTab({ config }) {
     <Box>
       {config.useMockData && (
         <Alert severity="info" sx={{ mb: 2 }}>
-          Displaying <b>mock data</b> (CALBEAF-106 endpoint not live yet). Try <code>?mockState=watch</code> or <code>?mockState=throttling</code> to preview alert states.
+          Displaying <b>mock data</b> (CALBEAF-106 endpoint not live yet). Try <code>?mockState=watch</code> or <code>?mockState=throttling</code> to preview alert states on M2+ tier.
         </Alert>
       )}
 
@@ -179,6 +221,8 @@ export default function MongoM0HealthTab({ config }) {
 
       <Typography variant="h6" sx={{ mb: 1 }}>Top collections by size</Typography>
       <TopCollectionsTable rows={data.perCollection} />
+
+      <NotesFooter notes={data.notes} />
     </Box>
   );
 }
