@@ -34,6 +34,7 @@ import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 
 import costsConfig from '@/config/costs-config.json';
 import MongoM0HealthTab from '@/components/costs/MongoM0HealthTab';
+import WhatIfTab from '@/components/costs/WhatIfTab';
 
 function TabPanel({ children, value, index, ...other }) {
   return (
@@ -478,6 +479,7 @@ export default function CostForecastPage() {
           <Tab label="Current Status" />
           <Tab label="Growth Forecast" />
           <Tab label="M0 Health" />
+          <Tab label="What-If" />
           <Tab label="Watch List" />
           <Tab label="Configuration" />
         </Tabs>
@@ -493,9 +495,12 @@ export default function CostForecastPage() {
         <MongoM0HealthTab config={costsConfig.mongoM0Health} />
       </TabPanel>
       <TabPanel value={tabValue} index={3}>
-        <WatchListTab watchList={watchList} services={services} />
+        <WhatIfTab config={costsConfig.whatIfModel} />
       </TabPanel>
       <TabPanel value={tabValue} index={4}>
+        <WatchListTab watchList={watchList} services={services} />
+      </TabPanel>
+      <TabPanel value={tabValue} index={5}>
         <ConfigurationTab lastUpdated={lastUpdated} />
       </TabPanel>
     </Box>
