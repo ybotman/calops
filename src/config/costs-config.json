@@ -347,5 +347,28 @@
       { "from": "M2", "to": "M10", "when": "Connection cap hit, OR data > 1.5GB, OR need Profiler/Performance Advisor" }
     ]
   },
+  "whatIfModel": {
+    "enabled": true,
+    "units": {
+      "signalrConnMinute": 0.0000015,
+      "signalrMessage": 0.000001,
+      "signalrFreeMsgsPerMonth": 30000000,
+      "fnInvocation": 0.0000002,
+      "fnGbSecond": 0.000016,
+      "fnFreeExecPerMo": 1000000,
+      "blobGbMonth": 0.018,
+      "bandwidthGb": 0.087,
+      "mongoTierLadder": [
+        { "tier": "M0", "monthlyCost": 0, "storageGb": 0.5, "maxMembers": 200 },
+        { "tier": "M2", "monthlyCost": 9, "storageGb": 2, "maxMembers": 1000 },
+        { "tier": "M10", "monthlyCost": 60, "storageGb": 10, "maxMembers": 25000 },
+        { "tier": "M20", "monthlyCost": 150, "storageGb": 20, "maxMembers": 75000 },
+        { "tier": "M30", "monthlyCost": 400, "storageGb": 40, "maxMembers": 200000 },
+        { "tier": "M30+", "monthlyCost": 1000, "storageGb": 80, "maxMembers": 1000000 }
+      ]
+    },
+    "unitsLastReviewed": "2026-Q2",
+    "sourceDoc": "MessageHub/docs/METRICS_COST_MODEL.md"
+  },
   "lastUpdated": "2026-04-14"
 }
