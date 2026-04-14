@@ -305,7 +305,7 @@
   ],
   "mongoM0Health": {
     "enabled": true,
-    "useMockData": true,
+    "useMockData": false,
     "endpoint": "/api/ops/mongo-health",
     "refreshIntervalMs": 60000,
     "cluster": {
