@@ -303,5 +303,49 @@
     { "name": "Twilio", "purpose": "Voice/SMS", "estimatedCost": "Usage-based" },
     { "name": "Stripe", "purpose": "Payments", "estimatedCost": "2.9% + $0.30/txn" }
   ],
-  "lastUpdated": "2026-04-03"
+  "mongoM0Health": {
+    "enabled": true,
+    "useMockData": true,
+    "endpoint": "/api/admin/mongo-health",
+    "refreshIntervalMs": 60000,
+    "cluster": {
+      "name": "TangoTiempoPrimary",
+      "region": "Azure eastus2",
+      "tier": "M0",
+      "mongoVersion": "8.0.20"
+    },
+    "limits": {
+      "storageBytes": 536870912,
+      "storageWarnPct": 70,
+      "storageCritPct": 85,
+      "maxConnections": 500,
+      "connectionsWarnPct": 60,
+      "connectionsCritPct": 80,
+      "sustainedOpsPerSec": 100,
+      "opsWarnPct": 70,
+      "opsCritPct": 85,
+      "replicationLagSecWarn": 30,
+      "replicationLagSecCrit": 60,
+      "slowOpThresholdMs": 200
+    },
+    "throttlingProxy": {
+      "baselineP95Ms": 50,
+      "p95WatchMs": 150,
+      "p95CritMs": 400,
+      "slowOp5minWatch": 5,
+      "slowOp5minCrit": 20
+    },
+    "tierLadder": [
+      { "tier": "M0", "monthlyCost": 0, "storageGb": 0.5, "maxMembers": 200, "note": "POC / current" },
+      { "tier": "M2", "monthlyCost": 9, "storageGb": 2, "maxMembers": 1000, "note": "When M0 ops/sec caps" },
+      { "tier": "M10", "monthlyCost": 60, "storageGb": 10, "maxMembers": 25000, "note": "When M2 connection cap or perf insufficient" },
+      { "tier": "M20", "monthlyCost": 150, "storageGb": 20, "maxMembers": 75000, "note": "When working set > 10GB" },
+      { "tier": "M30", "monthlyCost": 400, "storageGb": 40, "maxMembers": 200000, "note": "When M20 IOPS cap" }
+    ],
+    "upgradeTriggers": [
+      { "from": "M0", "to": "M2", "when": "Disk > 70% sustained, OR opcounters regularly > 80/sec, OR throttling alert fires > 1x/week" },
+      { "from": "M2", "to": "M10", "when": "Connection cap hit, OR data > 1.5GB, OR need Profiler/Performance Advisor" }
+    ]
+  },
+  "lastUpdated": "2026-04-14"
 }
