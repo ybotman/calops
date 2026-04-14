@@ -1,13 +1,19 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { getFixtureFor } from './fixtures';
 
 /**
- * useMongoHealth — fetches M0 health from CALBEAF-106 endpoint, or returns a mock fixture
- * when `config.useMockData` is true. Same return shape in both modes.
+ * useMongoHealth — fetches M0 health from CALBEAF-106 endpoint via calops
+ * `/api/ops/[...path]` proxy (which forwards with the Azure Functions key
+ * server-side and passes through the firebase bearer token).
+ *
+ * Returns a mock fixture when `config.useMockData` is true. Same return
+ * shape in both modes.
  */
 export function useMongoHealth(config) {
+  const { getAuthToken } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -31,7 +37,11 @@ export function useMongoHealth(config) {
     }
 
     try {
-      const res = await fetch(config.endpoint, { credentials: 'include' });
+      const token = getAuthToken ? await getAuthToken() : null;
+      const headers = { 'Accept': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch(config.endpoint, { headers, credentials: 'include' });
       if (!res.ok) throw new Error(`health endpoint ${res.status}`);
       setData(await res.json());
     } catch (e) {
@@ -39,7 +49,7 @@ export function useMongoHealth(config) {
     } finally {
       setLoading(false);
     }
-  }, [config?.enabled, config?.useMockData, config?.endpoint]);
+  }, [config?.enabled, config?.useMockData, config?.endpoint, getAuthToken]);
 
   useEffect(() => {
     fetchHealth();
