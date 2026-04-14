@@ -33,6 +33,7 @@ import ErrorIcon from '@mui/icons-material/Error';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 
 import costsConfig from '@/config/costs-config.json';
+import MongoM0HealthTab from '@/components/costs/MongoM0HealthTab';
 
 function TabPanel({ children, value, index, ...other }) {
   return (
@@ -476,6 +477,7 @@ export default function CostForecastPage() {
         >
           <Tab label="Current Status" />
           <Tab label="Growth Forecast" />
+          <Tab label="M0 Health" />
           <Tab label="Watch List" />
           <Tab label="Configuration" />
         </Tabs>
@@ -488,9 +490,12 @@ export default function CostForecastPage() {
         <GrowthForecastTab scenarios={scenarios} services={services} />
       </TabPanel>
       <TabPanel value={tabValue} index={2}>
-        <WatchListTab watchList={watchList} services={services} />
+        <MongoM0HealthTab config={costsConfig.mongoM0Health} />
       </TabPanel>
       <TabPanel value={tabValue} index={3}>
+        <WatchListTab watchList={watchList} services={services} />
+      </TabPanel>
+      <TabPanel value={tabValue} index={4}>
         <ConfigurationTab lastUpdated={lastUpdated} />
       </TabPanel>
     </Box>
