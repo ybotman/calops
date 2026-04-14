@@ -10,7 +10,7 @@
  * 
  * Environment variables:
  * - MONGODB_URI: MongoDB connection string (default: mongodb://localhost:27017)
- * - DB_NAME: Database name (default: TangoTiempo)
+ * - DB_NAME: Database name (default: TangoTiempoTest)
  * - APP_ID: Application ID (default: 1)
  * 
  * This script reads the roles from be-info/masterdata/roles.json and seeds them into the database.
@@ -41,7 +41,7 @@ for (let i = 0; i < args.length; i++) {
 
 // Configuration
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017';
-const DB_NAME = process.env.DB_NAME || 'TangoTiempo';
+const DB_NAME = process.env.DB_NAME || 'TangoTiempoTest';
 const ROLE_COLLECTION = 'roles';
 const APP_ID = process.env.APP_ID || options.appId || '1';
 
