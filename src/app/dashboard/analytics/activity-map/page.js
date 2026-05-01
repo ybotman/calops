@@ -92,8 +92,8 @@ export default function ActivityMapPage() {
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
-      <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 100px)' }}>
-        <Box sx={{ p: 2, pb: 1 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 100px)', minHeight: 600 }}>
+        <Box sx={{ p: 2, pb: 1, flexShrink: 0 }}>
           <Typography variant="h5" gutterBottom>
             Activity Map
           </Typography>
@@ -189,8 +189,18 @@ export default function ActivityMapPage() {
           )}
         </Box>
 
-        {/* Map area */}
-        <Box sx={{ flexGrow: 1, position: 'relative', mx: 2, mb: 2, border: '1px solid', borderColor: 'divider' }}>
+        {/* Map area — rocking-chair layout: relative parent + absolute-fill child guarantees the
+            MapContainer always has a concrete sized box to mount into, regardless of flex timing. */}
+        <Box sx={{
+          flexGrow: 1,
+          position: 'relative',
+          mx: 2,
+          mb: 2,
+          border: '1px solid',
+          borderColor: 'divider',
+          minHeight: 500,
+          overflow: 'hidden',
+        }}>
           {loading && (
             <Box sx={{
               position: 'absolute', top: 8, right: 8, zIndex: 1000,
@@ -201,7 +211,9 @@ export default function ActivityMapPage() {
               <Typography variant="caption">Loading…</Typography>
             </Box>
           )}
-          <ActivityMapView records={records} />
+          <Box sx={{ position: 'absolute', inset: 0 }}>
+            <ActivityMapView records={records} />
+          </Box>
         </Box>
       </Box>
     </LocalizationProvider>

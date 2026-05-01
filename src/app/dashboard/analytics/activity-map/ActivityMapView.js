@@ -56,6 +56,8 @@ export default function ActivityMapView({ records }) {
         zoomOffset={mapboxToken ? -1 : 0}
       />
 
+      <InvalidateOnMount />
+
       {records.map((rec) => {
         const userLat = rec.userLocation?.latitude;
         const userLng = rec.userLocation?.longitude;
@@ -135,5 +137,19 @@ function RecenterIfEmpty({ hasRecords }) {
       map.setView(USA_CENTER, USA_ZOOM);
     }
   }, [hasRecords, map]);
+  return null;
+}
+
+// Force the map to recompute size after mount — fixes the case where a flex parent
+// hasn't finished its layout pass when MapContainer first measures itself, leaving
+// the map at 0×0 with no tiles loaded. Run on mount + once after a short delay.
+function InvalidateOnMount() {
+  const map = useMap();
+  useEffect(() => {
+    const tick = () => map.invalidateSize();
+    tick();
+    const t = setTimeout(tick, 250);
+    return () => clearTimeout(t);
+  }, [map]);
   return null;
 }
