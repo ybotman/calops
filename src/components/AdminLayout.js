@@ -46,6 +46,7 @@ import BugReportIcon from '@mui/icons-material/BugReport';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import StorageIcon from '@mui/icons-material/Storage';
 import MonetizationOnIcon from '@mui/icons-material/MonetizationOn';
+import MapIcon from '@mui/icons-material/Map';
 
 // Navigation items - Heatmaps section
 const heatmapNavItems = [
@@ -63,6 +64,7 @@ const trackingSingleItems = [
 const trackingExpandedItems = [
   { name: 'User Activity', icon: <PersonSearchIcon />, href: '/dashboard/analytics/user-activity' },
   { name: 'Activity Tracking', icon: <AccessTimeIcon />, href: '/dashboard/analytics/activity-tracking' },
+  { name: 'Activity Map', icon: <MapIcon />, href: '/dashboard/analytics/activity-map' },
 ];
 
 // Navigation items - Tracking section (errors submenu)
