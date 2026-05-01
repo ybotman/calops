@@ -23,7 +23,7 @@ import GpsFixedIcon from '@mui/icons-material/GpsFixed';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import WifiIcon from '@mui/icons-material/Wifi';
 import axios from 'axios';
-import { format, subDays } from 'date-fns';
+import { format, subDays, isValid } from 'date-fns';
 import { useAppContext } from '@/lib/AppContext';
 
 // SSR-disabled map (Leaflet refuses to render on the server)
@@ -51,6 +51,10 @@ export default function ActivityMapPage() {
   const [error, setError] = useState(null);
 
   const fetchRecords = useCallback(async () => {
+    if (!isValid(startDate) || !isValid(endDate)) {
+      setError('Pick valid Start and Finish dates.');
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -115,20 +119,22 @@ export default function ActivityMapPage() {
               <DatePicker
                 label="Start"
                 value={startDate}
-                onChange={(d) => d && setStartDate(d)}
+                onChange={(d) => isValid(d) && setStartDate(d)}
                 slotProps={{ textField: { size: 'small' } }}
               />
               <DatePicker
                 label="Finish"
                 value={endDate}
-                onChange={(d) => d && setEndDate(d)}
+                onChange={(d) => isValid(d) && setEndDate(d)}
                 slotProps={{ textField: { size: 'small' } }}
               />
               <FormControl size="small" sx={{ minWidth: 180 }}>
-                <InputLabel>Geo source</InputLabel>
+                <InputLabel shrink>Geo source</InputLabel>
                 <Select
                   value={geoSource}
                   label="Geo source"
+                  displayEmpty
+                  notched
                   onChange={(e) => setGeoSource(e.target.value)}
                 >
                   <MenuItem value="">All</MenuItem>
@@ -172,7 +178,7 @@ export default function ActivityMapPage() {
 
             <Box sx={{ mt: 1.5 }}>
               <Typography variant="caption" color="text.secondary">
-                Range: <strong>{format(startDate, 'MMM d, yyyy')}</strong> → <strong>{format(endDate, 'MMM d, yyyy')}</strong>
+                Range: <strong>{isValid(startDate) ? format(startDate, 'MMM d, yyyy') : '—'}</strong> → <strong>{isValid(endDate) ? format(endDate, 'MMM d, yyyy') : '—'}</strong>
                 {' • '}
                 Showing <strong>{renderableCount}</strong> of <strong>{total.toLocaleString()}</strong> records
                 {records.length < total && ` (capped at ${DEFAULT_LIMIT} for this view)`}
