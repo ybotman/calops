@@ -1,21 +1,16 @@
 'use client';
 
 import { Fragment, useEffect } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Circle, Marker, Polyline, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Circle, Polyline, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 
 const USA_CENTER = [39.5, -98.5];
 const USA_ZOOM = 4;
 
-// Color by geo source
-const sourceColor = (source) => {
-  switch (source) {
-    case 'GoogleBrowser': return '#2e7d32'; // green - real GPS
-    case 'GoogleGeolocation': return '#1976d2'; // blue - Google IP-based
-    case 'IPInfoIO': return '#757575'; // gray - IP lookup
-    default: return '#9e9e9e';
-  }
-};
+// Two-color scheme: user location vs map center
+const USER_COLOR = '#1976d2';   // blue
+const CENTER_COLOR = '#d32f2f'; // red
+const LINE_COLOR = '#757575';   // gray (connecting line)
 
 // Fix Leaflet default-icon paths once on the client
 function FixLeafletIcons() {
@@ -66,46 +61,41 @@ export default function ActivityMapView({ records }) {
         if (userLat == null || userLng == null || mapLat == null || mapLng == null) return null;
 
         const source = rec.userLocation?.source;
-        const color = sourceColor(source);
         const accuracy = rec.userLocation?.browserGps?.accuracy;
         const isGps = source === 'GoogleBrowser' && accuracy != null;
         const userId = rec.firebaseUserId?.slice(-8) || (rec.ip ? `ip:${rec.ip}` : 'anon');
 
         return (
           <Fragment key={rec.id}>
-            {/* User location: circle with accuracy radius (GPS) or simple dot */}
-            {isGps ? (
+            {/* User location: blue dot. Optional accuracy ring when GPS. */}
+            {isGps && (
               <Circle
                 center={[userLat, userLng]}
                 radius={accuracy}
-                pathOptions={{ color, fillColor: color, fillOpacity: 0.15, weight: 1 }}
-              >
-                <Popup>
-                  <div style={{ fontSize: 12 }}>
-                    <strong>User:</strong> {userId}<br />
-                    <strong>Source:</strong> {source} (±{Math.round(accuracy)}m)<br />
-                    <strong>Time:</strong> {new Date(rec.timestamp).toLocaleString()}
-                  </div>
-                </Popup>
-              </Circle>
-            ) : (
-              <CircleMarker
-                center={[userLat, userLng]}
-                radius={5}
-                pathOptions={{ color, fillColor: color, fillOpacity: 0.6, weight: 1 }}
-              >
-                <Popup>
-                  <div style={{ fontSize: 12 }}>
-                    <strong>User:</strong> {userId}<br />
-                    <strong>Source:</strong> {source || 'unknown'} (no GPS accuracy)<br />
-                    <strong>Time:</strong> {new Date(rec.timestamp).toLocaleString()}
-                  </div>
-                </Popup>
-              </CircleMarker>
+                pathOptions={{ color: USER_COLOR, fillColor: USER_COLOR, fillOpacity: 0.1, weight: 1 }}
+                interactive={false}
+              />
             )}
+            <CircleMarker
+              center={[userLat, userLng]}
+              radius={5}
+              pathOptions={{ color: USER_COLOR, fillColor: USER_COLOR, fillOpacity: 0.85, weight: 1 }}
+            >
+              <Popup>
+                <div style={{ fontSize: 12 }}>
+                  <strong>User:</strong> {userId}<br />
+                  <strong>Source:</strong> {source || 'unknown'}{isGps ? ` (±${Math.round(accuracy)}m)` : ''}<br />
+                  <strong>Time:</strong> {new Date(rec.timestamp).toLocaleString()}
+                </div>
+              </Popup>
+            </CircleMarker>
 
-            {/* Map center marker */}
-            <Marker position={[mapLat, mapLng]}>
+            {/* Map center: red dot */}
+            <CircleMarker
+              center={[mapLat, mapLng]}
+              radius={5}
+              pathOptions={{ color: CENTER_COLOR, fillColor: CENTER_COLOR, fillOpacity: 0.85, weight: 1 }}
+            >
               <Popup>
                 <div style={{ fontSize: 12 }}>
                   <strong>Map center viewed by</strong> {userId}<br />
@@ -113,12 +103,12 @@ export default function ActivityMapView({ records }) {
                   <strong>Time:</strong> {new Date(rec.timestamp).toLocaleString()}
                 </div>
               </Popup>
-            </Marker>
+            </CircleMarker>
 
             {/* Connecting line user → mapCenter */}
             <Polyline
               positions={[[userLat, userLng], [mapLat, mapLng]]}
-              pathOptions={{ color, weight: 1, opacity: 0.35, dashArray: '4 4' }}
+              pathOptions={{ color: LINE_COLOR, weight: 1, opacity: 0.4, dashArray: '4 4' }}
             />
           </Fragment>
         );
