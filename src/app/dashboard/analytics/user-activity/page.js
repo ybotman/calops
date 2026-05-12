@@ -406,7 +406,7 @@ export default function UserActivityPage() {
   return (
     <Box>
       {/* Header */}
-      <Typography variant="h4" sx={{ mb: 2 }}>Unified User Activity</Typography>
+      <Typography variant="h4" sx={{ mb: 2 }}>User Activity — Search</Typography>
 
       {/* Role-based access indicator */}
       {isReadOnly && (

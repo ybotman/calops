@@ -275,7 +275,7 @@ export default function ActivityTrackingPage() {
         flexWrap: 'wrap',
         gap: 2
       }}>
-        <Typography variant="h4">Activity Tracking</Typography>
+        <Typography variant="h4">User Activity — Stream</Typography>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
           <ToggleButtonGroup
             value={timeRange}
