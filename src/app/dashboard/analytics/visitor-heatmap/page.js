@@ -113,8 +113,8 @@ export default function VisitorHeatmapPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [heatmapData, setHeatmapData] = useState(null);
-  const [timeRange, setTimeRange] = useState('3M');
-  const [sourceFilter, setSourceFilter] = useState('visitors'); // Default to SITE access
+  const [timeRange, setTimeRange] = useState('1M'); // CALOPS-57b: default 1M
+  const [sourceFilter, setSourceFilter] = useState('all'); // CALOPS-57b: default "all"
   const [timezoneMode, setTimezoneMode] = useState('boston');
   const [viewMode, setViewMode] = useState('dom'); // Default to DOM view
 
@@ -248,7 +248,7 @@ export default function VisitorHeatmapPage() {
         flexWrap: 'wrap',
         gap: 2
       }}>
-        <Typography variant="h4">Site Activity</Typography>
+        <Typography variant="h4">Site Heatmap</Typography>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
           <ToggleButtonGroup
             value={timeRange}

@@ -48,17 +48,15 @@ import StorageIcon from '@mui/icons-material/Storage';
 import MonetizationOnIcon from '@mui/icons-material/MonetizationOn';
 import MapIcon from '@mui/icons-material/Map';
 
-// Navigation — Site Activity (top-level standalone, no section)
-const siteActivityNav = {
-  name: 'Site Activity',
-  icon: <GridOnIcon />,
-  href: '/dashboard/analytics/visitor-heatmap',
-};
+// Navigation — Activity Heatmaps section (groups all heatmap-style views)
+const activityHeatmapItems = [
+  { name: 'Site Heatmap',   icon: <GridOnIcon />, href: '/dashboard/analytics/visitor-heatmap' },
+  { name: 'Events Heatmap', icon: <GridOnIcon />, href: '/dashboard/analytics/event-creation' },
+];
 
 // Navigation — Events Activity section
 const eventsActivityItems = [
-  { name: 'Creation',    icon: <GridOnIcon />, href: '/dashboard/analytics/event-creation' },
-  { name: 'Audit Trail', icon: <EventIcon />,  href: '/dashboard/analytics/event-activity' },
+  { name: 'Audit Trail', icon: <EventIcon />, href: '/dashboard/analytics/event-activity' },
 ];
 
 // Navigation — User Activity section
@@ -192,14 +190,19 @@ export default function AdminLayout({ children }) {
 
       <Divider sx={{ my: 1 }} />
 
-      {/* Site Activity — standalone top-level link (no section header, only one page) */}
+      {/* Activity Heatmaps */}
+      <Typography variant="overline" sx={{ px: 2, pt: 1, color: 'text.secondary', fontWeight: 'bold' }}>
+        Activity Heatmaps
+      </Typography>
       <List dense>
-        <ListItem disablePadding>
-          <ListItemButton component="a" href={siteActivityNav.href}>
-            <ListItemIcon>{siteActivityNav.icon}</ListItemIcon>
-            <ListItemText primary={siteActivityNav.name} />
-          </ListItemButton>
-        </ListItem>
+        {activityHeatmapItems.map((item) => (
+          <ListItem key={item.name} disablePadding>
+            <ListItemButton component="a" href={item.href}>
+              <ListItemIcon>{item.icon}</ListItemIcon>
+              <ListItemText primary={item.name} />
+            </ListItemButton>
+          </ListItem>
+        ))}
       </List>
 
       <Divider sx={{ my: 1 }} />
