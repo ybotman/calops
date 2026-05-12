@@ -1,7 +1,7 @@
 'use client';
 
 import { Fragment, useEffect } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Circle, Polyline, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Circle, Polyline, Popup, useMap, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 
 const USA_CENTER = [39.5, -98.5];
@@ -28,7 +28,7 @@ function FixLeafletIcons() {
   return null;
 }
 
-export default function ActivityMapView({ records }) {
+export default function ActivityMapView({ records, onBoundsChange }) {
   const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
   const tileUrl = mapboxToken
     ? `https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=${mapboxToken}`
@@ -52,6 +52,7 @@ export default function ActivityMapView({ records }) {
       />
 
       <InvalidateOnMount />
+      <BoundsReporter onBoundsChange={onBoundsChange} />
 
       {records.map((rec) => {
         const userLat = rec.userLocation?.latitude;
@@ -141,5 +142,26 @@ function InvalidateOnMount() {
     const t = setTimeout(tick, 250);
     return () => clearTimeout(t);
   }, [map]);
+  return null;
+}
+
+// Reports current viewport bounds to parent on mount + after pan/zoom.
+// Plain object so the parent doesn't have to handle Leaflet types.
+function BoundsReporter({ onBoundsChange }) {
+  const emit = (map) => {
+    if (!onBoundsChange) return;
+    const b = map.getBounds();
+    onBoundsChange({
+      north: b.getNorth(),
+      south: b.getSouth(),
+      east: b.getEast(),
+      west: b.getWest(),
+    });
+  };
+  const map = useMapEvents({
+    moveend: () => emit(map),
+    zoomend: () => emit(map),
+  });
+  useEffect(() => { emit(map); /* report initial bounds once */ }, [map]); // eslint-disable-line react-hooks/exhaustive-deps
   return null;
 }
