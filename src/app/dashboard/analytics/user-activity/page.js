@@ -406,7 +406,7 @@ export default function UserActivityPage() {
   return (
     <Box>
       {/* Header */}
-      <Typography variant="h4" sx={{ mb: 2 }}>Unified User Activity</Typography>
+      <Typography variant="h4" sx={{ mb: 2 }}>User Activity — Search</Typography>
 
       {/* Role-based access indicator */}
       {isReadOnly && (
@@ -697,9 +697,20 @@ export default function UserActivityPage() {
                                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <Typography variant="caption" color="text.secondary">Types</Typography>
                                     <Box sx={{ display: 'flex', gap: 0.5 }}>
-                                      {org.organizerTypes?.map((type, i) => (
-                                        <Chip key={i} label={type} size="small" color="secondary" sx={{ fontSize: '0.65rem', height: 18 }} />
-                                      )) || '-'}
+                                      {(() => {
+                                        const t = org.organizerTypes;
+                                        const labels = [];
+                                        if (t?.isVenue) labels.push('Venue');
+                                        if (t?.isTeacher) labels.push('Teacher');
+                                        if (t?.isMaestro) labels.push('Maestro');
+                                        if (t?.isDJ) labels.push('DJ');
+                                        if (t?.isOrchestra) labels.push('Orchestra');
+                                        return labels.length
+                                          ? labels.map((type, i) => (
+                                              <Chip key={i} label={type} size="small" color="secondary" sx={{ fontSize: '0.65rem', height: 18 }} />
+                                            ))
+                                          : '-';
+                                      })()}
                                     </Box>
                                   </Box>
                                   <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>

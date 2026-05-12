@@ -296,12 +296,79 @@
   "watchList": [
     { "priority": 1, "serviceId": "mongodb", "trigger": "512MB storage", "action": "Upgrade to M2 ($9) or self-host" },
     { "priority": 2, "serviceId": "mapbox", "trigger": "50k map loads/mo", "action": "Monitor via dashboard" },
-    { "priority": 3, "serviceId": "firebase-auth", "trigger": "50k MAU", "action": "Long way off" },
-    { "priority": 4, "serviceId": "azure-functions", "trigger": "1M executions", "action": "Very long way off" }
+    { "priority": 3, "serviceId": "firebase-auth", "trigger": "50k MAU", "action": "Stay on Firebase, pay-as-you-go ($0.0055/MAU). Migration to Azure B2C/Auth0 is 6-10 weeks (HIGH lock-in); only migrate if blocked by feature gap (SSO/SAML), not by cost." },
+    { "priority": 4, "serviceId": "azure-functions", "trigger": "1M executions", "action": "Stay on Consumption plan. $0.0000002/invocation after free tier is trivial at calendar scale. Revisit only if sustained >10M execs/mo." }
   ],
   "potentialFuture": [
     { "name": "Twilio", "purpose": "Voice/SMS", "estimatedCost": "Usage-based" },
     { "name": "Stripe", "purpose": "Payments", "estimatedCost": "2.9% + $0.30/txn" }
   ],
-  "lastUpdated": "2026-04-03"
+  "mongoM0Health": {
+    "enabled": true,
+    "useMockData": false,
+    "endpoint": "/api/ops/mongo-health",
+    "refreshIntervalMs": 60000,
+    "cluster": {
+      "name": "TangoTiempoPrimary",
+      "region": "Azure eastus2",
+      "tier": "M0",
+      "mongoVersion": "8.0.20"
+    },
+    "limits": {
+      "storageBytes": 536870912,
+      "storageWarnPct": 70,
+      "storageCritPct": 85,
+      "maxConnections": 500,
+      "connectionsWarnPct": 60,
+      "connectionsCritPct": 80,
+      "sustainedOpsPerSec": 100,
+      "opsWarnPct": 70,
+      "opsCritPct": 85,
+      "replicationLagSecWarn": 30,
+      "replicationLagSecCrit": 60,
+      "slowOpThresholdMs": 200
+    },
+    "throttlingProxy": {
+      "baselineP95Ms": 50,
+      "p95WatchMs": 150,
+      "p95CritMs": 400,
+      "slowOp5minWatch": 5,
+      "slowOp5minCrit": 20
+    },
+    "tierLadder": [
+      { "tier": "M0", "monthlyCost": 0, "storageGb": 0.5, "maxMembers": 200, "note": "POC / current" },
+      { "tier": "M2", "monthlyCost": 9, "storageGb": 2, "maxMembers": 1000, "note": "When M0 ops/sec caps" },
+      { "tier": "M10", "monthlyCost": 60, "storageGb": 10, "maxMembers": 25000, "note": "When M2 connection cap or perf insufficient" },
+      { "tier": "M20", "monthlyCost": 150, "storageGb": 20, "maxMembers": 75000, "note": "When working set > 10GB" },
+      { "tier": "M30", "monthlyCost": 400, "storageGb": 40, "maxMembers": 200000, "note": "When M20 IOPS cap" }
+    ],
+    "upgradeTriggers": [
+      { "from": "M0", "to": "M2", "when": "Disk > 70% sustained, OR opcounters regularly > 80/sec, OR throttling alert fires > 1x/week" },
+      { "from": "M2", "to": "M10", "when": "Connection cap hit, OR data > 1.5GB, OR need Profiler/Performance Advisor" }
+    ]
+  },
+  "whatIfModel": {
+    "enabled": true,
+    "units": {
+      "signalrConnMinute": 0.0000015,
+      "signalrMessage": 0.000001,
+      "signalrFreeMsgsPerMonth": 30000000,
+      "fnInvocation": 0.0000002,
+      "fnGbSecond": 0.000016,
+      "fnFreeExecPerMo": 1000000,
+      "blobGbMonth": 0.018,
+      "bandwidthGb": 0.087,
+      "mongoTierLadder": [
+        { "tier": "M0", "monthlyCost": 0, "storageGb": 0.5, "maxMembers": 200 },
+        { "tier": "M2", "monthlyCost": 9, "storageGb": 2, "maxMembers": 1000 },
+        { "tier": "M10", "monthlyCost": 60, "storageGb": 10, "maxMembers": 25000 },
+        { "tier": "M20", "monthlyCost": 150, "storageGb": 20, "maxMembers": 75000 },
+        { "tier": "M30", "monthlyCost": 400, "storageGb": 40, "maxMembers": 200000 },
+        { "tier": "M30+", "monthlyCost": 1000, "storageGb": 80, "maxMembers": 1000000 }
+      ]
+    },
+    "unitsLastReviewed": "2026-Q2",
+    "sourceDoc": "MessageHub/docs/METRICS_COST_MODEL.md"
+  },
+  "lastUpdated": "2026-04-14"
 }

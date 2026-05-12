@@ -46,29 +46,31 @@ import BugReportIcon from '@mui/icons-material/BugReport';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import StorageIcon from '@mui/icons-material/Storage';
 import MonetizationOnIcon from '@mui/icons-material/MonetizationOn';
+import MapIcon from '@mui/icons-material/Map';
 
-// Navigation items - Heatmaps section
-const heatmapNavItems = [
-  { name: 'Site Access', icon: <GridOnIcon />, href: '/dashboard/analytics/visitor-heatmap' },
-  { name: 'Event Creation', icon: <GridOnIcon />, href: '/dashboard/analytics/event-creation' },
+// Navigation — Activity Heatmaps section (groups all heatmap-style views)
+const activityHeatmapItems = [
+  { name: 'Site Heatmap',   icon: <GridOnIcon />, href: '/dashboard/analytics/visitor-heatmap' },
+  { name: 'Events Heatmap', icon: <GridOnIcon />, href: '/dashboard/analytics/event-creation' },
 ];
 
-// Navigation items - Tracking section (single item tracking)
-const trackingSingleItems = [
-  { name: 'Login Activity', icon: <AccessTimeIcon />, href: '/dashboard/user-logins' },
-  { name: 'Event Activity', icon: <EventIcon />, href: '/dashboard/analytics/event-activity' },
+// Navigation — Events Activity section
+const eventsActivityItems = [
+  { name: 'Audit Trail', icon: <EventIcon />, href: '/dashboard/analytics/event-activity' },
 ];
 
-// Navigation items - Tracking section (expanded search)
-const trackingExpandedItems = [
-  { name: 'User Activity', icon: <PersonSearchIcon />, href: '/dashboard/analytics/user-activity' },
-  { name: 'Activity Tracking', icon: <AccessTimeIcon />, href: '/dashboard/analytics/activity-tracking' },
+// Navigation — User Activity section (Search at bottom per Toby 2026-05-12)
+const userActivityItems = [
+  { name: 'Login',        icon: <AccessTimeIcon />,   href: '/dashboard/analytics/logins' },
+  { name: 'Stream',       icon: <AccessTimeIcon />,   href: '/dashboard/analytics/activity-tracking' },
+  { name: 'Map & Center', icon: <MapIcon />,          href: '/dashboard/analytics/activity-map' },
+  { name: 'Search',       icon: <PersonSearchIcon />, href: '/dashboard/analytics/user-activity' },
 ];
 
-// Navigation items - Tracking section (errors submenu)
-const trackingErrorItems = [
-  { name: 'API', icon: <BugReportIcon />, href: '/dashboard/errors/api' },
-  { name: 'Trends', icon: <TimelineIcon />, href: '/dashboard/errors/trends' },
+// Navigation — Errors section
+const errorsItems = [
+  { name: 'API',    icon: <BugReportIcon />, href: '/dashboard/errors/api' },
+  { name: 'Trends', icon: <TimelineIcon />,  href: '/dashboard/errors/trends' },
 ];
 
 // Navigation items - Data section
@@ -121,7 +123,6 @@ export default function AdminLayout({ children }) {
   const [anchorEl, setAnchorEl] = useState(null);
   const [appMenuAnchor, setAppMenuAnchor] = useState(null);
   const [organizerTypesOpen, setOrganizerTypesOpen] = useState(false);
-  const [errorsOpen, setErrorsOpen] = useState(false);
   const [gitOpen, setGitOpen] = useState(false);
 
   const handleDrawerToggle = () => {
@@ -189,12 +190,12 @@ export default function AdminLayout({ children }) {
 
       <Divider sx={{ my: 1 }} />
 
-      {/* Heatmaps Section */}
+      {/* Activity Heatmaps */}
       <Typography variant="overline" sx={{ px: 2, pt: 1, color: 'text.secondary', fontWeight: 'bold' }}>
-        Heatmaps
+        Activity Heatmaps
       </Typography>
       <List dense>
-        {heatmapNavItems.map((item) => (
+        {activityHeatmapItems.map((item) => (
           <ListItem key={item.name} disablePadding>
             <ListItemButton component="a" href={item.href}>
               <ListItemIcon>{item.icon}</ListItemIcon>
@@ -206,12 +207,12 @@ export default function AdminLayout({ children }) {
 
       <Divider sx={{ my: 1 }} />
 
-      {/* Tracking Section */}
+      {/* Events Activity */}
       <Typography variant="overline" sx={{ px: 2, pt: 1, color: 'text.secondary', fontWeight: 'bold' }}>
-        Tracking
+        Events Activity
       </Typography>
       <List dense>
-        {trackingSingleItems.map((item) => (
+        {eventsActivityItems.map((item) => (
           <ListItem key={item.name} disablePadding>
             <ListItemButton component="a" href={item.href}>
               <ListItemIcon>{item.icon}</ListItemIcon>
@@ -219,8 +220,16 @@ export default function AdminLayout({ children }) {
             </ListItemButton>
           </ListItem>
         ))}
-        <Divider sx={{ my: 0.5, mx: 2 }} />
-        {trackingExpandedItems.map((item) => (
+      </List>
+
+      <Divider sx={{ my: 1 }} />
+
+      {/* User Activity */}
+      <Typography variant="overline" sx={{ px: 2, pt: 1, color: 'text.secondary', fontWeight: 'bold' }}>
+        User Activity
+      </Typography>
+      <List dense>
+        {userActivityItems.map((item) => (
           <ListItem key={item.name} disablePadding>
             <ListItemButton component="a" href={item.href}>
               <ListItemIcon>{item.icon}</ListItemIcon>
@@ -228,34 +237,23 @@ export default function AdminLayout({ children }) {
             </ListItemButton>
           </ListItem>
         ))}
-        <Divider sx={{ my: 0.5, mx: 2 }} />
-        {/* Errors submenu within Tracking */}
-        <ListItem disablePadding>
-          <ListItemButton
-            onClick={() => setErrorsOpen(!errorsOpen)}
-            onTouchEnd={(e) => {
-              e.preventDefault();
-              setErrorsOpen(!errorsOpen);
-            }}
-            sx={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
-          >
-            <ListItemIcon><BugReportIcon /></ListItemIcon>
-            <ListItemText primary="Errors" />
-            {errorsOpen ? <ExpandLess /> : <ExpandMore />}
-          </ListItemButton>
-        </ListItem>
-        <Collapse in={errorsOpen} timeout="auto" unmountOnExit>
-          <List component="div" disablePadding dense>
-            {trackingErrorItems.map((item) => (
-              <ListItem key={item.name} disablePadding>
-                <ListItemButton component="a" href={item.href} sx={{ pl: 4, touchAction: 'manipulation' }}>
-                  <ListItemIcon>{item.icon}</ListItemIcon>
-                  <ListItemText primary={item.name} />
-                </ListItemButton>
-              </ListItem>
-            ))}
-          </List>
-        </Collapse>
+      </List>
+
+      <Divider sx={{ my: 1 }} />
+
+      {/* Errors */}
+      <Typography variant="overline" sx={{ px: 2, pt: 1, color: 'text.secondary', fontWeight: 'bold' }}>
+        Errors
+      </Typography>
+      <List dense>
+        {errorsItems.map((item) => (
+          <ListItem key={item.name} disablePadding>
+            <ListItemButton component="a" href={item.href}>
+              <ListItemIcon>{item.icon}</ListItemIcon>
+              <ListItemText primary={item.name} />
+            </ListItemButton>
+          </ListItem>
+        ))}
       </List>
 
       <Divider sx={{ my: 1 }} />

@@ -225,7 +225,7 @@ export default function EventActivityPage() {
         gap: 2
       }}>
         <Typography variant="h4">
-          Event Activity Audit Trail
+          Events Activity — Audit Trail
         </Typography>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
           {/* Time Range */}

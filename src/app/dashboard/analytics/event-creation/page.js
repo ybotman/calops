@@ -118,7 +118,7 @@ export default function EventCreationPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [data, setData] = useState(null);
-  const [timeRange, setTimeRange] = useState('3M');
+  const [timeRange, setTimeRange] = useState('1M'); // CALOPS-57b: default 1M
   const [timezoneMode, setTimezoneMode] = useState('boston'); // 'boston' or 'local'
   const [viewMode, setViewMode] = useState('dom'); // Default to DOM view
   const [sourceFilter, setSourceFilter] = useState('all'); // Default to All events
@@ -229,7 +229,7 @@ export default function EventCreationPage() {
         gap: 2
       }}>
         <Typography variant="h4">
-          Event Creation Analytics
+          Events Heatmap
         </Typography>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
           {/* Time Range */}

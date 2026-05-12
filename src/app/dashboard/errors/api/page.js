@@ -361,13 +361,17 @@ export default function ApiErrorsPage() {
                         <TableCell>Status</TableCell>
                         <TableCell>Duration</TableCell>
                         <TableCell>Location</TableCell>
+                        <TableCell>Browser</TableCell>
+                        <TableCell>Type</TableCell>
+                        <TableCell>IP</TableCell>
+                        <TableCell>CustomDims</TableCell>
                         <TableCell>Operation ID</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {recentErrors.rows.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={6} align="center">
+                          <TableCell colSpan={10} align="center">
                             No recent errors
                           </TableCell>
                         </TableRow>
@@ -392,6 +396,41 @@ export default function ApiErrorsPage() {
                               {row.client_City && row.client_CountryOrRegion
                                 ? `${row.client_City}, ${row.client_CountryOrRegion}`
                                 : row.client_CountryOrRegion || '-'}
+                            </TableCell>
+                            <TableCell sx={{ fontSize: '0.75rem', maxWidth: 140 }}>
+                              <Tooltip title={row.client_Browser || ''}>
+                                <span style={{ display: 'inline-block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }}>
+                                  {row.client_Browser || '-'}
+                                </span>
+                              </Tooltip>
+                            </TableCell>
+                            <TableCell sx={{ fontSize: '0.75rem' }}>
+                              {row.client_Type || '-'}
+                            </TableCell>
+                            <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>
+                              <Tooltip title="Copy IP">
+                                <span
+                                  style={{ cursor: row.client_IP ? 'pointer' : 'default' }}
+                                  onClick={() => row.client_IP && navigator.clipboard.writeText(row.client_IP)}
+                                >
+                                  {row.client_IP || '-'}
+                                </span>
+                              </Tooltip>
+                            </TableCell>
+                            <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.7rem', maxWidth: 200 }}>
+                              {(() => {
+                                const cd = row.customDimensions;
+                                if (!cd) return '-';
+                                const s = typeof cd === 'string' ? cd : JSON.stringify(cd);
+                                const truncated = s.length > 120 ? s.substring(0, 120) + '…' : s;
+                                return (
+                                  <Tooltip title={s}>
+                                    <span style={{ display: 'inline-block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>
+                                      {truncated}
+                                    </span>
+                                  </Tooltip>
+                                );
+                              })()}
                             </TableCell>
                             <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>
                               <Tooltip title="Copy Operation ID">

@@ -1,6 +1,6 @@
 {
   "name": "master-calendar-operations",
-  "version": "1.6.0",
+  "version": "1.11.0",
   "description": "Administration application for Calendar Backend",
   "main": "server.js",
   "type": "module",
@@ -31,11 +31,13 @@
     "dotenv": "^16.4.5",
     "firebase": "^11.6.0",
     "firebase-admin": "^13.0.1",
+    "leaflet": "^1.9.4",
     "mongoose": "^8.8.2",
     "next": "14.2.35",
     "next-auth": "^4.24.7",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-leaflet": "^4.2.1",
     "recharts": "^3.8.0",
     "swr": "^2.2.5",
     "winston": "^3.14.0"
