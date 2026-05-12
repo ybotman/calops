@@ -14,6 +14,19 @@ const nextConfig = {
     NEXT_PUBLIC_APP_NAME: packageJson.name,
     NEXT_PUBLIC_BUILD_TIME: buildTime,
   },
+  async redirects() {
+    return [
+      // CALOPS-57: /dashboard/user-logins moved under USER ACTIVITY (Login).
+      // Server-level redirect — fires at the Next.js routing layer before any
+      // edge cache lookup, guarantees old bookmarks bounce regardless of
+      // cached page state.
+      {
+        source: '/dashboard/user-logins',
+        destination: '/dashboard/analytics/logins',
+        permanent: true,
+      },
+    ];
+  },
   async rewrites() {
     // Primary: Azure Functions backend (calendar-be-af)
     // Fallback: Legacy Express backend (calendar-be) - DEPRECATED
