@@ -92,7 +92,7 @@ const QUERIES = {
     requests
     | where timestamp > ago(${timeRange})
     | where resultCode startswith "4" or resultCode startswith "5"
-    | project timestamp, name, resultCode, duration, url, client_City, client_CountryOrRegion, operation_Id
+    | project timestamp, name, resultCode, duration, url, client_City, client_CountryOrRegion, client_Browser, client_Type, client_IP, customDimensions, operation_Id
     | order by timestamp desc
     | take 100
   `,
