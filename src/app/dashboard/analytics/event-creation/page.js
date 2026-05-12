@@ -229,7 +229,7 @@ export default function EventCreationPage() {
         gap: 2
       }}>
         <Typography variant="h4">
-          Event Creation Analytics
+          Events Activity — Creation
         </Typography>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
           {/* Time Range */}

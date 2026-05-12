@@ -248,7 +248,7 @@ export default function VisitorHeatmapPage() {
         flexWrap: 'wrap',
         gap: 2
       }}>
-        <Typography variant="h4">Visitor Heatmap</Typography>
+        <Typography variant="h4">Site Activity</Typography>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
           <ToggleButtonGroup
             value={timeRange}

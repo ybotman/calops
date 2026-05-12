@@ -207,7 +207,7 @@ export default function ActivityMapPage() {
       <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 100px)', minHeight: 600 }}>
         <Box sx={{ p: 2, pb: 1, flexShrink: 0 }}>
           <Typography variant="h5" gutterBottom>
-            Activity Map
+            User Activity — Map &amp; Center
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             User reported location (with GPS-accuracy radius) connected to the map center they were viewing.
