@@ -59,12 +59,12 @@ const eventsActivityItems = [
   { name: 'Audit Trail', icon: <EventIcon />, href: '/dashboard/analytics/event-activity' },
 ];
 
-// Navigation — User Activity section
+// Navigation — User Activity section (Search at bottom per Toby 2026-05-12)
 const userActivityItems = [
   { name: 'Login',        icon: <AccessTimeIcon />,   href: '/dashboard/analytics/logins' },
-  { name: 'Search',       icon: <PersonSearchIcon />, href: '/dashboard/analytics/user-activity' },
   { name: 'Stream',       icon: <AccessTimeIcon />,   href: '/dashboard/analytics/activity-tracking' },
   { name: 'Map & Center', icon: <MapIcon />,          href: '/dashboard/analytics/activity-map' },
+  { name: 'Search',       icon: <PersonSearchIcon />, href: '/dashboard/analytics/user-activity' },
 ];
 
 // Navigation — Errors section
