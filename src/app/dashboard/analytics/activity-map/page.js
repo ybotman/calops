@@ -46,7 +46,10 @@ const ActivityMapView = dynamic(() => import('./ActivityMapView'), {
   ),
 });
 
-const DEFAULT_LIMIT = 200;
+// BE caps at 200/page; paginate client-side to reach TARGET_TOTAL.
+const PAGE_SIZE = 200;
+const TARGET_TOTAL = 1000;
+const MAX_PAGES = TARGET_TOTAL / PAGE_SIZE;
 
 const SOURCE_OPTIONS = [
   { key: 'GoogleBrowser',     label: 'Browser GPS', color: '#2e7d32' },
@@ -98,21 +101,30 @@ export default function ActivityMapPage() {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams();
-      params.set('startDate', startDate.toISOString());
-      params.set('endDate', endDate.toISOString());
-      params.set('limit', String(DEFAULT_LIMIT));
-      params.set('page', '0');
-      params.set('appId', String(appId));
-      // geoSource now filtered client-side, not server-side, so we can multi-select
+      // CALOPS-58 Mod 4: paginate 5 × 200 = 1000 cap (BE caps at 200/call).
+      const all = [];
+      let beReportedTotal = 0;
+      for (let page = 0; page < MAX_PAGES; page++) {
+        const params = new URLSearchParams();
+        params.set('startDate', startDate.toISOString());
+        params.set('endDate', endDate.toISOString());
+        params.set('limit', String(PAGE_SIZE));
+        params.set('page', String(page));
+        params.set('appId', String(appId));
 
-      const res = await axios.get(`/api/analytics/map-center-history?${params.toString()}&_t=${Date.now()}`);
-      if (res.data?.success) {
-        setRecords(res.data.data || []);
-        setTotal(res.data.pagination?.total || 0);
-      } else {
-        throw new Error(res.data?.error || 'Failed to fetch map-center records');
+        const res = await axios.get(`/api/analytics/map-center-history?${params.toString()}&_t=${Date.now()}`);
+        if (!res.data?.success) {
+          throw new Error(res.data?.error || 'Failed to fetch map-center records');
+        }
+        const batch = res.data.data || [];
+        all.push(...batch);
+        if (page === 0) {
+          beReportedTotal = res.data.pagination?.total || 0;
+        }
+        if (batch.length < PAGE_SIZE) break; // exhausted source
       }
+      setRecords(all);
+      setTotal(beReportedTotal);
     } catch (err) {
       console.error('activity-map fetch error', err);
       setError(err.message || 'Fetch failed');
@@ -354,7 +366,7 @@ export default function ActivityMapPage() {
                 Range: <strong>{isValid(startDate) ? format(startDate, 'MMM d, yyyy') : '—'}</strong> → <strong>{isValid(endDate) ? format(endDate, 'MMM d, yyyy') : '—'}</strong>
                 {' • '}
                 Showing <strong>{filteredRecords.length}</strong> of <strong>{records.length}</strong> renderable / <strong>{total.toLocaleString()}</strong> total
-                {records.length < total && ` (capped at ${DEFAULT_LIMIT} per fetch)`}
+                {records.length < total && ` (capped at ${TARGET_TOTAL} for this view; ${PAGE_SIZE}/page × ${MAX_PAGES} pages)`}
                 {' • '}
                 {ipCounts.size} distinct IPs in fetched window
               </Typography>

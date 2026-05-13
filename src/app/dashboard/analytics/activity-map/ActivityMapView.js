@@ -1,18 +1,50 @@
 'use client';
 
 import { Fragment, useEffect } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Circle, Polyline, Popup, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Circle, Polyline, Popup, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 
 const USA_CENTER = [39.5, -98.5];
 const USA_ZOOM = 4;
 
-// Two-color scheme: user location vs map center
-const USER_COLOR = '#1976d2';   // blue
+// CALOPS-58 Mod 1: color-by-source for user dots (restored from CALOPS-52 v1).
+const SOURCE_COLORS = {
+  GoogleBrowser:     '#2e7d32', // green — Browser GPS
+  GoogleGeolocation: '#1976d2', // blue — Google IP
+  IPInfoIO:          '#757575', // gray — IP lookup
+};
+const DEFAULT_USER_COLOR = '#1976d2';
 const CENTER_COLOR = '#d32f2f'; // red
-const LINE_COLOR = '#757575';   // gray (connecting line)
+const LINE_COLOR   = '#757575'; // gray
 
-// Fix Leaflet default-icon paths once on the client
+// CALOPS-58 Mod 2: default accuracy ring radius (meters) for non-GPS sources.
+// GPS uses real browserGps.accuracy.
+const DEFAULT_ACCURACY_M = {
+  GoogleGeolocation: 5000,   // Google IP geolocation ~5 km typical
+  IPInfoIO:          50000,  // IP lookup ~50 km typical
+};
+
+function haversineKm(aLat, aLng, bLat, bLng) {
+  if (aLat == null || aLng == null || bLat == null || bLng == null) return null;
+  const R = 6371;
+  const toRad = (d) => (d * Math.PI) / 180;
+  const dLat = toRad(bLat - aLat);
+  const dLng = toRad(bLng - aLng);
+  const lat1 = toRad(aLat);
+  const lat2 = toRad(bLat);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.sin(dLng / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+function formatKm(km) {
+  if (km == null) return '—';
+  if (km < 1) return `${Math.round(km * 1000)} m`;
+  if (km < 10) return `${km.toFixed(1)} km`;
+  return `${Math.round(km)} km`;
+}
+
 function FixLeafletIcons() {
   useEffect(() => {
     (async () => {
@@ -57,41 +89,55 @@ export default function ActivityMapView({ records, onBoundsChange }) {
       {records.map((rec) => {
         const userLat = rec.userLocation?.latitude;
         const userLng = rec.userLocation?.longitude;
-        const mapLat = rec.mapCenter?.latitude;
-        const mapLng = rec.mapCenter?.longitude;
+        const mapLat  = rec.mapCenter?.latitude;
+        const mapLng  = rec.mapCenter?.longitude;
         if (userLat == null || userLng == null || mapLat == null || mapLng == null) return null;
 
-        const source = rec.userLocation?.source;
-        const accuracy = rec.userLocation?.browserGps?.accuracy;
-        const isGps = source === 'GoogleBrowser' && accuracy != null;
+        const source   = rec.userLocation?.source;
+        const userColor = SOURCE_COLORS[source] || DEFAULT_USER_COLOR;
+        const gpsAccuracy = rec.userLocation?.browserGps?.accuracy;
+        const ringRadius = source === 'GoogleBrowser'
+          ? gpsAccuracy
+          : (DEFAULT_ACCURACY_M[source] ?? null);
+        const accuracyLabel = source === 'GoogleBrowser' && gpsAccuracy != null
+          ? `±${Math.round(gpsAccuracy)} m (GPS)`
+          : DEFAULT_ACCURACY_M[source] != null
+            ? `~${Math.round(DEFAULT_ACCURACY_M[source] / 1000)} km (default)`
+            : 'unknown';
         const userId = rec.firebaseUserId?.slice(-8) || (rec.ip ? `ip:${rec.ip}` : 'anon');
+        const distKm = haversineKm(userLat, userLng, mapLat, mapLng);
+        const distLabel = formatKm(distKm);
 
         return (
           <Fragment key={rec.id}>
-            {/* User location: blue dot. Optional accuracy ring when GPS. */}
-            {isGps && (
+            {/* Accuracy ring — uncertainty cloud, sized by source */}
+            {ringRadius != null && (
               <Circle
                 center={[userLat, userLng]}
-                radius={accuracy}
-                pathOptions={{ color: USER_COLOR, fillColor: USER_COLOR, fillOpacity: 0.1, weight: 1 }}
+                radius={ringRadius}
+                pathOptions={{ color: userColor, fillColor: userColor, fillOpacity: 0.08, weight: 1 }}
                 interactive={false}
               />
             )}
+
+            {/* User location dot (color = source) */}
             <CircleMarker
               center={[userLat, userLng]}
               radius={5}
-              pathOptions={{ color: USER_COLOR, fillColor: USER_COLOR, fillOpacity: 0.85, weight: 1 }}
+              pathOptions={{ color: userColor, fillColor: userColor, fillOpacity: 0.85, weight: 1 }}
             >
               <Popup>
                 <div style={{ fontSize: 12 }}>
                   <strong>User:</strong> {userId}<br />
-                  <strong>Source:</strong> {source || 'unknown'}{isGps ? ` (±${Math.round(accuracy)}m)` : ''}<br />
+                  <strong>Source:</strong> {source || 'unknown'}<br />
+                  <strong>Accuracy:</strong> {accuracyLabel}<br />
+                  <strong>Distance to viewed center:</strong> {distLabel}<br />
                   <strong>Time:</strong> {new Date(rec.timestamp).toLocaleString()}
                 </div>
               </Popup>
             </CircleMarker>
 
-            {/* Map center: red dot */}
+            {/* Map center dot (red) */}
             <CircleMarker
               center={[mapLat, mapLng]}
               radius={5}
@@ -101,16 +147,21 @@ export default function ActivityMapView({ records, onBoundsChange }) {
                 <div style={{ fontSize: 12 }}>
                   <strong>Map center viewed by</strong> {userId}<br />
                   <strong>At:</strong> {mapLat.toFixed(4)}, {mapLng.toFixed(4)}<br />
+                  <strong>Distance from user:</strong> {distLabel}<br />
                   <strong>Time:</strong> {new Date(rec.timestamp).toLocaleString()}
                 </div>
               </Popup>
             </CircleMarker>
 
-            {/* Connecting line user → mapCenter */}
+            {/* Connecting line user → mapCenter with hover distance tooltip */}
             <Polyline
               positions={[[userLat, userLng], [mapLat, mapLng]]}
               pathOptions={{ color: LINE_COLOR, weight: 1, opacity: 0.4, dashArray: '4 4' }}
-            />
+            >
+              <Tooltip sticky direction="center" opacity={0.9}>
+                <span style={{ fontSize: 11 }}>{distLabel}</span>
+              </Tooltip>
+            </Polyline>
           </Fragment>
         );
       })}
@@ -120,7 +171,6 @@ export default function ActivityMapView({ records, onBoundsChange }) {
   );
 }
 
-// If no records, ensure we stay on USA center (avoids any auto-fit weirdness from prior renders)
 function RecenterIfEmpty({ hasRecords }) {
   const map = useMap();
   useEffect(() => {
@@ -131,9 +181,6 @@ function RecenterIfEmpty({ hasRecords }) {
   return null;
 }
 
-// Force the map to recompute size after mount — fixes the case where a flex parent
-// hasn't finished its layout pass when MapContainer first measures itself, leaving
-// the map at 0×0 with no tiles loaded. Run on mount + once after a short delay.
 function InvalidateOnMount() {
   const map = useMap();
   useEffect(() => {
@@ -145,8 +192,6 @@ function InvalidateOnMount() {
   return null;
 }
 
-// Reports current viewport bounds to parent on mount + after pan/zoom.
-// Plain object so the parent doesn't have to handle Leaflet types.
 function BoundsReporter({ onBoundsChange }) {
   const emit = (map) => {
     if (!onBoundsChange) return;
