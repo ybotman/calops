@@ -174,9 +174,9 @@ export default function ActivityMapPage() {
       const mapLng = r.mapCenter?.longitude;
       if (userLat == null || userLng == null || mapLat == null || mapLng == null) return false;
 
-      const source = r.userLocation?.source;
-      if (geoSources.length === 0) return false;
-      if (source && !geoSources.includes(source)) return false;
+      // CALOPS-58f: source filter is a SOFT filter (applied in ActivityMapView for the
+      // user-side rendering only). Red center + line stay visible regardless of source toggle.
+      // Hard filters (qty / ip / viewport / locals) still drop the whole record below.
 
       if (ipFilter && r.ip !== ipFilter) return false;
 
@@ -196,7 +196,7 @@ export default function ActivityMapPage() {
 
       return true;
     });
-  }, [records, geoSources, ipFilter, minQty, viewportFilter, viewportBounds, localsOnly, localsKm, ipCounts]);
+  }, [records, ipFilter, minQty, viewportFilter, viewportBounds, localsOnly, localsKm, ipCounts]);
 
   const mapboxConfigured = !!process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
@@ -404,6 +404,7 @@ export default function ActivityMapPage() {
             <ActivityMapView
               records={filteredRecords}
               onBoundsChange={setViewportBounds}
+              geoSources={geoSources}
             />
           </Box>
         </Box>

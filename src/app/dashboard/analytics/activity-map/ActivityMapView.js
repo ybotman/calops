@@ -61,7 +61,15 @@ function FixLeafletIcons() {
   return null;
 }
 
-export default function ActivityMapView({ records, onBoundsChange }) {
+// CALOPS-58f: source filter is a SOFT filter — toggling off a source hides the user-side
+// rendering (dot/ring/popup) but the map-center dot + connecting line for that record stay
+// visible. "Where people looked" (red center) is independent of "how their location was
+// resolved" (source).
+export default function ActivityMapView({ records, onBoundsChange, geoSources }) {
+  const sourceSet = geoSources instanceof Set
+    ? geoSources
+    : Array.isArray(geoSources) ? new Set(geoSources) : null;
+  const sourceVisible = (src) => sourceSet == null ? true : sourceSet.has(src);
   const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
   const tileUrl = mapboxToken
     ? `https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=${mapboxToken}`
@@ -127,11 +135,13 @@ export default function ActivityMapView({ records, onBoundsChange }) {
           </Popup>
         );
 
+        const showUserSide = sourceVisible(source);
+
         return (
           <Fragment key={rec.id}>
-            {/* Accuracy ring — uncertainty cloud, sized by source. For imprecise sources, this
-                IS the only marker (popup attached). For precise sources, paired with center dot. */}
-            {ringRadius != null && (
+            {/* User-side rendering (ring + dot) — only when source filter shows this source.
+                Red center + line are ALWAYS rendered regardless of source filter. */}
+            {showUserSide && ringRadius != null && (
               <Circle
                 center={[userLat, userLng]}
                 radius={ringRadius}
@@ -147,18 +157,8 @@ export default function ActivityMapView({ records, onBoundsChange }) {
               </Circle>
             )}
 
-            {/* Solid user dot — only for precise (GPS) sources */}
-            {isPrecise && (
-              <CircleMarker
-                center={[userLat, userLng]}
-                radius={5}
-                pathOptions={{ color: userColor, fillColor: userColor, fillOpacity: 0.85, weight: 1 }}
-              >
-                {userPopupBody}
-              </CircleMarker>
-            )}
-
-            {/* Map center dot (red) */}
+            {/* Map center dot (red) — ALWAYS rendered; drawn BEFORE GPS dot so when user-GPS
+                coincides with map-center, the green user dot stays visible on top. */}
             <CircleMarker
               center={[mapLat, mapLng]}
               radius={5}
@@ -174,7 +174,19 @@ export default function ActivityMapView({ records, onBoundsChange }) {
               </Popup>
             </CircleMarker>
 
-            {/* Connecting line user → mapCenter with hover distance tooltip */}
+            {/* Solid user dot — only for precise GPS sources; drawn AFTER red center so it
+                stays on top of overlapping red. White stroke for visibility against red. */}
+            {showUserSide && isPrecise && (
+              <CircleMarker
+                center={[userLat, userLng]}
+                radius={6}
+                pathOptions={{ color: '#ffffff', fillColor: userColor, fillOpacity: 1.0, weight: 1.5 }}
+              >
+                {userPopupBody}
+              </CircleMarker>
+            )}
+
+            {/* Connecting line user → mapCenter — ALWAYS rendered (relationship is source-independent) */}
             <Polyline
               positions={[[userLat, userLng], [mapLat, mapLng]]}
               pathOptions={{ color: LINE_COLOR, weight: 1, opacity: 0.4, dashArray: '4 4' }}
