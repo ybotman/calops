@@ -8,10 +8,11 @@ const USA_CENTER = [39.5, -98.5];
 const USA_ZOOM = 4;
 
 // CALOPS-58 Mod 1: color-by-source for user dots (restored from CALOPS-52 v1).
+// CALOPS-58e: IPInfoIO darkened for better visibility on the OSM/Mapbox tile palette.
 const SOURCE_COLORS = {
   GoogleBrowser:     '#2e7d32', // green — Browser GPS
   GoogleGeolocation: '#1976d2', // blue — Google IP
-  IPInfoIO:          '#757575', // gray — IP lookup
+  IPInfoIO:          '#424242', // dark gray — IP lookup (was #757575)
 };
 const DEFAULT_USER_COLOR = '#1976d2';
 const CENTER_COLOR = '#d32f2f'; // red
@@ -108,34 +109,54 @@ export default function ActivityMapView({ records, onBoundsChange }) {
         const distKm = haversineKm(userLat, userLng, mapLat, mapLng);
         const distLabel = formatKm(distKm);
 
+        // CALOPS-58e: precise sources (GPS) render dot+ring; imprecise sources (Google IP,
+        // IP lookup) render only the translucent uncertainty circle — the circle IS the marker.
+        // Avoids false-precision of a small dot at the centroid of a 5-50 km uncertainty cloud.
+        const isPrecise = source === 'GoogleBrowser';
+        const ringOpacity = isPrecise ? 0.12 : 0.20;
+
+        const userPopupBody = (
+          <Popup>
+            <div style={{ fontSize: 12 }}>
+              <strong>User:</strong> {userId}<br />
+              <strong>Source:</strong> {source || 'unknown'}<br />
+              <strong>Accuracy:</strong> {accuracyLabel}<br />
+              <strong>Distance to viewed center:</strong> {distLabel}<br />
+              <strong>Time:</strong> {new Date(rec.timestamp).toLocaleString()}
+            </div>
+          </Popup>
+        );
+
         return (
           <Fragment key={rec.id}>
-            {/* Accuracy ring — uncertainty cloud, sized by source */}
+            {/* Accuracy ring — uncertainty cloud, sized by source. For imprecise sources, this
+                IS the only marker (popup attached). For precise sources, paired with center dot. */}
             {ringRadius != null && (
               <Circle
                 center={[userLat, userLng]}
                 radius={ringRadius}
-                pathOptions={{ color: userColor, fillColor: userColor, fillOpacity: 0.08, weight: 1 }}
-                interactive={false}
-              />
+                pathOptions={{
+                  color: userColor,
+                  fillColor: userColor,
+                  fillOpacity: ringOpacity,
+                  weight: 1,
+                }}
+                interactive={!isPrecise}
+              >
+                {!isPrecise && userPopupBody}
+              </Circle>
             )}
 
-            {/* User location dot (color = source) */}
-            <CircleMarker
-              center={[userLat, userLng]}
-              radius={5}
-              pathOptions={{ color: userColor, fillColor: userColor, fillOpacity: 0.85, weight: 1 }}
-            >
-              <Popup>
-                <div style={{ fontSize: 12 }}>
-                  <strong>User:</strong> {userId}<br />
-                  <strong>Source:</strong> {source || 'unknown'}<br />
-                  <strong>Accuracy:</strong> {accuracyLabel}<br />
-                  <strong>Distance to viewed center:</strong> {distLabel}<br />
-                  <strong>Time:</strong> {new Date(rec.timestamp).toLocaleString()}
-                </div>
-              </Popup>
-            </CircleMarker>
+            {/* Solid user dot — only for precise (GPS) sources */}
+            {isPrecise && (
+              <CircleMarker
+                center={[userLat, userLng]}
+                radius={5}
+                pathOptions={{ color: userColor, fillColor: userColor, fillOpacity: 0.85, weight: 1 }}
+              >
+                {userPopupBody}
+              </CircleMarker>
+            )}
 
             {/* Map center dot (red) */}
             <CircleMarker
