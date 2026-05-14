@@ -16,7 +16,7 @@ const SOURCE_COLORS = {
 };
 const DEFAULT_USER_COLOR = '#1976d2';
 const CENTER_COLOR = '#d32f2f'; // red
-const LINE_COLOR   = '#757575'; // gray
+const LINE_COLOR   = '#757575'; // gray — used for IPInfoIO lines and unknown sources
 
 // CALOPS-58 Mod 2: default accuracy ring radius (meters) for non-GPS sources.
 // GPS uses real browserGps.accuracy.
@@ -94,6 +94,7 @@ export default function ActivityMapView({ records, onBoundsChange, geoSources })
 
       <InvalidateOnMount />
       <BoundsReporter onBoundsChange={onBoundsChange} />
+      <MapLegend />
 
       {records.map((rec) => {
         const userLat = rec.userLocation?.latitude;
@@ -186,10 +187,12 @@ export default function ActivityMapView({ records, onBoundsChange, geoSources })
               </CircleMarker>
             )}
 
-            {/* Connecting line user → mapCenter — ALWAYS rendered (relationship is source-independent) */}
+            {/* Connecting line user → mapCenter — ALWAYS rendered.
+                IPInfoIO stays grey (wide uncertainty; colored line implies false precision).
+                GPS and Google IP get their source color. */}
             <Polyline
               positions={[[userLat, userLng], [mapLat, mapLng]]}
-              pathOptions={{ color: LINE_COLOR, weight: 1, opacity: 0.4, dashArray: '4 4' }}
+              pathOptions={{ color: source === 'IPInfoIO' ? LINE_COLOR : (SOURCE_COLORS[source] || LINE_COLOR), weight: 1, opacity: 0.4, dashArray: '4 4' }}
             >
               <Tooltip sticky direction="center" opacity={0.9}>
                 <span style={{ fontSize: 11 }}>{distLabel}</span>
@@ -202,6 +205,58 @@ export default function ActivityMapView({ records, onBoundsChange, geoSources })
       <RecenterIfEmpty hasRecords={records.length > 0} />
     </MapContainer>
   );
+}
+
+function MapLegend() {
+  const map = useMap();
+  useEffect(() => {
+    let control;
+    (async () => {
+      const L = (await import('leaflet')).default;
+      const dot  = (color, opacity = 0.9) =>
+        `<span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:${color};opacity:${opacity};margin-right:7px;vertical-align:middle;flex-shrink:0"></span>`;
+      const ring = (color) =>
+        `<span style="display:inline-block;width:13px;height:13px;border-radius:50%;border:2px solid ${color};background:${color};opacity:0.22;margin-right:7px;vertical-align:middle;flex-shrink:0"></span>`;
+      const dash = (color) =>
+        `<span style="display:inline-block;width:18px;height:0;border-top:2px dashed ${color};opacity:0.6;margin-right:7px;vertical-align:middle;flex-shrink:0"></span>`;
+
+      const row = (icon, label) =>
+        `<div style="display:flex;align-items:center;margin-bottom:4px">${icon}<span>${label}</span></div>`;
+
+      const Ctrl = L.Control.extend({
+        onAdd() {
+          const div = L.DomUtil.create('div');
+          div.style.cssText = [
+            'background:rgba(255,255,255,0.93)',
+            'padding:8px 10px',
+            'border-radius:6px',
+            'box-shadow:0 1px 5px rgba(0,0,0,0.28)',
+            'font:12px/1.4 Arial,sans-serif',
+            'color:#333',
+            'min-width:175px',
+            'pointer-events:none',
+          ].join(';');
+          div.innerHTML = [
+            '<strong style="display:block;margin-bottom:6px;font-size:12px">Location source</strong>',
+            row(dot('#2e7d32'), 'Browser GPS (precise)'),
+            row(ring('#1976d2'), 'Google IP (~5 km)'),
+            row(ring('#424242'), 'IP lookup (~50 km)'),
+            '<hr style="margin:5px 0;border:none;border-top:1px solid #ddd">',
+            row(dot('#d32f2f', 0.85), 'Map center viewed'),
+            row(dash('#2e7d32'), 'GPS / Google IP line'),
+            row(dash('#757575'), 'IP lookup line'),
+          ].join('');
+          L.DomEvent.disableClickPropagation(div);
+          L.DomEvent.disableScrollPropagation(div);
+          return div;
+        },
+      });
+      control = new Ctrl({ position: 'bottomleft' });
+      control.addTo(map);
+    })();
+    return () => { if (control) control.remove(); };
+  }, [map]);
+  return null;
 }
 
 function RecenterIfEmpty({ hasRecords }) {

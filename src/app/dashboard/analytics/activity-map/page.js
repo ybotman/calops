@@ -106,8 +106,12 @@ export default function ActivityMapPage() {
       let beReportedTotal = 0;
       for (let page = 0; page < MAX_PAGES; page++) {
         const params = new URLSearchParams();
+        // startDate: start-of-day (midnight from DatePicker is correct)
+        // endDate: force end-of-day so a single-day range (start === finish) includes all records that day
+        const endOfDay = new Date(endDate);
+        endOfDay.setHours(23, 59, 59, 999);
         params.set('startDate', startDate.toISOString());
-        params.set('endDate', endDate.toISOString());
+        params.set('endDate', endOfDay.toISOString());
         params.set('limit', String(PAGE_SIZE));
         params.set('page', String(page));
         params.set('appId', String(appId));
