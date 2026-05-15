@@ -12,16 +12,18 @@ const USA_ZOOM = 4;
 const SOURCE_COLORS = {
   GoogleBrowser:     '#2e7d32', // green — Browser GPS
   GoogleGeolocation: '#1976d2', // blue — Google IP
+  CloudflareEdge:    '#e65100', // orange — Cloudflare edge geo
   IPInfoIO:          '#424242', // dark gray — IP lookup (was #757575)
 };
 const DEFAULT_USER_COLOR = '#1976d2';
 const CENTER_COLOR = '#d32f2f'; // red
-const LINE_COLOR   = '#757575'; // gray
+const LINE_COLOR   = '#757575'; // gray — used for IPInfoIO lines and unknown sources
 
 // CALOPS-58 Mod 2: default accuracy ring radius (meters) for non-GPS sources.
 // GPS uses real browserGps.accuracy.
 const DEFAULT_ACCURACY_M = {
   GoogleGeolocation: 5000,   // Google IP geolocation ~5 km typical
+  CloudflareEdge:    15000,  // Cloudflare edge geo ~15 km typical
   IPInfoIO:          50000,  // IP lookup ~50 km typical
 };
 
@@ -65,11 +67,19 @@ function FixLeafletIcons() {
 // rendering (dot/ring/popup) but the map-center dot + connecting line for that record stay
 // visible. "Where people looked" (red center) is independent of "how their location was
 // resolved" (source).
-export default function ActivityMapView({ records, onBoundsChange, geoSources }) {
+// CALOPS-59: mapMode controls which layer(s) render:
+//   'both'           — user dots + map center dots + connecting line (default)
+//   'mapCenter'      — only red map-center dots (where they browsed)
+//   'userLocation'   — only colored user dots/rings (where they physically are)
+export default function ActivityMapView({ records, onBoundsChange, geoSources, mapMode = 'both' }) {
   const sourceSet = geoSources instanceof Set
     ? geoSources
     : Array.isArray(geoSources) ? new Set(geoSources) : null;
   const sourceVisible = (src) => sourceSet == null ? true : sourceSet.has(src);
+
+  const showUserSide  = mapMode !== 'mapCenter';
+  const showMapCenter = mapMode !== 'userLocation';
+  const showLine      = mapMode === 'both';
   const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
   const tileUrl = mapboxToken
     ? `https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=${mapboxToken}`
@@ -94,13 +104,18 @@ export default function ActivityMapView({ records, onBoundsChange, geoSources })
 
       <InvalidateOnMount />
       <BoundsReporter onBoundsChange={onBoundsChange} />
+      <MapLegend mapMode={mapMode} />
 
       {records.map((rec) => {
         const userLat = rec.userLocation?.latitude;
         const userLng = rec.userLocation?.longitude;
         const mapLat  = rec.mapCenter?.latitude;
         const mapLng  = rec.mapCenter?.longitude;
-        if (userLat == null || userLng == null || mapLat == null || mapLng == null) return null;
+
+        // Each mode only requires the coords it will actually render
+        const needsUser   = showUserSide  && (userLat == null || userLng == null);
+        const needsCenter = showMapCenter && (mapLat  == null || mapLng  == null);
+        if (needsUser || needsCenter) return null;
 
         const source   = rec.userLocation?.source;
         const userColor = SOURCE_COLORS[source] || DEFAULT_USER_COLOR;
@@ -114,14 +129,15 @@ export default function ActivityMapView({ records, onBoundsChange, geoSources })
             ? `~${Math.round(DEFAULT_ACCURACY_M[source] / 1000)} km (default)`
             : 'unknown';
         const userId = rec.firebaseUserId?.slice(-8) || (rec.ip ? `ip:${rec.ip}` : 'anon');
-        const distKm = haversineKm(userLat, userLng, mapLat, mapLng);
+        const distKm = (mapLat != null && mapLng != null) ? haversineKm(userLat, userLng, mapLat, mapLng) : null;
         const distLabel = formatKm(distKm);
 
-        // CALOPS-58e: precise sources (GPS) render dot+ring; imprecise sources (Google IP,
-        // IP lookup) render only the translucent uncertainty circle — the circle IS the marker.
-        // Avoids false-precision of a small dot at the centroid of a 5-50 km uncertainty cloud.
+        // CALOPS-58e: precise sources (GPS) render dot+ring; imprecise sources render only
+        // the translucent uncertainty circle — the circle IS the marker.
+        // IPInfoIO gets a very faint ring (huge 50km radius looks heavy at normal opacity).
         const isPrecise = source === 'GoogleBrowser';
-        const ringOpacity = isPrecise ? 0.12 : 0.20;
+        const ringOpacity = isPrecise ? 0.12 : source === 'IPInfoIO' ? 0.05 : 0.15;
+        const ringWeight  = source === 'IPInfoIO' ? 0.5 : 1;
 
         const userPopupBody = (
           <Popup>
@@ -129,19 +145,19 @@ export default function ActivityMapView({ records, onBoundsChange, geoSources })
               <strong>User:</strong> {userId}<br />
               <strong>Source:</strong> {source || 'unknown'}<br />
               <strong>Accuracy:</strong> {accuracyLabel}<br />
-              <strong>Distance to viewed center:</strong> {distLabel}<br />
+              {distLabel !== '—' && <><strong>Distance to viewed center:</strong> {distLabel}<br /></>}
               <strong>Time:</strong> {new Date(rec.timestamp).toLocaleString()}
             </div>
           </Popup>
         );
 
-        const showUserSide = sourceVisible(source);
+        const showUserDot = showUserSide && sourceVisible(source);
 
         return (
           <Fragment key={rec.id}>
-            {/* User-side rendering (ring + dot) — only when source filter shows this source.
-                Red center + line are ALWAYS rendered regardless of source filter. */}
-            {showUserSide && ringRadius != null && (
+            {/* User-side rendering (ring + dot) — only in 'both' or 'userLocation' mode,
+                and only when source filter includes this source. */}
+            {showUserDot && ringRadius != null && (
               <Circle
                 center={[userLat, userLng]}
                 radius={ringRadius}
@@ -149,7 +165,7 @@ export default function ActivityMapView({ records, onBoundsChange, geoSources })
                   color: userColor,
                   fillColor: userColor,
                   fillOpacity: ringOpacity,
-                  weight: 1,
+                  weight: ringWeight,
                 }}
                 interactive={!isPrecise}
               >
@@ -157,26 +173,28 @@ export default function ActivityMapView({ records, onBoundsChange, geoSources })
               </Circle>
             )}
 
-            {/* Map center dot (red) — ALWAYS rendered; drawn BEFORE GPS dot so when user-GPS
-                coincides with map-center, the green user dot stays visible on top. */}
-            <CircleMarker
-              center={[mapLat, mapLng]}
-              radius={5}
-              pathOptions={{ color: CENTER_COLOR, fillColor: CENTER_COLOR, fillOpacity: 0.85, weight: 1 }}
-            >
-              <Popup>
-                <div style={{ fontSize: 12 }}>
-                  <strong>Map center viewed by</strong> {userId}<br />
-                  <strong>At:</strong> {mapLat.toFixed(4)}, {mapLng.toFixed(4)}<br />
-                  <strong>Distance from user:</strong> {distLabel}<br />
-                  <strong>Time:</strong> {new Date(rec.timestamp).toLocaleString()}
-                </div>
-              </Popup>
-            </CircleMarker>
+            {/* Map center dot (red) — only in 'both' or 'mapCenter' mode.
+                Drawn BEFORE GPS dot so the green user dot stays on top when they overlap. */}
+            {showMapCenter && mapLat != null && (
+              <CircleMarker
+                center={[mapLat, mapLng]}
+                radius={5}
+                pathOptions={{ color: CENTER_COLOR, fillColor: CENTER_COLOR, fillOpacity: 0.85, weight: 1 }}
+              >
+                <Popup>
+                  <div style={{ fontSize: 12 }}>
+                    <strong>Map center viewed by</strong> {userId}<br />
+                    <strong>At:</strong> {mapLat.toFixed(4)}, {mapLng.toFixed(4)}<br />
+                    {distLabel !== '—' && <><strong>Distance from user:</strong> {distLabel}<br /></>}
+                    <strong>Time:</strong> {new Date(rec.timestamp).toLocaleString()}
+                  </div>
+                </Popup>
+              </CircleMarker>
+            )}
 
             {/* Solid user dot — only for precise GPS sources; drawn AFTER red center so it
-                stays on top of overlapping red. White stroke for visibility against red. */}
-            {showUserSide && isPrecise && (
+                stays on top. White stroke for visibility against red. */}
+            {showUserDot && isPrecise && (
               <CircleMarker
                 center={[userLat, userLng]}
                 radius={6}
@@ -186,15 +204,18 @@ export default function ActivityMapView({ records, onBoundsChange, geoSources })
               </CircleMarker>
             )}
 
-            {/* Connecting line user → mapCenter — ALWAYS rendered (relationship is source-independent) */}
-            <Polyline
-              positions={[[userLat, userLng], [mapLat, mapLng]]}
-              pathOptions={{ color: LINE_COLOR, weight: 1, opacity: 0.4, dashArray: '4 4' }}
-            >
-              <Tooltip sticky direction="center" opacity={0.9}>
-                <span style={{ fontSize: 11 }}>{distLabel}</span>
-              </Tooltip>
-            </Polyline>
+            {/* Connecting line user → mapCenter — only in 'both' mode.
+                IPInfoIO stays grey; GPS and Google IP get their source color. */}
+            {showLine && userLat != null && mapLat != null && (
+              <Polyline
+                positions={[[userLat, userLng], [mapLat, mapLng]]}
+                pathOptions={{ color: source === 'IPInfoIO' ? LINE_COLOR : (SOURCE_COLORS[source] || LINE_COLOR), weight: 1, opacity: 0.4, dashArray: '4 4' }}
+              >
+                <Tooltip sticky direction="center" opacity={0.9}>
+                  <span style={{ fontSize: 11 }}>{distLabel}</span>
+                </Tooltip>
+              </Polyline>
+            )}
           </Fragment>
         );
       })}
@@ -202,6 +223,76 @@ export default function ActivityMapView({ records, onBoundsChange, geoSources })
       <RecenterIfEmpty hasRecords={records.length > 0} />
     </MapContainer>
   );
+}
+
+function MapLegend({ mapMode = 'both' }) {
+  const map = useMap();
+  useEffect(() => {
+    let control;
+    (async () => {
+      const L = (await import('leaflet')).default;
+      const dot  = (color, opacity = 0.9) =>
+        `<span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:${color};opacity:${opacity};margin-right:7px;vertical-align:middle;flex-shrink:0"></span>`;
+      const ring = (color) =>
+        `<span style="display:inline-block;width:13px;height:13px;border-radius:50%;border:2px solid ${color};background:${color};opacity:0.22;margin-right:7px;vertical-align:middle;flex-shrink:0"></span>`;
+      const dash = (color) =>
+        `<span style="display:inline-block;width:18px;height:0;border-top:2px dashed ${color};opacity:0.6;margin-right:7px;vertical-align:middle;flex-shrink:0"></span>`;
+
+      const row = (icon, label) =>
+        `<div style="display:flex;align-items:center;margin-bottom:4px">${icon}<span>${label}</span></div>`;
+
+      const userRows = [
+        row(dot('#2e7d32'), 'Browser GPS (precise)'),
+        row(ring('#1976d2'), 'Google IP (~5 km)'),
+        row(ring('#e65100'), 'Cloudflare edge (~15 km)'),
+        row(ring('#424242'), 'IP lookup (~50 km)'),
+      ];
+      const centerRow = row(dot('#d32f2f', 0.85), 'Map center viewed');
+      const lineRows = [
+        row(dash('#2e7d32'), 'GPS / Google IP line'),
+        row(dash('#757575'), 'IP lookup line'),
+      ];
+
+      let rows;
+      if (mapMode === 'userLocation') {
+        rows = ['<strong style="display:block;margin-bottom:6px;font-size:12px">User location</strong>', ...userRows];
+      } else if (mapMode === 'mapCenter') {
+        rows = ['<strong style="display:block;margin-bottom:6px;font-size:12px">Map center viewed</strong>', centerRow];
+      } else {
+        rows = [
+          '<strong style="display:block;margin-bottom:6px;font-size:12px">Location source</strong>',
+          ...userRows,
+          '<hr style="margin:5px 0;border:none;border-top:1px solid #ddd">',
+          centerRow,
+          ...lineRows,
+        ];
+      }
+
+      const Ctrl = L.Control.extend({
+        onAdd() {
+          const div = L.DomUtil.create('div');
+          div.style.cssText = [
+            'background:rgba(255,255,255,0.93)',
+            'padding:8px 10px',
+            'border-radius:6px',
+            'box-shadow:0 1px 5px rgba(0,0,0,0.28)',
+            'font:12px/1.4 Arial,sans-serif',
+            'color:#333',
+            'min-width:175px',
+            'pointer-events:none',
+          ].join(';');
+          div.innerHTML = rows.join('');
+          L.DomEvent.disableClickPropagation(div);
+          L.DomEvent.disableScrollPropagation(div);
+          return div;
+        },
+      });
+      control = new Ctrl({ position: 'bottomleft' });
+      control.addTo(map);
+    })();
+    return () => { if (control) control.remove(); };
+  }, [map, mapMode]);
+  return null;
 }
 
 function RecenterIfEmpty({ hasRecords }) {

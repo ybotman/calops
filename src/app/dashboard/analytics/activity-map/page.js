@@ -33,6 +33,9 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 import WifiIcon from '@mui/icons-material/Wifi';
 import CenterFocusStrongIcon from '@mui/icons-material/CenterFocusStrong';
 import HomeIcon from '@mui/icons-material/Home';
+import PersonPinCircleIcon from '@mui/icons-material/PersonPinCircle';
+import MapIcon from '@mui/icons-material/Map';
+import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
 import axios from 'axios';
 import { format, subDays, isValid } from 'date-fns';
 import { useAppContext } from '@/lib/AppContext';
@@ -52,9 +55,10 @@ const TARGET_TOTAL = 1000;
 const MAX_PAGES = TARGET_TOTAL / PAGE_SIZE;
 
 const SOURCE_OPTIONS = [
-  { key: 'GoogleBrowser',     label: 'Browser GPS', color: '#2e7d32' },
-  { key: 'GoogleGeolocation', label: 'Google IP',   color: '#1976d2' },
-  { key: 'IPInfoIO',          label: 'IP lookup',   color: '#757575' },
+  { key: 'GoogleBrowser',     label: 'Browser GPS',   color: '#2e7d32' },
+  { key: 'GoogleGeolocation', label: 'Google IP',     color: '#1976d2' },
+  { key: 'CloudflareEdge',    label: 'Cloudflare',    color: '#e65100' },
+  { key: 'IPInfoIO',          label: 'IP lookup',     color: '#757575' },
 ];
 const ALL_SOURCE_KEYS = SOURCE_OPTIONS.map((s) => s.key);
 
@@ -84,6 +88,9 @@ export default function ActivityMapPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // CALOPS-59: map mode toggle — 'both' | 'mapCenter' | 'userLocation'
+  const [mapMode, setMapMode] = useState('both');
+
   // Client-side filter state (no re-fetch on change)
   const [geoSources, setGeoSources] = useState(ALL_SOURCE_KEYS);
   const [minQty, setMinQty] = useState(1);
@@ -106,8 +113,12 @@ export default function ActivityMapPage() {
       let beReportedTotal = 0;
       for (let page = 0; page < MAX_PAGES; page++) {
         const params = new URLSearchParams();
+        // startDate: start-of-day (midnight from DatePicker is correct)
+        // endDate: force end-of-day so a single-day range (start === finish) includes all records that day
+        const endOfDay = new Date(endDate);
+        endOfDay.setHours(23, 59, 59, 999);
         params.set('startDate', startDate.toISOString());
-        params.set('endDate', endDate.toISOString());
+        params.set('endDate', endOfDay.toISOString());
         params.set('limit', String(PAGE_SIZE));
         params.set('page', String(page));
         params.set('appId', String(appId));
@@ -172,7 +183,10 @@ export default function ActivityMapPage() {
       const userLng = r.userLocation?.longitude;
       const mapLat = r.mapCenter?.latitude;
       const mapLng = r.mapCenter?.longitude;
-      if (userLat == null || userLng == null || mapLat == null || mapLng == null) return false;
+
+      // Only require coords for layers that will actually render
+      if (mapMode !== 'mapCenter'  && (userLat == null || userLng == null)) return false;
+      if (mapMode !== 'userLocation' && (mapLat == null || mapLng == null)) return false;
 
       // CALOPS-58f: source filter is a SOFT filter (applied in ActivityMapView for the
       // user-side rendering only). Red center + line stay visible regardless of source toggle.
@@ -196,16 +210,16 @@ export default function ActivityMapPage() {
 
       return true;
     });
-  }, [records, ipFilter, minQty, viewportFilter, viewportBounds, localsOnly, localsKm, ipCounts]);
+  }, [records, mapMode, ipFilter, minQty, viewportFilter, viewportBounds, localsOnly, localsKm, ipCounts]);
 
   const mapboxConfigured = !!process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
   const handleSourceToggle = (_e, next) => {
-    // ToggleButtonGroup returns null when all unselected — keep at least one selected? Allow empty (hides all dots).
     setGeoSources(next || []);
   };
 
   const resetFilters = () => {
+    setMapMode('both');
     setGeoSources(ALL_SOURCE_KEYS);
     setMinQty(1);
     setIpFilter('');
@@ -216,7 +230,7 @@ export default function ActivityMapPage() {
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
-      <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 100px)', minHeight: 600 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', height: { xs: 'auto', md: 'calc(100vh - 100px)' }, minHeight: { xs: 'auto', md: 600 } }}>
         <Box sx={{ p: 2, pb: 1, flexShrink: 0 }}>
           <Typography variant="h5" gutterBottom>
             User Activity — Map &amp; Center
@@ -260,6 +274,30 @@ export default function ActivityMapPage() {
 
               <Box sx={{ flexGrow: 1 }} />
 
+              {/* CALOPS-59: mapMode toggle — what to show on the map */}
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                  View
+                </Typography>
+                <ToggleButtonGroup
+                  size="small"
+                  value={mapMode}
+                  exclusive
+                  onChange={(_e, v) => v && setMapMode(v)}
+                  aria-label="Map view mode"
+                >
+                  <ToggleButton value="both" sx={{ textTransform: 'none', px: 1 }}>
+                    <CompareArrowsIcon sx={{ fontSize: 14, mr: 0.5 }} />Both
+                  </ToggleButton>
+                  <ToggleButton value="mapCenter" sx={{ textTransform: 'none', px: 1 }}>
+                    <MapIcon sx={{ fontSize: 14, mr: 0.5, color: '#d32f2f' }} />Map Center
+                  </ToggleButton>
+                  <ToggleButton value="userLocation" sx={{ textTransform: 'none', px: 1 }}>
+                    <PersonPinCircleIcon sx={{ fontSize: 14, mr: 0.5, color: '#2e7d32' }} />User Location
+                  </ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
+
               <Button size="small" onClick={resetFilters} variant="outlined">
                 Reset filters
               </Button>
@@ -272,7 +310,7 @@ export default function ActivityMapPage() {
               {/* Geo source multi-select */}
               <Box>
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-                  Map-center source
+                  Location source
                 </Typography>
                 <ToggleButtonGroup
                   size="small"
@@ -387,7 +425,8 @@ export default function ActivityMapPage() {
           mb: 2,
           border: '1px solid',
           borderColor: 'divider',
-          minHeight: 500,
+          height: { xs: 380, md: 'auto' },
+          minHeight: { xs: 380, md: 500 },
           overflow: 'hidden',
         }}>
           {loading && (
@@ -405,6 +444,7 @@ export default function ActivityMapPage() {
               records={filteredRecords}
               onBoundsChange={setViewportBounds}
               geoSources={geoSources}
+              mapMode={mapMode}
             />
           </Box>
         </Box>

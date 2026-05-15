@@ -40,9 +40,12 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import LoginIcon from '@mui/icons-material/Login';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import MapIcon from '@mui/icons-material/Map';
+import PeopleIcon from '@mui/icons-material/People';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import axios from 'axios';
 import { useAppContext } from '@/lib/AppContext';
-import { format } from 'date-fns';
+import { format, subHours, subDays, subMonths, subYears } from 'date-fns';
 import { useMobileGestures } from '@/hooks/useMobileGestures';
 
 // Helper to get location source display
@@ -72,6 +75,22 @@ const getSourceChip = (location) => {
   );
 };
 
+// Translate timeRange shortcode to {from, to} ISO strings for endpoints
+// that use from=/to= params (e.g. user-location-distribution).
+function timeRangeToFromTo(range) {
+  const to = new Date();
+  const from = {
+    '1H':  subHours(to, 1),
+    '1D':  subDays(to, 1),
+    '7D':  subDays(to, 7),
+    '1M':  subMonths(to, 1),
+    '3M':  subMonths(to, 3),
+    '1Yr': subYears(to, 1),
+  }[range];
+  if (!from) return '';
+  return `&from=${from.toISOString()}&to=${to.toISOString()}`;
+}
+
 /**
  * Activity Tracking Dashboard
  * Shows login history, visitor tracking, and map center history
@@ -84,8 +103,8 @@ export default function ActivityTrackingPage() {
 
   const [tabValue, setTabValue] = useState(0);
 
-  // Mobile swipe gesture for tab navigation
-  const tabCount = 3;
+  // Mobile swipe gesture for tab navigation — CALOPS-59 adds tab 3 (User Locations)
+  const tabCount = 4;
   const { ref: swipeRef, handlers: swipeHandlers } = useMobileGestures({
     onSwipeLeft: () => setTabValue(prev => Math.min(prev + 1, tabCount - 1)),
     onSwipeRight: () => setTabValue(prev => Math.max(prev - 1, 0)),
@@ -100,6 +119,10 @@ export default function ActivityTrackingPage() {
   const [loginHistory, setLoginHistory] = useState([]);
   const [visitorHistory, setVisitorHistory] = useState([]);
   const [mapCenterHistory, setMapCenterHistory] = useState([]);
+  // CALOPS-59: user location distribution from CALBEAF-191
+  const [userLocationDist, setUserLocationDist] = useState([]);
+  const [userLocationLoading, setUserLocationLoading] = useState(false);
+  const [userLocationSort, setUserLocationSort] = useState({ field: 'count', dir: 'desc' });
 
   // Pagination states
   const [loginPagination, setLoginPagination] = useState({ page: 0, total: 0, pages: 0 });
@@ -224,17 +247,38 @@ export default function ActivityTrackingPage() {
     }
   }, [timeRange, rowsPerPage, buildFilterParams]);
 
+  // CALOPS-59: fetch user location distribution (CALBEAF-191)
+  const fetchUserLocationDist = useCallback(async () => {
+    setUserLocationLoading(true);
+    try {
+      const response = await axios.get(
+        `/api/analytics/user-location-distribution?appId=${appId}${timeRangeToFromTo(timeRange)}&_t=${Date.now()}`
+      );
+      if (response.data?.success) {
+        setUserLocationDist(response.data.data || []);
+      } else {
+        setUserLocationDist([]);
+      }
+    } catch {
+      setUserLocationDist([]);
+    } finally {
+      setUserLocationLoading(false);
+    }
+  }, [appId, timeRange]);
+
   // Fetch data based on selected tab
   useEffect(() => {
     if (tabValue === 0) fetchLoginHistory(0);
     else if (tabValue === 1) fetchVisitorHistory(0);
     else if (tabValue === 2) fetchMapCenterHistory(0);
-  }, [tabValue, timeRange, fetchLoginHistory, fetchVisitorHistory, fetchMapCenterHistory]);
+    else if (tabValue === 3) fetchUserLocationDist();
+  }, [tabValue, timeRange, fetchLoginHistory, fetchVisitorHistory, fetchMapCenterHistory, fetchUserLocationDist]);
 
   const handleRefresh = () => {
     if (tabValue === 0) fetchLoginHistory(loginPagination.page);
     else if (tabValue === 1) fetchVisitorHistory(visitorPagination.page);
     else if (tabValue === 2) fetchMapCenterHistory(mapCenterPagination.page);
+    else if (tabValue === 3) fetchUserLocationDist();
   };
 
   const handleTimeRangeChange = (event, newValue) => {
@@ -393,7 +437,7 @@ export default function ActivityTrackingPage() {
 
       {/* Info cards */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={4}>
+        <Grid item xs={12} sm={3}>
           <Paper sx={{ p: 2, borderTop: '4px solid #1976d2' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <LoginIcon color="primary" />
@@ -409,7 +453,7 @@ export default function ActivityTrackingPage() {
             </Typography>
           </Paper>
         </Grid>
-        <Grid item xs={12} sm={4}>
+        <Grid item xs={12} sm={3}>
           <Paper sx={{ p: 2, borderTop: '4px solid #2e7d32' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <VisibilityIcon color="success" />
@@ -425,7 +469,7 @@ export default function ActivityTrackingPage() {
             </Typography>
           </Paper>
         </Grid>
-        <Grid item xs={12} sm={4}>
+        <Grid item xs={12} sm={3}>
           <Paper sx={{ p: 2, borderTop: '4px solid #ed6c02' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <MapIcon color="warning" />
@@ -441,6 +485,22 @@ export default function ActivityTrackingPage() {
             </Typography>
           </Paper>
         </Grid>
+        <Grid item xs={12} sm={3}>
+          <Paper sx={{ p: 2, borderTop: '4px solid #7b1fa2' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <PeopleIcon sx={{ color: '#7b1fa2' }} />
+              <Box>
+                <Typography variant="h6">User Locations</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  lastKnownLocation per user
+                </Typography>
+              </Box>
+            </Box>
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              Where are our users? City/country distribution
+            </Typography>
+          </Paper>
+        </Grid>
       </Grid>
 
       {/* Tabs */}
@@ -449,6 +509,7 @@ export default function ActivityTrackingPage() {
           <Tab icon={<LoginIcon />} label="Login History" iconPosition="start" />
           <Tab icon={<VisibilityIcon />} label="Visitor Tracking" iconPosition="start" />
           <Tab icon={<MapIcon />} label="Map Center" iconPosition="start" />
+          <Tab icon={<PeopleIcon />} label="User Locations" iconPosition="start" />
         </Tabs>
       </Paper>
 
@@ -631,7 +692,7 @@ export default function ActivityTrackingPage() {
         </Paper>
       )}
 
-      {/* Map Center Tab */}
+      {/* Map Center Tab — CALOPS-59: added userLocation.city/country, cascadeSource, frequency */}
       {!loading && tabValue === 2 && (
         <Paper sx={{ p: 2 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
@@ -652,40 +713,73 @@ export default function ActivityTrackingPage() {
                     <TableCell>User ID</TableCell>
                     <TableCell>IP</TableCell>
                     <TableCell>Map Center</TableCell>
-                    <TableCell>Device</TableCell>
                     <TableCell>User Location</TableCell>
+                    <TableCell>Cascade Source</TableCell>
+                    <TableCell>
+                      <Tooltip title="How many times this user changed their map center this session" arrow>
+                        <span>Freq</span>
+                      </Tooltip>
+                    </TableCell>
+                    <TableCell>Source</TableCell>
+                    <TableCell>Device</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {mapCenterHistory.map((entry, i) => (
-                    <TableRow key={entry.id || i} hover>
-                      <TableCell sx={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
-                        {entry.timestamp ? format(new Date(entry.timestamp), 'MMM d, h:mm a') : '-'}
-                      </TableCell>
-                      <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>
-                        <Tooltip title={entry.firebaseUserId || 'No user ID'} arrow>
-                          <span style={{ cursor: 'pointer' }}>{entry.firebaseUserId?.slice(-8) || '-'}</span>
-                        </Tooltip>
-                      </TableCell>
-                      <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>
-                        {entry.ip || '-'}
-                      </TableCell>
-                      <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>
-                        {entry.mapCenter?.latitude?.toFixed(4) || '-'}, {entry.mapCenter?.longitude?.toFixed(4) || '-'}
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={entry.deviceType || 'unknown'}
-                          size="small"
-                          color={entry.deviceType === 'mobile' ? 'primary' : entry.deviceType === 'tablet' ? 'secondary' : 'default'}
-                          sx={{ fontSize: '0.7rem' }}
-                        />
-                      </TableCell>
-                      <TableCell sx={{ fontSize: '0.75rem' }}>
-                        {[entry.userLocation?.ipLookup?.city, entry.userLocation?.ipLookup?.region, entry.userLocation?.ipLookup?.country].filter(Boolean).join(', ') || '-'}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {mapCenterHistory.map((entry, i) => {
+                    const ulCity    = entry.userLocation?.city;
+                    const ulCountry = entry.userLocation?.country;
+                    const ulDisplay = [ulCity, ulCountry].filter(Boolean).join(', ') || '-';
+                    return (
+                      <TableRow key={entry.id || i} hover>
+                        <TableCell sx={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
+                          {entry.timestamp ? format(new Date(entry.timestamp), 'MMM d, h:mm a') : '-'}
+                        </TableCell>
+                        <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>
+                          <Tooltip title={entry.firebaseUserId || 'No user ID'} arrow>
+                            <span style={{ cursor: 'pointer' }}>{entry.firebaseUserId?.slice(-8) || '-'}</span>
+                          </Tooltip>
+                        </TableCell>
+                        <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>
+                          {entry.ip || '-'}
+                        </TableCell>
+                        <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>
+                          <Tooltip title={`${entry.mapCenter?.latitude?.toFixed(5) || '-'}, ${entry.mapCenter?.longitude?.toFixed(5) || '-'}`} arrow>
+                            <span>
+                              {[entry.mapCenter?.city, entry.mapCenter?.country].filter(Boolean).join(', ')
+                                || `${entry.mapCenter?.latitude?.toFixed(3) || '-'}, ${entry.mapCenter?.longitude?.toFixed(3) || '-'}`}
+                            </span>
+                          </Tooltip>
+                        </TableCell>
+                        <TableCell sx={{ fontSize: '0.75rem' }}>
+                          {ulDisplay}
+                        </TableCell>
+                        <TableCell>
+                          {entry.cascadeSource ? (
+                            <Chip
+                              label={entry.cascadeSource}
+                              size="small"
+                              variant="outlined"
+                              sx={{ fontSize: '0.65rem', height: 20 }}
+                            />
+                          ) : '-'}
+                        </TableCell>
+                        <TableCell sx={{ fontSize: '0.75rem', textAlign: 'center' }}>
+                          {entry.frequency ?? '-'}
+                        </TableCell>
+                        <TableCell>
+                          {getSourceChip(entry.userLocation)}
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={entry.deviceType || 'unknown'}
+                            size="small"
+                            color={entry.deviceType === 'mobile' ? 'primary' : entry.deviceType === 'tablet' ? 'secondary' : 'default'}
+                            sx={{ fontSize: '0.7rem' }}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
               <TablePagination
@@ -698,6 +792,99 @@ export default function ActivityTrackingPage() {
                 rowsPerPageOptions={[25, 50, 100]}
               />
             </>
+          )}
+        </Paper>
+      )}
+      {/* User Locations Tab — CALOPS-59: where are our users? (lastKnownLocation distribution) */}
+      {tabValue === 3 && (
+        <Paper sx={{ p: 2 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Box>
+              <Typography variant="h6">Where are our users?</Typography>
+              <Typography variant="caption" color="text.secondary">
+                Users whose <code>lastKnownLocation</code> was updated within the selected time range. Populated by CF geo headers.
+                May show 0 rows until TEST traffic flows.
+              </Typography>
+            </Box>
+          </Box>
+
+          {userLocationLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : userLocationDist.length === 0 ? (
+            <Typography color="text.secondary" textAlign="center" py={4}>
+              No user location data yet — will populate as logged-in users visit on TEST.
+            </Typography>
+          ) : (
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>#</TableCell>
+                  <TableCell>
+                    <Box
+                      sx={{ display: 'flex', alignItems: 'center', gap: 0.5, cursor: 'pointer', userSelect: 'none' }}
+                      onClick={() => setUserLocationSort(s =>
+                        s.field === 'city' ? { field: 'city', dir: s.dir === 'asc' ? 'desc' : 'asc' } : { field: 'city', dir: 'asc' }
+                      )}
+                    >
+                      City
+                      {userLocationSort.field === 'city' && (
+                        userLocationSort.dir === 'asc' ? <ArrowUpwardIcon sx={{ fontSize: 14 }} /> : <ArrowDownwardIcon sx={{ fontSize: 14 }} />
+                      )}
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Box
+                      sx={{ display: 'flex', alignItems: 'center', gap: 0.5, cursor: 'pointer', userSelect: 'none' }}
+                      onClick={() => setUserLocationSort(s =>
+                        s.field === 'country' ? { field: 'country', dir: s.dir === 'asc' ? 'desc' : 'asc' } : { field: 'country', dir: 'asc' }
+                      )}
+                    >
+                      Country
+                      {userLocationSort.field === 'country' && (
+                        userLocationSort.dir === 'asc' ? <ArrowUpwardIcon sx={{ fontSize: 14 }} /> : <ArrowDownwardIcon sx={{ fontSize: 14 }} />
+                      )}
+                    </Box>
+                  </TableCell>
+                  <TableCell align="right">
+                    <Box
+                      sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.5, cursor: 'pointer', userSelect: 'none' }}
+                      onClick={() => setUserLocationSort(s =>
+                        s.field === 'count' ? { field: 'count', dir: s.dir === 'asc' ? 'desc' : 'asc' } : { field: 'count', dir: 'desc' }
+                      )}
+                    >
+                      Users
+                      {userLocationSort.field === 'count' && (
+                        userLocationSort.dir === 'asc' ? <ArrowUpwardIcon sx={{ fontSize: 14 }} /> : <ArrowDownwardIcon sx={{ fontSize: 14 }} />
+                      )}
+                    </Box>
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {[...userLocationDist]
+                  .sort((a, b) => {
+                    const { field, dir } = userLocationSort;
+                    const av = (a[field] ?? '').toString().toLowerCase();
+                    const bv = (b[field] ?? '').toString().toLowerCase();
+                    const cmp = field === 'count'
+                      ? (Number(a.count) || 0) - (Number(b.count) || 0)
+                      : av.localeCompare(bv);
+                    return dir === 'asc' ? cmp : -cmp;
+                  })
+                  .map((row, i) => (
+                    <TableRow key={`${row.city}-${row.country}-${i}`} hover>
+                      <TableCell sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>{i + 1}</TableCell>
+                      <TableCell sx={{ fontSize: '0.85rem' }}>{row.city || '—'}</TableCell>
+                      <TableCell>
+                        <Chip label={row.country || '?'} size="small" variant="outlined" sx={{ fontSize: '0.7rem', height: 22 }} />
+                      </TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 600, fontSize: '0.85rem' }}>{row.count}</TableCell>
+                    </TableRow>
+                  ))}
+              </TableBody>
+            </Table>
           )}
         </Paper>
       )}
