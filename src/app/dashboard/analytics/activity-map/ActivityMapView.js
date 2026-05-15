@@ -13,7 +13,9 @@ const SOURCE_COLORS = {
   GoogleBrowser:     '#2e7d32', // green — Browser GPS
   GoogleGeolocation: '#1976d2', // blue — Google IP
   CloudflareEdge:    '#e65100', // orange — Cloudflare edge geo
-  IPInfoIO:          '#424242', // dark gray — IP lookup (was #757575)
+  IPInfoIO:          '#424242', // dark gray — IP lookup
+  ModalPick:         '#7b1fa2', // purple — user typed a city
+  Unknown:           '#9e9e9e', // light gray — unresolved
 };
 const DEFAULT_USER_COLOR = '#1976d2';
 const CENTER_COLOR = '#d32f2f'; // red
