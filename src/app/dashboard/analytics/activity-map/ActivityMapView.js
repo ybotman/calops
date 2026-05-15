@@ -12,6 +12,7 @@ const USA_ZOOM = 4;
 const SOURCE_COLORS = {
   GoogleBrowser:     '#2e7d32', // green — Browser GPS
   GoogleGeolocation: '#1976d2', // blue — Google IP
+  CloudflareEdge:    '#e65100', // orange — Cloudflare edge geo
   IPInfoIO:          '#424242', // dark gray — IP lookup (was #757575)
 };
 const DEFAULT_USER_COLOR = '#1976d2';
@@ -22,6 +23,7 @@ const LINE_COLOR   = '#757575'; // gray — used for IPInfoIO lines and unknown 
 // GPS uses real browserGps.accuracy.
 const DEFAULT_ACCURACY_M = {
   GoogleGeolocation: 5000,   // Google IP geolocation ~5 km typical
+  CloudflareEdge:    15000,  // Cloudflare edge geo ~15 km typical
   IPInfoIO:          50000,  // IP lookup ~50 km typical
 };
 
@@ -130,11 +132,12 @@ export default function ActivityMapView({ records, onBoundsChange, geoSources, m
         const distKm = (mapLat != null && mapLng != null) ? haversineKm(userLat, userLng, mapLat, mapLng) : null;
         const distLabel = formatKm(distKm);
 
-        // CALOPS-58e: precise sources (GPS) render dot+ring; imprecise sources (Google IP,
-        // IP lookup) render only the translucent uncertainty circle — the circle IS the marker.
-        // Avoids false-precision of a small dot at the centroid of a 5-50 km uncertainty cloud.
+        // CALOPS-58e: precise sources (GPS) render dot+ring; imprecise sources render only
+        // the translucent uncertainty circle — the circle IS the marker.
+        // IPInfoIO gets a very faint ring (huge 50km radius looks heavy at normal opacity).
         const isPrecise = source === 'GoogleBrowser';
-        const ringOpacity = isPrecise ? 0.12 : 0.20;
+        const ringOpacity = isPrecise ? 0.12 : source === 'IPInfoIO' ? 0.05 : 0.15;
+        const ringWeight  = source === 'IPInfoIO' ? 0.5 : 1;
 
         const userPopupBody = (
           <Popup>
@@ -162,7 +165,7 @@ export default function ActivityMapView({ records, onBoundsChange, geoSources, m
                   color: userColor,
                   fillColor: userColor,
                   fillOpacity: ringOpacity,
-                  weight: 1,
+                  weight: ringWeight,
                 }}
                 interactive={!isPrecise}
               >
@@ -241,6 +244,7 @@ function MapLegend({ mapMode = 'both' }) {
       const userRows = [
         row(dot('#2e7d32'), 'Browser GPS (precise)'),
         row(ring('#1976d2'), 'Google IP (~5 km)'),
+        row(ring('#e65100'), 'Cloudflare edge (~15 km)'),
         row(ring('#424242'), 'IP lookup (~50 km)'),
       ];
       const centerRow = row(dot('#d32f2f', 0.85), 'Map center viewed');
