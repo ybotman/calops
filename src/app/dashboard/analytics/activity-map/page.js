@@ -55,9 +55,10 @@ const TARGET_TOTAL = 1000;
 const MAX_PAGES = TARGET_TOTAL / PAGE_SIZE;
 
 const SOURCE_OPTIONS = [
-  { key: 'GoogleBrowser',     label: 'Browser GPS', color: '#2e7d32' },
-  { key: 'GoogleGeolocation', label: 'Google IP',   color: '#1976d2' },
-  { key: 'IPInfoIO',          label: 'IP lookup',   color: '#757575' },
+  { key: 'GoogleBrowser',     label: 'Browser GPS',   color: '#2e7d32' },
+  { key: 'GoogleGeolocation', label: 'Google IP',     color: '#1976d2' },
+  { key: 'CloudflareEdge',    label: 'Cloudflare',    color: '#e65100' },
+  { key: 'IPInfoIO',          label: 'IP lookup',     color: '#757575' },
 ];
 const ALL_SOURCE_KEYS = SOURCE_OPTIONS.map((s) => s.key);
 
@@ -229,7 +230,7 @@ export default function ActivityMapPage() {
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
-      <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 100px)', minHeight: 600 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', height: { xs: 'auto', md: 'calc(100vh - 100px)' }, minHeight: { xs: 'auto', md: 600 } }}>
         <Box sx={{ p: 2, pb: 1, flexShrink: 0 }}>
           <Typography variant="h5" gutterBottom>
             User Activity — Map &amp; Center
@@ -309,7 +310,7 @@ export default function ActivityMapPage() {
               {/* Geo source multi-select */}
               <Box>
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-                  Map-center source
+                  Location source
                 </Typography>
                 <ToggleButtonGroup
                   size="small"
@@ -424,7 +425,8 @@ export default function ActivityMapPage() {
           mb: 2,
           border: '1px solid',
           borderColor: 'divider',
-          minHeight: 500,
+          height: { xs: 380, md: 'auto' },
+          minHeight: { xs: 380, md: 500 },
           overflow: 'hidden',
         }}>
           {loading && (
