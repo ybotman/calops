@@ -236,7 +236,7 @@ export default function ActivityTrackingPage() {
     setUserLocationLoading(true);
     try {
       const response = await axios.get(
-        `/api/analytics/user-location-distribution?appId=${appId}&_t=${Date.now()}`
+        `/api/analytics/user-location-distribution?appId=${appId}&range=${timeRange}&_t=${Date.now()}`
       );
       if (response.data?.success) {
         setUserLocationDist(response.data.data || []);
@@ -248,7 +248,7 @@ export default function ActivityTrackingPage() {
     } finally {
       setUserLocationLoading(false);
     }
-  }, [appId]);
+  }, [appId, timeRange]);
 
   // Fetch data based on selected tab
   useEffect(() => {
@@ -786,7 +786,7 @@ export default function ActivityTrackingPage() {
             <Box>
               <Typography variant="h6">Where are our users?</Typography>
               <Typography variant="caption" color="text.secondary">
-                Based on <code>lastKnownLocation</code> on user profiles. Populated by CF geo headers.
+                Users whose <code>lastKnownLocation</code> was updated within the selected time range. Populated by CF geo headers.
                 May show 0 rows until TEST traffic flows.
               </Typography>
             </Box>
