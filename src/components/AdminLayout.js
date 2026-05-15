@@ -64,6 +64,7 @@ const userActivityItems = [
   { name: 'Login',        icon: <AccessTimeIcon />,   href: '/dashboard/analytics/logins' },
   { name: 'Stream',       icon: <AccessTimeIcon />,   href: '/dashboard/analytics/activity-tracking' },
   { name: 'Map & Center', icon: <MapIcon />,          href: '/dashboard/analytics/activity-map' },
+  { name: 'Session Geo',  icon: <CloudIcon />,        href: '/dashboard/analytics/session-geo' },
   { name: 'Search',       icon: <PersonSearchIcon />, href: '/dashboard/analytics/user-activity' },
 ];
 
