@@ -194,13 +194,25 @@ export default function ActivityMapView({ records, onBoundsChange, geoSources, m
               </CircleMarker>
             )}
 
-            {/* Solid user dot — only for precise GPS sources; drawn AFTER red center so it
-                stays on top. White stroke for visibility against red. */}
+            {/* Solid user dot — GPS sources get large dot with white stroke; ring-based sources
+                get a smaller center dot so they're visible at any zoom level. */}
             {showUserDot && isPrecise && (
               <CircleMarker
                 center={[userLat, userLng]}
                 radius={6}
                 pathOptions={{ color: '#ffffff', fillColor: userColor, fillOpacity: 1.0, weight: 1.5 }}
+              >
+                {userPopupBody}
+              </CircleMarker>
+            )}
+
+            {/* Center dot for ring-based sources (CF, IPInfoIO, GoogleGeolocation) — the ring
+                alone is invisible at national zoom; dot makes them always visible. */}
+            {showUserDot && !isPrecise && ringRadius != null && (
+              <CircleMarker
+                center={[userLat, userLng]}
+                radius={4}
+                pathOptions={{ color: userColor, fillColor: userColor, fillOpacity: 0.85, weight: 1 }}
               >
                 {userPopupBody}
               </CircleMarker>
