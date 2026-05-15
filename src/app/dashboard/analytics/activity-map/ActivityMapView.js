@@ -206,6 +206,17 @@ export default function ActivityMapView({ records, onBoundsChange, geoSources, m
               </CircleMarker>
             )}
 
+            {/* Fallback dot for sources with no ring radius (Unknown, ModalPick, etc.) */}
+            {showUserDot && !isPrecise && ringRadius == null && (
+              <CircleMarker
+                center={[userLat, userLng]}
+                radius={5}
+                pathOptions={{ color: userColor, fillColor: userColor, fillOpacity: 0.8, weight: 1 }}
+              >
+                {userPopupBody}
+              </CircleMarker>
+            )}
+
             {/* Connecting line user → mapCenter — only in 'both' mode.
                 IPInfoIO stays grey; GPS and Google IP get their source color. */}
             {showLine && userLat != null && mapLat != null && (
