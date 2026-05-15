@@ -36,6 +36,7 @@ import HomeIcon from '@mui/icons-material/Home';
 import PersonPinCircleIcon from '@mui/icons-material/PersonPinCircle';
 import MapIcon from '@mui/icons-material/Map';
 import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
+import CloudIcon from '@mui/icons-material/Cloud';
 import axios from 'axios';
 import { format, subDays, isValid } from 'date-fns';
 import { useAppContext } from '@/lib/AppContext';
@@ -322,6 +323,7 @@ export default function ActivityMapPage() {
                     <ToggleButton key={s.key} value={s.key} sx={{ textTransform: 'none', px: 1 }}>
                       {s.key === 'GoogleBrowser' && <GpsFixedIcon sx={{ fontSize: 14, mr: 0.5, color: s.color }} />}
                       {s.key === 'GoogleGeolocation' && <LocationOnIcon sx={{ fontSize: 14, mr: 0.5, color: s.color }} />}
+                      {s.key === 'CloudflareEdge' && <CloudIcon sx={{ fontSize: 14, mr: 0.5, color: s.color }} />}
                       {s.key === 'IPInfoIO' && <WifiIcon sx={{ fontSize: 14, mr: 0.5, color: s.color }} />}
                       {s.label}
                     </ToggleButton>
