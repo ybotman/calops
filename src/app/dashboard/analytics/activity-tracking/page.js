@@ -45,7 +45,7 @@ import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import axios from 'axios';
 import { useAppContext } from '@/lib/AppContext';
-import { format } from 'date-fns';
+import { format, subHours, subDays, subMonths, subYears } from 'date-fns';
 import { useMobileGestures } from '@/hooks/useMobileGestures';
 
 // Helper to get location source display
@@ -74,6 +74,22 @@ const getSourceChip = (location) => {
     </Tooltip>
   );
 };
+
+// Translate timeRange shortcode to {from, to} ISO strings for endpoints
+// that use from=/to= params (e.g. user-location-distribution).
+function timeRangeToFromTo(range) {
+  const to = new Date();
+  const from = {
+    '1H':  subHours(to, 1),
+    '1D':  subDays(to, 1),
+    '7D':  subDays(to, 7),
+    '1M':  subMonths(to, 1),
+    '3M':  subMonths(to, 3),
+    '1Yr': subYears(to, 1),
+  }[range];
+  if (!from) return '';
+  return `&from=${from.toISOString()}&to=${to.toISOString()}`;
+}
 
 /**
  * Activity Tracking Dashboard
@@ -236,7 +252,7 @@ export default function ActivityTrackingPage() {
     setUserLocationLoading(true);
     try {
       const response = await axios.get(
-        `/api/analytics/user-location-distribution?appId=${appId}&range=${timeRange}&_t=${Date.now()}`
+        `/api/analytics/user-location-distribution?appId=${appId}${timeRangeToFromTo(timeRange)}&_t=${Date.now()}`
       );
       if (response.data?.success) {
         setUserLocationDist(response.data.data || []);
