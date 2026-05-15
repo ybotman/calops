@@ -139,17 +139,20 @@ export default function SessionGeoPage() {
     setError(null);
     try {
       const { from, to } = timeRangeToFromTo(timeRange);
-      const params = new URLSearchParams({ appId });
-      if (from) params.set('from', from);
-      if (to) params.set('to', to);
-
-      const res = await axios.get(`/api/analytics/session-geo?${params}&_t=${Date.now()}`);
-      if (res.data?.success) {
-        setRecords(res.data.data || []);
-        setEndpointReady(true);
-      } else {
-        throw new Error(res.data?.error || 'Endpoint not yet available');
+      // Paginate up to 1000 records (5 pages × 200 cap, same pattern as Activity Map)
+      const all = [];
+      for (let page = 0; page < 5; page++) {
+        const params = new URLSearchParams({ appId, limit: '200', page: String(page) });
+        if (from) params.set('from', from);
+        if (to) params.set('to', to);
+        const res = await axios.get(`/api/analytics/session-geo?${params}&_t=${Date.now()}`);
+        if (!res.data?.success) throw new Error(res.data?.error || 'Endpoint not yet available');
+        const batch = res.data.data || [];
+        all.push(...batch);
+        if (page === 0) setEndpointReady(true);
+        if (batch.length < 200) break;
       }
+      setRecords(all);
     } catch (err) {
       if (err.response?.status === 404) {
         setEndpointReady(false);
@@ -163,8 +166,7 @@ export default function SessionGeoPage() {
     }
   }, [appId, timeRange]);
 
-  useEffect(() => { fetchRecords(); }, []);
-  useEffect(() => { fetchRecords(); }, [timeRange, appId]);
+  useEffect(() => { fetchRecords(); }, [fetchRecords]);
 
   // Adapt sessiongeoanalytics records to ActivityMapView shape
   const mapRecords = useMemo(() => records
